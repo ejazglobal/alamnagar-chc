@@ -1,0 +1,17 @@
+{
+  "name": "alamnagar-chc",
+  "version": "1.0.0",
+  "description": "Secure web application for Alamnagar Charitable Healthcare Centre",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.22.2",
+    "sqlite3": "^5.1.7"
+  },
+  "author": "Antigravity",
+  "license": "ISC"
+}

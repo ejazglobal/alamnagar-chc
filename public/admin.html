@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alamnagar Charitable Healthcare Centre - Admin Dashboard</title>
+  <meta name="description" content="Manage appointments, read details, and publish health announcements.">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="logo" id="nav-logo">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 10.5H13.5V5C13.5 4.17 12.83 3.5 12 3.5C11.17 3.5 10.5 4.17 10.5 5V10.5H5C4.17 10.5 3.5 11.17 3.5 12C3.5 12.83 4.17 13.5 5 13.5H10.5V19C10.5 19.83 11.17 20.5 12 20.5C12.83 20.5 13.5 19.83 13.5 19V13.5H19C19.83 13.5 20.5 12.83 20.5 12C20.5 11.17 19.83 10.5 19 10.5Z"/>
+        </svg>
+        <span>Alamnagar CHC</span>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link" id="link-home">Home</a>
+        <a href="admin.html" class="nav-link active" id="link-admin">Admin Dashboard</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Admin Login Security Gate (Simulated) -->
+  <div class="admin-gate" id="admin-login-gate">
+    <h2 class="admin-gate-title">Admin Dashboard Sign In</h2>
+    <div id="login-error" class="status-banner error" style="display: none; margin-bottom: 1rem;"></div>
+    <form id="admin-login-form">
+      <div class="form-group">
+        <label class="form-label" for="admin-passcode">Enter Admin Access Code *</label>
+        <input type="password" id="admin-passcode" class="form-control" placeholder="••••••••" required>
+        <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">For testing: Use passcode <strong>admin123</strong></span>
+      </div>
+      <button type="submit" class="btn">Unlock Dashboard</button>
+    </form>
+  </div>
+
+  <!-- Authenticated Admin Board -->
+  <main id="admin-dashboard-view" style="display: none;">
+    <div class="hero" style="padding: 2rem 1.5rem;">
+      <div class="hero-content">
+        <h1 style="font-size: 2rem;">Staff Management Console</h1>
+        <p style="margin-bottom: 0;">Review appointments, reschedule visits, and post announcements for the general public.</p>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="admin-grid">
+
+      <!-- Left Column: News posting & Stats -->
+      <div>
+        <!-- Stats -->
+        <section class="panel" style="margin-bottom: 1.5rem;">
+          <h2 class="panel-title" style="font-size: 1.15rem; margin-bottom: 1rem;">Consultation Metrics</h2>
+          <div class="stats-bar">
+            <div class="stat-card">
+              <div class="stat-val" id="stat-total">0</div>
+              <div class="stat-lbl">Total</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" id="stat-pending" style="color: var(--warning);">0</div>
+              <div class="stat-lbl">Pending</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" id="stat-approved" style="color: var(--success);">0</div>
+              <div class="stat-lbl">Approved</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Post News Form -->
+        <section class="panel">
+          <h2 class="panel-title">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Post Update / Event
+          </h2>
+
+          <div id="news-status-banner" class="status-banner" style="margin-bottom: 1rem;"></div>
+
+          <form id="news-post-form">
+            <div class="form-group">
+              <label class="form-label" for="news-title">Announcement Title *</label>
+              <input type="text" id="news-title" class="form-control" placeholder="e.g. Free Dental Camp" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="news-category">Category *</label>
+              <select id="news-category" class="form-control" style="background-color: white;" required>
+                <option value="News">News Announcement</option>
+                <option value="Event">Community Event</option>
+                <option value="Alert">Urgent Health Alert</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="news-image">Cover Image Link (Optional URL)</label>
+              <input type="url" id="news-image" class="form-control" placeholder="https://images.unsplash.com/photo-...">
+              <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Leave empty for default medical placeholder image.</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="news-content">Full Message / Description *</label>
+              <textarea id="news-content" class="form-control" placeholder="Details about this update..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn">Publish Announcement</button>
+          </form>
+        </section>
+      </div>
+
+      <!-- Right Column: Appointment management list -->
+      <section class="panel">
+        <h2 class="panel-title">
+          <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+          Patient Appointment Requests
+        </h2>
+
+        <!-- Fallback notice -->
+        <div id="admin-demo-mode-notice" class="fallback-notice" style="display: none;">
+          <svg fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+          <span>Running in Offline Demo Mode. Updates will only persist in your local browser cache.</span>
+        </div>
+
+        <div id="appt-status-banner" class="status-banner" style="margin-bottom: 1rem;"></div>
+
+        <!-- Filters & Search -->
+        <div class="filters-bar">
+          <div class="filter-btn-group" id="filter-group">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="pending">Pending</button>
+            <button class="filter-btn" data-filter="approved">Approved</button>
+            <button class="filter-btn" data-filter="cancelled">Cancelled</button>
+          </div>
+          <input type="search" id="appt-search" class="search-input" placeholder="Search by name/phone...">
+        </div>
+
+        <!-- Appointment Logs Table -->
+        <div class="table-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Contact Details</th>
+                <th>Date & Time</th>
+                <th>Status</th>
+                <th style="width: 130px; text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="appointments-tbody">
+              <!-- Dynamically populated -->
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">Loading appointment requests...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">Alamnagar Charitable Healthcare Centre - Staff Panel</div>
+      <p>&copy; 2026 Alamnagar CHC. Confidential healthcare staff utility.</p>
+    </div>
+  </footer>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
