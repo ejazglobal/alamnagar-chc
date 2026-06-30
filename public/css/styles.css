@@ -1044,3 +1044,19 @@ footer {
   color: var(--danger);
   margin-left: 0.25rem;
 }
+
+.weekday-checkbox-grid label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+.weekday-checkbox-grid input[type="checkbox"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}

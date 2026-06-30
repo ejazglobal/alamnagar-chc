@@ -322,6 +322,26 @@ module.exports = {
     return res.rows[0] || null;
   },
 
+  createDoctor: async (doctor) => {
+    const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = doctor;
+    const query = `INSERT INTO doctors (name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const res = await db.execute({ sql: query, args: [name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url || "", visiting_days] });
+    return { id: Number(res.lastInsertRowid), ...doctor };
+  },
+
+  updateDoctor: async (id, doctor) => {
+    const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = doctor;
+    const query = `UPDATE doctors SET name_en = ?, name_bn = ?, specialty_en = ?, specialty_bn = ?, info_en = ?, info_bn = ?, visiting_hours_en = ?, visiting_hours_bn = ?, image_url = ?, visiting_days = ? WHERE id = ?`;
+    const res = await db.execute({ sql: query, args: [name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url || "", visiting_days, id] });
+    return { changes: res.rowsAffected };
+  },
+
+  deleteDoctor: async (id) => {
+    const query = `DELETE FROM doctors WHERE id = ?`;
+    const res = await db.execute({ sql: query, args: [id] });
+    return { changes: res.rowsAffected };
+  },
+
   getAllGallery: async () => {
     const res = await db.execute("SELECT * FROM gallery ORDER BY created_at DESC");
     return res.rows;

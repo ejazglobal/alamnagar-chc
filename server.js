@@ -385,6 +385,151 @@ app.get('/api/doctors', async (req, res) => {
   }
 });
 
+// 5.3a Add a new doctor (Admin & Staff Only)
+app.post('/api/doctors', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can manage doctors.' });
+  }
+
+  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = req.body;
+
+  if (!name_en || !name_bn || !specialty_en || !specialty_bn || !visiting_hours_en || !visiting_hours_bn || !visiting_days) {
+    return res.status(400).json({ error: 'All fields except photo are required.' });
+  }
+
+  let finalImageUrl = image_url;
+  if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
+    finalImageUrl = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80';
+  } else if (image_url.startsWith('data:image/')) {
+    try {
+      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
+      if (matches) {
+        const ext = matches[1];
+        const data = matches[2];
+        const buffer = Buffer.from(data, 'base64');
+        const filename = `doctor_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+        const imagesDir = path.join(__dirname, 'images');
+        if (!fs.existsSync(imagesDir)) {
+          fs.mkdirSync(imagesDir, { recursive: true });
+        }
+        const filePath = path.join(imagesDir, filename);
+        fs.writeFileSync(filePath, buffer);
+        finalImageUrl = `/images/${filename}`;
+      }
+    } catch (writeErr) {
+      console.error('Failed to write uploaded doctor image:', writeErr);
+      finalImageUrl = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80';
+    }
+  }
+
+  try {
+    const newDoc = await db.createDoctor({
+      name_en: name_en.trim(),
+      name_bn: name_bn.trim(),
+      specialty_en: specialty_en.trim(),
+      specialty_bn: specialty_bn.trim(),
+      info_en: info_en ? info_en.trim() : '',
+      info_bn: info_bn ? info_bn.trim() : '',
+      visiting_hours_en: visiting_hours_en.trim(),
+      visiting_hours_bn: visiting_hours_bn.trim(),
+      image_url: finalImageUrl.trim(),
+      visiting_days: visiting_days.trim()
+    });
+    res.status(201).json(newDoc);
+  } catch (error) {
+    console.error('Error creating doctor:', error);
+    res.status(500).json({ error: 'Failed to add doctor record.' });
+  }
+});
+
+// 5.3b Edit doctor details (Admin & Staff Only)
+app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can manage doctors.' });
+  }
+
+  const docId = parseInt(req.params.id, 10);
+  if (isNaN(docId)) {
+    return res.status(400).json({ error: 'Invalid doctor ID.' });
+  }
+
+  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = req.body;
+
+  if (!name_en || !name_bn || !specialty_en || !specialty_bn || !visiting_hours_en || !visiting_hours_bn || !visiting_days) {
+    return res.status(400).json({ error: 'All fields except photo are required.' });
+  }
+
+  let finalImageUrl = image_url;
+  if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
+    finalImageUrl = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80';
+  } else if (image_url.startsWith('data:image/')) {
+    try {
+      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
+      if (matches) {
+        const ext = matches[1];
+        const data = matches[2];
+        const buffer = Buffer.from(data, 'base64');
+        const filename = `doctor_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+        const imagesDir = path.join(__dirname, 'images');
+        if (!fs.existsSync(imagesDir)) {
+          fs.mkdirSync(imagesDir, { recursive: true });
+        }
+        const filePath = path.join(imagesDir, filename);
+        fs.writeFileSync(filePath, buffer);
+        finalImageUrl = `/images/${filename}`;
+      }
+    } catch (writeErr) {
+      console.error('Failed to write uploaded doctor image:', writeErr);
+      finalImageUrl = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80';
+    }
+  }
+
+  try {
+    const result = await db.updateDoctor(docId, {
+      name_en: name_en.trim(),
+      name_bn: name_bn.trim(),
+      specialty_en: specialty_en.trim(),
+      specialty_bn: specialty_bn.trim(),
+      info_en: info_en ? info_en.trim() : '',
+      info_bn: info_bn ? info_bn.trim() : '',
+      visiting_hours_en: visiting_hours_en.trim(),
+      visiting_hours_bn: visiting_hours_bn.trim(),
+      image_url: finalImageUrl.trim(),
+      visiting_days: visiting_days.trim()
+    });
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Doctor not found.' });
+    }
+    res.json({ message: 'Doctor record updated successfully.', image_url: finalImageUrl });
+  } catch (error) {
+    console.error('Error updating doctor:', error);
+    res.status(500).json({ error: 'Failed to update doctor record.' });
+  }
+});
+
+// 5.3c Delete a doctor (Admin & Staff Only)
+app.delete('/api/doctors/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can manage doctors.' });
+  }
+
+  const docId = parseInt(req.params.id, 10);
+  if (isNaN(docId)) {
+    return res.status(400).json({ error: 'Invalid doctor ID.' });
+  }
+
+  try {
+    const result = await db.deleteDoctor(docId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Doctor not found.' });
+    }
+    res.json({ message: 'Doctor record deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting doctor:', error);
+    res.status(500).json({ error: 'Failed to delete doctor record.' });
+  }
+});
+
 // 5.4 Get all gallery images (Public)
 app.get('/api/gallery', async (req, res) => {
   try {

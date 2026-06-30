@@ -141,6 +141,33 @@
           </div>
         </section>
 
+        <!-- Manage Doctors Panel -->
+        <section class="panel" style="margin-top: 1.5rem;">
+          <h2 class="panel-title">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Manage Medical Registry (Doctors)
+          </h2>
+          <div class="table-wrapper">
+            <table class="news-manage-table">
+              <thead>
+                <tr>
+                  <th>Doctor Name</th>
+                  <th>Specialty</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="doctors-manage-tbody">
+                <!-- Dynamically populated -->
+                <tr>
+                  <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">Loading doctor records...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <!-- Add Photo to Gallery Panel -->
         <section class="panel" style="margin-top: 1.5rem;">
           <h2 class="panel-title">
@@ -169,6 +196,82 @@
             </div>
 
             <button type="submit" class="btn">Add to Gallery</button>
+          </form>
+        </section>
+
+        <!-- Add Doctor Panel -->
+        <section class="panel" style="margin-top: 1.5rem;">
+          <h2 class="panel-title">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Add / Edit Doctor
+          </h2>
+
+          <div id="doctor-status-banner" class="status-banner" style="margin-bottom: 1rem;"></div>
+
+          <form id="doctor-post-form">
+            <div class="form-group">
+              <label class="form-label" for="doctor-name-en">Doctor Name (English) *</label>
+              <input type="text" id="doctor-name-en" class="form-control" placeholder="e.g. Dr. Sarah Rahman" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctor-name-bn">Doctor Name (Bengali) *</label>
+              <input type="text" id="doctor-name-bn" class="form-control" placeholder="e.g. ডাঃ সারাহ রহমান" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctor-specialty-en">Specialty (English) *</label>
+              <input type="text" id="doctor-specialty-en" class="form-control" placeholder="e.g. Pediatric Specialist" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctor-specialty-bn">Specialty (Bengali) *</label>
+              <input type="text" id="doctor-specialty-bn" class="form-control" placeholder="e.g. শিশু বিশেষজ্ঞ" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctor-info-en">Short Description (English)</label>
+              <input type="text" id="doctor-info-en" class="form-control" placeholder="e.g. MD in Pediatrics, 8+ years experience">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctor-info-bn">Short Description (Bengali)</label>
+              <input type="text" id="doctor-info-bn" class="form-control" placeholder="e.g. শিশুরোগবিদ্যায় এমডি, ৮+ বছরের অভিজ্ঞতা">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctor-hours-en">Visiting Hours (English) *</label>
+              <input type="text" id="doctor-hours-en" class="form-control" placeholder="e.g. Mon, Wed (09:00 AM - 01:00 PM)" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctor-hours-bn">Visiting Hours (Bengali) *</label>
+              <input type="text" id="doctor-hours-bn" class="form-control" placeholder="e.g. সোম, বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Visiting Weekdays *</label>
+              <div class="weekday-checkbox-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; background: #f8fafc; padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                <label><input type="checkbox" name="visiting-weekday" value="1"> Mon</label>
+                <label><input type="checkbox" name="visiting-weekday" value="2"> Tue</label>
+                <label><input type="checkbox" name="visiting-weekday" value="3"> Wed</label>
+                <label><input type="checkbox" name="visiting-weekday" value="4"> Thu</label>
+                <label><input type="checkbox" name="visiting-weekday" value="5"> Fri</label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="doctor-image-file">Profile Photo Upload (File)</label>
+              <input type="file" id="doctor-image-file" class="form-control" accept="image/*" style="padding: 0.35rem 0.75rem; background: white;">
+              <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Select doctor photo to upload.</span>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem;">
+              <button type="submit" class="btn" id="doctor-submit-btn">Add Doctor</button>
+              <button type="button" class="btn" id="doctor-cancel-edit-btn" style="background-color: var(--text-muted); display: none;" onclick="cancelDoctorEdit()">Cancel Edit</button>
+            </div>
           </form>
         </section>
 

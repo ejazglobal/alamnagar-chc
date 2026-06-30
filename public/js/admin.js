@@ -3,6 +3,7 @@ let appointments = [];
 let newsItems = [];
 let doctors = [];
 let editingNewsId = null;
+let editingDoctorId = null;
 let currentFilter = 'all';
 let searchQuery = '';
 let isFallbackMode = false;
@@ -46,6 +47,7 @@ async function unlockDashboard(role) {
   setupDashboardEvents();
   renderDashboard();
   renderNewsManageTable();
+  renderDoctorsManageTable();
 }
 
 // Load Appointments, News, Doctors
@@ -289,6 +291,129 @@ function setupDashboardEvents() {
           
           showBanner(banner, 'Photo added to gallery successfully.', 'success');
           galleryPostForm.reset();
+        }
+      } catch (err) {
+        console.error(err);
+        showBanner(banner, err.message || 'An error occurred.', 'error');
+      }
+    });
+  }
+
+  // Doctor form submit listener (Handles both POST and PATCH)
+  const doctorPostForm = document.getElementById('doctor-post-form');
+  if (doctorPostForm) {
+    doctorPostForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nameEn = document.getElementById('doctor-name-en').value.trim();
+      const nameBn = document.getElementById('doctor-name-bn').value.trim();
+      const specialtyEn = document.getElementById('doctor-specialty-en').value.trim();
+      const specialtyBn = document.getElementById('doctor-specialty-bn').value.trim();
+      const infoEn = document.getElementById('doctor-info-en').value.trim();
+      const infoBn = document.getElementById('doctor-info-bn').value.trim();
+      const hoursEn = document.getElementById('doctor-hours-en').value.trim();
+      const hoursBn = document.getElementById('doctor-hours-bn').value.trim();
+      const imageFileInput = document.getElementById('doctor-image-file');
+      const banner = document.getElementById('doctor-status-banner');
+
+      // Weekday checkboxes selection
+      const checkedBoxes = document.querySelectorAll('input[name="visiting-weekday"]:checked');
+      if (checkedBoxes.length === 0) {
+        showBanner(banner, 'Please select at least one visiting weekday.', 'error');
+        return;
+      }
+      const visitingDays = Array.from(checkedBoxes).map(cb => cb.value).join(',');
+
+      let image_url = '';
+      if (imageFileInput.files && imageFileInput.files[0]) {
+        try {
+          const file = imageFileInput.files[0];
+          if (file.size > 5 * 1024 * 1024) {
+            showBanner(banner, 'Image file must be less than 5MB.', 'error');
+            return;
+          }
+          image_url = await fileToBase64(file);
+        } catch (fileErr) {
+          console.error(fileErr);
+          showBanner(banner, 'Error reading image file.', 'error');
+          return;
+        }
+      }
+
+      const payload = {
+        name_en: nameEn,
+        name_bn: nameBn,
+        specialty_en: specialtyEn,
+        specialty_bn: specialtyBn,
+        info_en: infoEn,
+        info_bn: infoBn,
+        visiting_hours_en: hoursEn,
+        visiting_hours_bn: hoursBn,
+        image_url,
+        visiting_days: visitingDays
+      };
+
+      try {
+        if (isFallbackMode) {
+          const localDocs = JSON.parse(localStorage.getItem('chc_doctors')) || [];
+          if (editingDoctorId) {
+            const idx = localDocs.findIndex(d => d.id === editingDoctorId);
+            if (idx !== -1) {
+              localDocs[idx] = {
+                ...localDocs[idx],
+                ...payload,
+                image_url: image_url || localDocs[idx].image_url
+              };
+            }
+            localStorage.setItem('chc_doctors', JSON.stringify(localDocs));
+            doctors = localDocs;
+            showBanner(banner, 'Doctor record updated (Offline fallback).', 'success');
+            cancelDoctorEdit();
+          } else {
+            const newDoc = {
+              id: Date.now(),
+              ...payload,
+              image_url: image_url || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80'
+            };
+            localDocs.push(newDoc);
+            localStorage.setItem('chc_doctors', JSON.stringify(localDocs));
+            doctors.push(newDoc);
+            showBanner(banner, 'Doctor added successfully (Offline fallback).', 'success');
+            doctorPostForm.reset();
+          }
+          renderDoctorsManageTable();
+        } else {
+          const token = localStorage.getItem('chc_token');
+          const url = editingDoctorId ? `/api/doctors/${editingDoctorId}` : '/api/doctors';
+          const method = editingDoctorId ? 'PATCH' : 'POST';
+
+          const response = await fetch(url, {
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Failed to save doctor record.');
+          }
+
+          if (editingDoctorId) {
+            showBanner(banner, 'Doctor record updated successfully.', 'success');
+            cancelDoctorEdit();
+          } else {
+            showBanner(banner, 'Doctor added successfully.', 'success');
+            doctorPostForm.reset();
+          }
+
+          // Reload doctor list
+          const docsResponse = await fetch('/api/doctors');
+          if (docsResponse.ok) {
+            doctors = await docsResponse.json();
+          }
+          renderDoctorsManageTable();
         }
       } catch (err) {
         console.error(err);
@@ -576,6 +701,114 @@ window.deleteNews = async function(id) {
   } catch (err) {
     console.error(err);
     showNewsStatus(err.message || 'Error deleting news item.', 'error');
+  }
+};
+
+// Render Doctors Management table
+function renderDoctorsManageTable() {
+  const tbody = document.getElementById('doctors-manage-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  if (doctors.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">No doctors registered.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  doctors.forEach(doc => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>
+        <strong style="color: var(--text-dark);">${escapeHTML(doc.name_en)}</strong>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHTML(doc.name_bn)}</div>
+      </td>
+      <td>
+        <div>${escapeHTML(doc.specialty_en)}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHTML(doc.specialty_bn)}</div>
+      </td>
+      <td>
+        <button class="news-action-btn edit" onclick="editDoctor(${doc.id})">Edit</button>
+        <button class="news-action-btn delete" onclick="deleteDoctor(${doc.id})">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// Doctor Edit Actions
+window.editDoctor = function(id) {
+  const doc = doctors.find(d => d.id === id);
+  if (!doc) return;
+
+  editingDoctorId = id;
+  document.getElementById('doctor-name-en').value = doc.name_en;
+  document.getElementById('doctor-name-bn').value = doc.name_bn;
+  document.getElementById('doctor-specialty-en').value = doc.specialty_en;
+  document.getElementById('doctor-specialty-bn').value = doc.specialty_bn;
+  document.getElementById('doctor-info-en').value = doc.info_en || '';
+  document.getElementById('doctor-info-bn').value = doc.info_bn || '';
+  document.getElementById('doctor-hours-en').value = doc.visiting_hours_en;
+  document.getElementById('doctor-hours-bn').value = doc.visiting_hours_bn;
+
+  // Reset and select checkboxes
+  document.querySelectorAll('input[name="visiting-weekday"]').forEach(cb => cb.checked = false);
+  if (doc.visiting_days) {
+    const days = doc.visiting_days.split(',');
+    days.forEach(day => {
+      const cb = document.querySelector(`input[name="visiting-weekday"][value="${day}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+
+  document.getElementById('doctor-submit-btn').textContent = 'Update Doctor';
+  document.getElementById('doctor-cancel-edit-btn').style.display = 'inline-block';
+
+  document.getElementById('doctor-post-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.cancelDoctorEdit = function() {
+  editingDoctorId = null;
+  document.getElementById('doctor-post-form').reset();
+  document.querySelectorAll('input[name="visiting-weekday"]').forEach(cb => cb.checked = false);
+  document.getElementById('doctor-submit-btn').textContent = 'Add Doctor';
+  document.getElementById('doctor-cancel-edit-btn').style.display = 'none';
+};
+
+// Doctor Delete Actions
+window.deleteDoctor = async function(id) {
+  if (!confirm('Are you sure you want to delete this doctor? All appointments associated with them will lose connection.')) return;
+
+  try {
+    if (isFallbackMode) {
+      doctors = doctors.filter(d => d.id !== id);
+      localStorage.setItem('chc_doctors', JSON.stringify(doctors));
+      showBanner(document.getElementById('doctor-status-banner'), 'Doctor deleted (Offline fallback).', 'success');
+      renderDoctorsManageTable();
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch(`/api/doctors/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to delete doctor record.');
+      }
+
+      doctors = doctors.filter(d => d.id !== id);
+      showBanner(document.getElementById('doctor-status-banner'), 'Doctor deleted successfully.', 'success');
+      renderDoctorsManageTable();
+    }
+  } catch (err) {
+    console.error(err);
+    showBanner(document.getElementById('doctor-status-banner'), err.message || 'Error deleting doctor.', 'error');
   }
 };
 
