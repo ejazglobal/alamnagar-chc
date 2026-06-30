@@ -119,8 +119,26 @@ function setupDashboardEvents() {
     e.preventDefault();
     const title = document.getElementById('news-title').value.trim();
     const category = document.getElementById('news-category').value;
-    const image_url = document.getElementById('news-image').value.trim();
+    let image_url = document.getElementById('news-image').value.trim();
+    const image_file_input = document.getElementById('news-image-file');
     const content = document.getElementById('news-content').value.trim();
+
+    // If file is selected, read it as base64 and override image_url
+    if (image_file_input && image_file_input.files && image_file_input.files[0]) {
+      try {
+        const file = image_file_input.files[0];
+        // Validate file size (e.g. 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          showNewsStatus('Image file must be less than 5MB.', 'error');
+          return;
+        }
+        image_url = await fileToBase64(file);
+      } catch (fileErr) {
+        console.error('Error reading image file:', fileErr);
+        showNewsStatus('Error reading image file.', 'error');
+        return;
+      }
+    }
 
     const payload = { title, category, image_url, content };
 
@@ -374,6 +392,16 @@ function showPasswordStatus(message, type) {
       passwordStatusBanner.style.display = 'none';
     }, 5000);
   }
+}
+
+// File to Base64 Promise Helper
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
 }
 
 // XSS Sanitizer Helper

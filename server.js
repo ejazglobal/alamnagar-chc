@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const db = require('./database');
 const mailer = require('./mailer');
 
@@ -9,8 +10,8 @@ const PORT = process.env.PORT || 5000;
 
 // Security: Limit request sizes to prevent denial-of-service and enable CORS
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
@@ -249,6 +250,26 @@ app.post('/api/news', authenticateToken, async (req, res) => {
   let finalImageUrl = image_url;
   if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
     finalImageUrl = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80';
+  } else if (image_url.startsWith('data:image/')) {
+    try {
+      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
+      if (matches) {
+        const ext = matches[1];
+        const data = matches[2];
+        const buffer = Buffer.from(data, 'base64');
+        const filename = `upload_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+        const imagesDir = path.join(__dirname, 'images');
+        if (!fs.existsSync(imagesDir)) {
+          fs.mkdirSync(imagesDir, { recursive: true });
+        }
+        const filePath = path.join(imagesDir, filename);
+        fs.writeFileSync(filePath, buffer);
+        finalImageUrl = `/images/${filename}`;
+      }
+    } catch (writeErr) {
+      console.error('Failed to write uploaded image:', writeErr);
+      finalImageUrl = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80';
+    }
   }
 
   try {
