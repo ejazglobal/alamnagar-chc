@@ -286,6 +286,164 @@ app.post('/api/news', authenticateToken, async (req, res) => {
   }
 });
 
+// 5.1 Edit a news item (Admin & Staff)
+app.patch('/api/news/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can edit news.' });
+  }
+
+  const newsId = parseInt(req.params.id, 10);
+  if (isNaN(newsId)) {
+    return res.status(400).json({ error: 'Invalid news ID' });
+  }
+
+  const { title, content, image_url, category } = req.body;
+
+  if (!title || typeof title !== 'string' || title.trim().length === 0) {
+    return res.status(400).json({ error: 'Title is required' });
+  }
+  if (!content || typeof content !== 'string' || content.trim().length === 0) {
+    return res.status(400).json({ error: 'Content is required' });
+  }
+  if (!category || !['News', 'Event', 'Alert'].includes(category)) {
+    return res.status(400).json({ error: 'Category must be: News, Event, Alert' });
+  }
+
+  let finalImageUrl = image_url;
+  if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
+    finalImageUrl = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80';
+  } else if (image_url.startsWith('data:image/')) {
+    try {
+      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
+      if (matches) {
+        const ext = matches[1];
+        const data = matches[2];
+        const buffer = Buffer.from(data, 'base64');
+        const filename = `upload_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+        const imagesDir = path.join(__dirname, 'images');
+        if (!fs.existsSync(imagesDir)) {
+          fs.mkdirSync(imagesDir, { recursive: true });
+        }
+        const filePath = path.join(imagesDir, filename);
+        fs.writeFileSync(filePath, buffer);
+        finalImageUrl = `/images/${filename}`;
+      }
+    } catch (writeErr) {
+      console.error('Failed to write uploaded image:', writeErr);
+      finalImageUrl = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80';
+    }
+  }
+
+  try {
+    const result = await db.updateNews(newsId, {
+      title: title.trim(),
+      content: content.trim(),
+      image_url: finalImageUrl.trim(),
+      category
+    });
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'News item not found' });
+    }
+    res.json({ message: 'News item updated successfully.', image_url: finalImageUrl });
+  } catch (error) {
+    console.error('Error updating news:', error);
+    res.status(500).json({ error: 'Failed to update news item' });
+  }
+});
+
+// 5.2 Delete a news item (Admin & Staff)
+app.delete('/api/news/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can delete news.' });
+  }
+
+  const newsId = parseInt(req.params.id, 10);
+  if (isNaN(newsId)) {
+    return res.status(400).json({ error: 'Invalid news ID' });
+  }
+
+  try {
+    const result = await db.deleteNews(newsId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'News item not found' });
+    }
+    res.json({ message: 'News item deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting news:', error);
+    res.status(500).json({ error: 'Failed to delete news item' });
+  }
+});
+
+// 5.3 Get all doctors (Public)
+app.get('/api/doctors', async (req, res) => {
+  try {
+    const doctors = await db.getAllDoctors();
+    res.json(doctors);
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    res.status(500).json({ error: 'Failed to retrieve doctors list' });
+  }
+});
+
+// 5.4 Get all gallery images (Public)
+app.get('/api/gallery', async (req, res) => {
+  try {
+    const items = await db.getAllGallery();
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching gallery:', error);
+    res.status(500).json({ error: 'Failed to retrieve gallery items' });
+  }
+});
+
+// 5.5 Post a gallery item (Admin & Staff)
+app.post('/api/gallery', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can post to gallery.' });
+  }
+
+  const { title_en, title_bn, image_url } = req.body;
+
+  if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
+    return res.status(400).json({ error: 'Image URL or file upload is required' });
+  }
+
+  let finalImageUrl = image_url;
+  if (image_url.startsWith('data:image/')) {
+    try {
+      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
+      if (matches) {
+        const ext = matches[1];
+        const data = matches[2];
+        const buffer = Buffer.from(data, 'base64');
+        const filename = `gallery_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+        const imagesDir = path.join(__dirname, 'images');
+        if (!fs.existsSync(imagesDir)) {
+          fs.mkdirSync(imagesDir, { recursive: true });
+        }
+        const filePath = path.join(imagesDir, filename);
+        fs.writeFileSync(filePath, buffer);
+        finalImageUrl = `/images/${filename}`;
+      }
+    } catch (writeErr) {
+      console.error('Failed to write gallery image:', writeErr);
+      return res.status(500).json({ error: 'Failed to save uploaded image file.' });
+    }
+  }
+
+  try {
+    const newItem = await db.createGalleryItem({
+      title_en: title_en ? title_en.trim() : '',
+      title_bn: title_bn ? title_bn.trim() : '',
+      image_url: finalImageUrl
+    });
+    res.status(201).json(newItem);
+  } catch (error) {
+    console.error('Error creating gallery item:', error);
+    res.status(500).json({ error: 'Failed to add gallery item' });
+  }
+});
+
 // 6. Get all appointments (Admin/Staff get all, Patients/Guests get calendar slots and own history)
 app.get('/api/appointments', optionalAuthenticateToken, async (req, res) => {
   try {
@@ -325,7 +483,7 @@ app.get('/api/appointments', optionalAuthenticateToken, async (req, res) => {
 
 // 7. Book a new appointment (Can be Guest or Logged-in Patient)
 app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
-  const { patient_name, email, phone, appointment_date, appointment_time, notes } = req.body;
+  const { patient_name, email, phone, appointment_date, appointment_time, notes, doctor_id } = req.body;
 
   if (!patient_name || typeof patient_name !== 'string' || patient_name.trim().length === 0) {
     return res.status(400).json({ error: 'Patient name is required' });
@@ -354,6 +512,8 @@ app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Appointments cannot be scheduled in the past.' });
   }
 
+  const docId = doctor_id ? parseInt(doctor_id, 10) : null;
+
   try {
     const newAppointment = await db.createAppointment({
       user_id: req.user ? req.user.id : null, // Store active patient's ID if logged in
@@ -362,7 +522,8 @@ app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
       phone: phone.trim(),
       appointment_date,
       appointment_time,
-      notes: notes ? notes.trim() : ''
+      notes: notes ? notes.trim() : '',
+      doctor_id: docId
     });
 
     // Send confirmation email asynchronously (development fallback writes local file)

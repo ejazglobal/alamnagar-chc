@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Alamnagar Charitable Healthcare Centre - Booking Portal</title>
+  <title data-i18n="title">Alamnagar Charitable Healthcare Centre - Booking Portal</title>
   <meta name="description" content="Book appointments, read health alerts and event updates at Alamnagar Charitable Healthcare Centre.">
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -16,23 +16,27 @@
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path d="M19 10.5H13.5V5C13.5 4.17 12.83 3.5 12 3.5C11.17 3.5 10.5 4.17 10.5 5V10.5H5C4.17 10.5 3.5 11.17 3.5 12C3.5 12.83 4.17 13.5 5 13.5H10.5V19C10.5 19.83 11.17 20.5 12 20.5C12.83 20.5 13.5 19.83 13.5 19V13.5H19C19.83 13.5 20.5 12.83 20.5 12C20.5 11.17 19.83 10.5 19 10.5Z"/>
         </svg>
-        <span>Alamnagar CHC</span>
+        <span data-i18n="logo">Alamnagar CHC</span>
       </a>
       <nav class="nav-links" id="nav-menu">
-        <a href="index.html" class="nav-link active" id="link-home">Home</a>
-        <a href="#appointments" class="nav-link" id="link-book">Book Appointment</a>
-        <a href="#news" class="nav-link" id="link-news">News & Events</a>
-        <a href="login.html" class="nav-link btn-admin" id="link-auth-btn">Login / Register</a>
+        <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">Home</a>
+        <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">Book Appointment</a>
+        <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">News & Events</a>
+        <a href="login.html" class="nav-link btn-admin" id="link-auth-btn" data-i18n="nav-login">Login / Register</a>
       </nav>
+      <div class="lang-switcher">
+        <button class="lang-btn active" id="lang-en" onclick="setLanguage('en')">EN</button>
+        <button class="lang-btn" id="lang-bn" onclick="setLanguage('bn')">বাংলা</button>
+      </div>
     </div>
   </header>
 
   <!-- Hero Section -->
   <section class="hero">
     <div class="hero-content">
-      <h1>Caring for Our Community</h1>
-      <p>Alamnagar Charitable Healthcare Centre provides free, high-quality, and accessible medical services. Book your appointment online to consult with our medical professionals.</p>
-      <a href="#appointments" class="btn" style="width: auto; padding: 0.75rem 2rem; border-radius: 30px;">Book an Appointment Now</a>
+      <h1 data-i18n="hero-title">Caring for Our Community</h1>
+      <p data-i18n="hero-desc">Alamnagar Charitable Healthcare Centre provides free, high-quality, and accessible medical services. Book your appointment online to consult with our medical professionals.</p>
+      <a href="#appointments" class="btn" style="width: auto; padding: 0.75rem 2rem; border-radius: 30px;" data-i18n="hero-btn">Book an Appointment Now</a>
     </div>
   </section>
 
@@ -46,7 +50,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2z" />
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 11h4m-4 4h4m-8-8h8M8 11h.01M8 15h.01" />
         </svg>
-        News & Health Announcements
+        <span data-i18n="news-title">News & Health Announcements</span>
       </h2>
       
       <!-- API Connectivity Status Notice -->
@@ -54,12 +58,12 @@
         <svg fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
         </svg>
-        <span>Running in Offline Demo Mode. All scheduling logs and news will be saved in your local web browser storage.</span>
+        <span data-i18n="demo-notice">Running in Offline Demo Mode. All scheduling logs and news will be saved in your local web browser storage.</span>
       </div>
 
       <div class="news-grid" id="news-container">
         <!-- Dynamically rendered via JS -->
-        <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 2rem 0;">Loading health centre updates...</p>
+        <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 2rem 0;" data-i18n="news-loading">Loading health centre updates...</p>
       </div>
     </section>
 
@@ -69,14 +73,28 @@
         <svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        Schedule Consultation
+        <span data-i18n="appt-title">Schedule Consultation</span>
       </h2>
 
       <!-- Status Banner -->
       <div id="status-banner" class="status-banner"></div>
 
+      <!-- Doctor Selection Dropdown -->
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label class="form-label" for="doctor-select" data-i18n="booking-select-doctor">Select Consultation Doctor *</label>
+        <select id="doctor-select" class="form-control" style="background-color: white;" required>
+          <option value="" data-i18n="booking-select-prompt">-- Choose a Doctor --</option>
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+
+      <!-- Selected Doctor Card Profile Info -->
+      <div id="selected-doctor-profile" style="margin-bottom: 1.5rem; display: none;">
+        <!-- Dynamically populated with doctor-details-box -->
+      </div>
+
       <!-- Calendar Wrapper -->
-      <div class="calendar-wrapper">
+      <div class="calendar-wrapper" id="calendar-booking-wrapper" style="display: none;">
         <div class="calendar-header">
           <h3 id="calendar-month-year">June 2026</h3>
           <div style="display: flex; gap: 0.5rem;">
@@ -96,7 +114,7 @@
 
       <!-- Time Slots selection (appears after selecting date) -->
       <div id="slots-container" style="display: none;">
-        <h4 class="slots-title">Available Time Slots for <span id="selected-date-display">...</span></h4>
+        <h4 class="slots-title"><span data-i18n="booking-slots-title">Available Time Slots for</span> <span id="selected-date-display">...</span></h4>
         <div class="slots-grid" id="time-slots-grid">
           <!-- Populated by JS -->
         </div>
@@ -104,29 +122,29 @@
 
       <!-- Booking Information Form (appears after selecting slot) -->
       <form id="booking-form" class="booking-form" style="display: none;">
-        <h4 class="slots-title" style="margin-top: 0; margin-bottom: 1rem;">Patient Contact Details</h4>
+        <h4 class="slots-title" style="margin-top: 0; margin-bottom: 1rem;" data-i18n="booking-details-title">Patient Contact Details</h4>
         
         <div class="form-group">
-          <label class="form-label" for="patient-name">Full Name *</label>
+          <label class="form-label" for="patient-name" data-i18n="booking-name">Full Name *</label>
           <input type="text" id="patient-name" class="form-control" placeholder="John Doe" required>
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="patient-email">Email Address *</label>
+          <label class="form-label" for="patient-email" data-i18n="booking-email">Email Address *</label>
           <input type="email" id="patient-email" class="form-control" placeholder="john@example.com" required>
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="patient-phone">Phone Number *</label>
+          <label class="form-label" for="patient-phone" data-i18n="booking-phone">Phone Number *</label>
           <input type="tel" id="patient-phone" class="form-control" placeholder="e.g. 01712345678" required>
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="booking-notes">Medical Notes / Symptoms (Optional)</label>
+          <label class="form-label" for="booking-notes" data-i18n="booking-notes">Medical Notes / Symptoms (Optional)</label>
           <textarea id="booking-notes" class="form-control" placeholder="Please list any brief details or symptoms..."></textarea>
         </div>
 
-        <button type="submit" class="btn" id="submit-booking-btn">Confirm Appointment Booking</button>
+        <button type="submit" class="btn" id="submit-booking-btn" data-i18n="booking-confirm-btn">Confirm Appointment Booking</button>
       </form>
     </section>
 
@@ -136,24 +154,38 @@
         <svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
         </svg>
-        Your Appointment History
+        <span data-i18n="history-title">Your Appointment History</span>
       </h2>
       <div class="table-wrapper">
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Date & Time</th>
-              <th>Status</th>
-              <th>Symptoms / Notes</th>
+              <th data-i18n="history-col-date">Date & Time</th>
+              <th data-i18n="history-col-status">Status</th>
+              <th data-i18n="history-col-notes">Symptoms / Notes</th>
             </tr>
           </thead>
           <tbody id="patient-history-tbody">
             <!-- Populated via JS -->
             <tr>
-              <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No appointments booked yet.</td>
+              <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;" data-i18n="history-empty">No appointments booked yet.</td>
             </tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- Image Gallery Panel -->
+    <section id="gallery" class="panel" style="grid-column: 1 / -1; margin-top: 1.5rem;">
+      <h2 class="panel-title">
+        <svg style="width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span data-i18n="gallery-title">Photo Gallery</span>
+      </h2>
+      <div class="gallery-grid" id="gallery-container">
+        <!-- Dynamically populated -->
+        <p style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;" data-i18n="gallery-loading">Loading gallery images...</p>
       </div>
     </section>
 
@@ -162,11 +194,34 @@
   <!-- Footer -->
   <footer>
     <div class="footer-content">
-      <div class="footer-brand">Alamnagar Charitable Healthcare Centre</div>
-      <p>Serving Alamnagar and surrounding communities with dedication and dignity.</p>
-      <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 1rem;">&copy; 2026 Alamnagar CHC. All rights reserved. Open-source local healthcare project.</p>
+      <div class="footer-brand" data-i18n="footer-brand">Alamnagar Charitable Healthcare Centre</div>
+      <p data-i18n="footer-desc">Serving Alamnagar and surrounding communities with dedication and dignity.</p>
+      <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 1rem;" data-i18n="footer-copy">&copy; 2026 Alamnagar CHC. All rights reserved. Open-source local healthcare project.</p>
     </div>
   </footer>
+
+  <!-- News Read More Modal -->
+  <div id="news-modal" class="modal-overlay" onclick="closeNewsModal(event)">
+    <div class="modal-container" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title" id="news-modal-title">Announcement</h3>
+        <button class="modal-close" onclick="closeNewsModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="news-modal-body">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn" style="width: auto; padding: 0.5rem 1.5rem;" onclick="closeNewsModal()" data-i18n="modal-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox Modal -->
+  <div id="lightbox-modal" class="lightbox-overlay" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+    <img class="lightbox-img" id="lightbox-img" src="" alt="Zoomed image">
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+  </div>
 
   <script src="js/app.js"></script>
 </body>

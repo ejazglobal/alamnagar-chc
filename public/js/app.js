@@ -4,7 +4,11 @@ let selectedDateStr = null;
 let selectedSlotTime = null;
 let appointments = [];
 let newsItems = [];
-let isFallbackMode = false;
+let doctors = [];
+let galleryItems = [];
+let selectedDoctorId = null;
+let selectedDoctor = null;
+let currentLanguage = localStorage.getItem('chc_lang') || 'en';
 
 const TIME_SLOTS = [
   '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
@@ -24,16 +28,145 @@ const statusBanner = document.getElementById('status-banner');
 const demoModeNotice = document.getElementById('demo-mode-notice');
 const newsContainer = document.getElementById('news-container');
 
+// Translations dictionary
+const TRANSLATIONS = {
+  en: {
+    "title": "Alamnagar Charitable Healthcare Centre - Booking Portal",
+    "logo": "Alamnagar CHC",
+    "nav-home": "Home",
+    "nav-book": "Book Appointment",
+    "nav-news": "News & Events",
+    "nav-login": "Login / Register",
+    "nav-admin": "Admin Portal",
+    "nav-logout": "Logout",
+    "hero-title": "Caring for Our Community",
+    "hero-desc": "Alamnagar Charitable Healthcare Centre provides free, high-quality, and accessible medical services. Book your appointment online to consult with our medical professionals.",
+    "hero-btn": "Book an Appointment Now",
+    "news-title": "News & Health Announcements",
+    "news-loading": "Loading health centre updates...",
+    "appt-title": "Schedule Consultation",
+    "booking-select-doctor": "Select Consultation Doctor *",
+    "booking-select-prompt": "-- Choose a Doctor --",
+    "booking-slots-title": "Available Time Slots for",
+    "booking-details-title": "Patient Contact Details",
+    "booking-name": "Full Name *",
+    "booking-email": "Email Address *",
+    "booking-phone": "Phone Number *",
+    "booking-notes": "Medical Notes / Symptoms (Optional)",
+    "booking-confirm-btn": "Confirm Appointment Booking",
+    "history-title": "Your Appointment History",
+    "history-col-date": "Date & Time",
+    "history-col-status": "Status",
+    "history-col-notes": "Symptoms / Notes",
+    "history-empty": "No appointments booked yet.",
+    "gallery-title": "Photo Gallery",
+    "gallery-loading": "Loading gallery images...",
+    "footer-brand": "Alamnagar Charitable Healthcare Centre",
+    "footer-desc": "Serving Alamnagar and surrounding communities with dedication and dignity.",
+    "footer-copy": "© 2026 Alamnagar CHC. All rights reserved. Open-source local healthcare project.",
+    "modal-close": "Close",
+    "demo-notice": "Running in Offline Demo Mode. All scheduling logs and news will be saved in your local web browser storage."
+  },
+  bn: {
+    "title": "আলমনগর দাতব্য চিকিৎসাকেন্দ্র - বুকিং পোর্টাল",
+    "logo": "আলমনগর সিএইচসি",
+    "nav-home": "হোম",
+    "nav-book": "অ্যাপয়েন্টমেন্ট বুকিং",
+    "nav-news": "খবর ও ইভেন্ট",
+    "nav-login": "লগইন / রেজিস্টার",
+    "nav-admin": "অ্যাডমিন পোর্টাল",
+    "nav-logout": "লগআউট",
+    "hero-title": "আমাদের সম্প্রদায়ের সেবা করা",
+    "hero-desc": "আলমনগর দাতব্য চিকিৎসাকেন্দ্র বিনামূল্যে, উচ্চ-মানের এবং অ্যাক্সেসযোগ্য চিকিৎসা সেবা প্রদান করে। আমাদের চিকিৎসা পেশাদারদের সাথে পরামর্শ করতে অনলাইনে আপনার অ্যাপয়েন্টমেন্ট বুক করুন।",
+    "hero-btn": "এখনই অ্যাপয়েন্টমেন্ট বুক করুন",
+    "news-title": "খবর ও স্বাস্থ্য ঘোষণা",
+    "news-loading": "চিকিৎসাকেন্দ্রের আপডেট লোড হচ্ছে...",
+    "appt-title": "পরামর্শ নির্ধারণ করুন",
+    "booking-select-doctor": "পরামর্শের জন্য ডাক্তার নির্বাচন করুন *",
+    "booking-select-prompt": "-- ডাক্তার নির্বাচন করুন --",
+    "booking-slots-title": "খালি সময়সূচী",
+    "booking-details-title": "রোগীর যোগাযোগের বিবরণ",
+    "booking-name": "সম্পূর্ণ নাম *",
+    "booking-email": "ইমেল ঠিকানা *",
+    "booking-phone": "ফোন নম্বর *",
+    "booking-notes": "চিকিৎসা সংক্রান্ত নোট / লক্ষণ (ঐচ্ছিক)",
+    "booking-confirm-btn": "অ্যাপয়েন্টমেন্ট বুকিং নিশ্চিত করুন",
+    "history-title": "আপনার অ্যাপয়েন্টমেন্টের ইতিহাস",
+    "history-col-date": "তারিখ ও সময়",
+    "history-col-status": "অবস্থা",
+    "history-col-notes": "লক্ষণ / নোট",
+    "history-empty": "এখনও কোনো অ্যাপয়েন্টমেন্ট বুক করা হয়নি।",
+    "gallery-title": "ফটো গ্যালারি",
+    "gallery-loading": "গ্যালারি ছবি লোড হচ্ছে...",
+    "footer-brand": "আলমনগর দাতব্য চিকিৎসাকেন্দ্র",
+    "footer-desc": "উৎসর্গ এবং মর্যাদার সাথে আলমনগর এবং আশেপাশের সম্প্রদায়ের সেবা করা।",
+    "footer-copy": "© ২০২৬ আলমনগর সিএইচসি। সর্বস্বত্ব সংরক্ষিত। ওপেন-সোর্স স্থানীয় স্বাস্থ্যসেবা প্রকল্প।",
+    "modal-close": "বন্ধ করুন",
+    "demo-notice": "অফলাইন ডেমো মোডে চলছে। সমস্ত সময়সূচী লগ এবং সংবাদ আপনার স্থানীয় ওয়েব ব্রাউজার স্টোরেজে সংরক্ষণ করা হবে।"
+  }
+};
+
 // Initial Setup
 document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
+  translateUI();
+  updateLanguageToggles();
+  renderDoctorsDropdown();
+  renderGallery();
   renderAuthNav();
   renderCalendar();
   renderPatientHistory();
   setupEventListeners();
 });
 
-// Load News and Appointments (from Backend API, falling back to LocalStorage)
+// Translation Engine
+window.setLanguage = function(lang) {
+  currentLanguage = lang;
+  localStorage.setItem('chc_lang', lang);
+  updateLanguageToggles();
+  translateUI();
+  
+  // Re-render dynamic text components
+  renderNews();
+  renderDoctorsDropdown();
+  renderSelectedDoctorProfile();
+  renderCalendar();
+  renderPatientHistory();
+  renderGallery();
+};
+
+function updateLanguageToggles() {
+  const btnEn = document.getElementById('lang-en');
+  const btnBn = document.getElementById('lang-bn');
+  if (btnEn && btnBn) {
+    if (currentLanguage === 'en') {
+      btnEn.classList.add('active');
+      btnBn.classList.remove('active');
+    } else {
+      btnBn.classList.add('active');
+      btnEn.classList.remove('active');
+    }
+  }
+}
+
+function translateUI() {
+  const elements = document.querySelectorAll('[data-i18n]');
+  elements.forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const translation = TRANSLATIONS[currentLanguage][key];
+    if (translation) {
+      if (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'email' || el.type === 'tel' || el.type === 'password')) {
+        el.placeholder = translation;
+      } else if (el.tagName === 'TITLE') {
+        document.title = translation;
+      } else {
+        el.innerText = translation;
+      }
+    }
+  });
+}
+
+// Load News, Appointments, Doctors & Gallery (from Backend API, falling back to LocalStorage)
 async function loadData() {
   try {
     const newsResponse = await fetch('/api/news');
@@ -49,6 +182,14 @@ async function loadData() {
     const apptsResponse = await fetch('/api/appointments', { headers });
     if (!apptsResponse.ok) throw new Error('API server unreachable');
     appointments = await apptsResponse.json();
+
+    const doctorsResponse = await fetch('/api/doctors');
+    if (!doctorsResponse.ok) throw new Error('API server unreachable');
+    doctors = await doctorsResponse.json();
+
+    const galleryResponse = await fetch('/api/gallery');
+    if (!galleryResponse.ok) throw new Error('API server unreachable');
+    galleryItems = await galleryResponse.json();
     
     isFallbackMode = false;
     demoModeNotice.style.display = 'none';
@@ -106,6 +247,7 @@ function initLocalStorageFallback() {
         appointment_time: "10:30",
         status: "approved",
         notes: "Regular diabetic review consultation.",
+        doctor_id: 3,
         created_at: new Date().toISOString()
       },
       {
@@ -117,16 +259,88 @@ function initLocalStorageFallback() {
         appointment_time: "14:00",
         status: "pending",
         notes: "Persistent cough for 3 days.",
+        doctor_id: 1,
         created_at: new Date().toISOString()
       }
     ];
     localStorage.setItem('chc_appointments', JSON.stringify(mockAppts));
+  }
+
+  if (!localStorage.getItem('chc_doctors')) {
+    const mockDoctors = [
+      {
+        id: 1,
+        name_en: "Dr. Sarah Rahman",
+        name_bn: "ডাঃ সারাহ রহমান",
+        specialty_en: "Pediatric Specialist",
+        specialty_bn: "শিশু বিশেষজ্ঞ",
+        info_en: "MD in Pediatrics, 8+ years of clinical experience in child healthcare.",
+        info_bn: "শিশুরোগবিদ্যায় এমডি, শিশু স্বাস্থ্যসেবায় ৮+ বছরের ক্লিনিকাল অভিজ্ঞতা।",
+        visiting_hours_en: "Mon, Wed (09:00 AM - 01:00 PM)",
+        visiting_hours_bn: "সোম, বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)",
+        image_url: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80",
+        visiting_days: "1,3"
+      },
+      {
+        id: 2,
+        name_en: "Dr. Azam Khan",
+        name_bn: "ডাঃ আজম খান",
+        specialty_en: "Cardiologist",
+        specialty_bn: "হৃদরোগ বিশেষজ্ঞ",
+        info_en: "FACS, clinical specialist in preventive and curative cardiology.",
+        info_bn: "এফএসিএস, প্রতিরোধমূলক এবং নিরাময়মূলক কার্ডিওলজির ক্লিনিকাল বিশেষজ্ঞ।",
+        visiting_hours_en: "Tue, Thu (10:00 AM - 02:00 PM)",
+        visiting_hours_bn: "মঙ্গল, বৃহস্পতি (সকাল ১০:০০ - দুপুর ০২:০০)",
+        image_url: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80",
+        visiting_days: "2,4"
+      },
+      {
+        id: 3,
+        name_en: "Dr. Rahat Kabir",
+        name_bn: "ডাঃ রাহাত কবির",
+        specialty_en: "General Physician",
+        specialty_bn: "সাধারণ চিকিৎসক",
+        info_en: "MBBS, providing comprehensive primary care and medical consults.",
+        info_bn: "এমবিবিএস, ব্যাপক প্রাথমিক চিকিৎসা এবং পরামর্শ প্রদানকারী।",
+        visiting_hours_en: "Mon, Tue, Wed, Thu, Fri (09:00 AM - 04:00 PM)",
+        visiting_hours_bn: "সোম, মঙ্গল, বুধ, বৃহস্পতি, শুক্র (সকাল ০৯:০০ - বিকেল ০৪:০০)",
+        image_url: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=600&q=80",
+        visiting_days: "1,2,3,4,5"
+      }
+    ];
+    localStorage.setItem('chc_doctors', JSON.stringify(mockDoctors));
+  }
+
+  if (!localStorage.getItem('chc_gallery')) {
+    const mockGallery = [
+      {
+        id: 1,
+        title_en: "Medical Checkup Camp",
+        title_bn: "বিনামূল্যে চিকিৎসা ক্যাম্প",
+        image_url: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: 2,
+        title_en: "Our Clinic Facilities",
+        title_bn: "আমাদের ক্লিনিক ভবন ও সুবিধা",
+        image_url: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: 3,
+        title_en: "Doctors Consultation Room",
+        title_bn: "ডাক্তারদের পরামর্শ কক্ষ",
+        image_url: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80"
+      }
+    ];
+    localStorage.setItem('chc_gallery', JSON.stringify(mockGallery));
   }
 }
 
 function loadLocalStorageData() {
   newsItems = JSON.parse(localStorage.getItem('chc_news')) || [];
   appointments = JSON.parse(localStorage.getItem('chc_appointments')) || [];
+  doctors = JSON.parse(localStorage.getItem('chc_doctors')) || [];
+  galleryItems = JSON.parse(localStorage.getItem('chc_gallery')) || [];
 }
 
 // Utility to get a future date string skipping weekends
@@ -143,11 +357,11 @@ function getFutureWeekdayDateStr(offsetDays) {
   return dateObj.toISOString().split('T')[0];
 }
 
-// Render News Items
+// Render News Items with Read More modal hooks
 function renderNews() {
   newsContainer.innerHTML = '';
   if (newsItems.length === 0) {
-    newsContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 1rem;">No recent health updates posted.</p>';
+    newsContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 1rem;">${TRANSLATIONS[currentLanguage]["news-loading"]}</p>`;
     return;
   }
 
@@ -162,6 +376,9 @@ function renderNews() {
     });
 
     const categoryClass = item.category ? item.category.toLowerCase() : 'news';
+    
+    const isLong = item.content.length > 150;
+    const contentDisplay = isLong ? item.content.substring(0, 150) + '...' : item.content;
 
     card.innerHTML = `
       <div class="news-image" style="background-image: url('${escapeHTML(item.image_url)}')">
@@ -170,16 +387,18 @@ function renderNews() {
       <div class="news-body">
         <div class="news-meta">Posted on ${formattedDate}</div>
         <h3 class="news-title">${escapeHTML(item.title)}</h3>
-        <p class="news-excerpt">${escapeHTML(item.content)}</p>
+        <p class="news-excerpt">${escapeHTML(contentDisplay)}</p>
+        ${isLong ? `<a href="#" class="read-more-link" onclick="openNewsModal(event, ${item.id})" style="color: var(--primary-color); font-weight:600; font-size:0.85rem; margin-top: auto; display: inline-block;">${currentLanguage === 'bn' ? 'আরও পড়ুন' : 'Read More'} &rarr;</a>` : ''}
       </div>
     `;
     newsContainer.appendChild(card);
   });
 }
 
-// Render Interactive Calendar
+// Render Interactive Calendar (taking doctor visiting days into account)
 function renderCalendar() {
   calendarGrid.innerHTML = '';
+  if (!selectedDoctor) return;
   
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -200,7 +419,6 @@ function renderCalendar() {
   const totalDays = new Date(year, month + 1, 0).getDate();
 
   // Offset first day to match Mon-Sun layout
-  // Sun(0) is index 6. Mon(1) is index 0.
   const startingOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
 
   // Render empty leading squares
@@ -213,32 +431,34 @@ function renderCalendar() {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
+  // Allowed doctor visiting days array
+  const allowedDays = selectedDoctor.visiting_days ? selectedDoctor.visiting_days.split(',').map(Number) : [1,2,3,4,5];
+
   // Render month days
   for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
     const dayEl = document.createElement('div');
     dayEl.className = 'calendar-day';
     dayEl.textContent = dayNum;
 
-    // Build standard date string YYYY-MM-DD
     const localDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-    const dayOfWeek = new Date(year, month, dayNum).getDay(); // 0 = Sun, 6 = Sat
+    const dayOfWeek = new Date(year, month, dayNum).getDay(); // 0 = Sun, 1 = Mon ... 6 = Sat
 
     // Check conditions
     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
     const isPast = localDateStr < todayStr;
     const isToday = localDateStr === todayStr;
+    const isDocVisiting = allowedDays.includes(dayOfWeek);
 
     // Has appointment indicator
-    const hasBookings = appointments.some(a => a.appointment_date === localDateStr && a.status !== 'cancelled');
+    const hasBookings = appointments.some(a => a.appointment_date === localDateStr && a.status !== 'cancelled' && a.doctor_id === selectedDoctorId);
 
-    if (isWeekend || isPast) {
+    if (isWeekend || isPast || !isDocVisiting) {
       dayEl.classList.add('disabled');
     } else {
       if (isToday) dayEl.classList.add('today');
       if (hasBookings) dayEl.classList.add('has-bookings');
       if (selectedDateStr === localDateStr) dayEl.classList.add('selected');
 
-      // Click handler
       dayEl.addEventListener('click', () => selectDate(localDateStr));
     }
 
@@ -251,10 +471,8 @@ function selectDate(dateStr) {
   selectedDateStr = dateStr;
   selectedSlotTime = null; // reset slot selection
   
-  // Update Calendar selection styling
   renderCalendar();
 
-  // Show available slots UI
   slotsContainer.style.display = 'block';
   bookingForm.style.display = 'none'; // hide form until slot selected
   
@@ -266,17 +484,17 @@ function selectDate(dateStr) {
   });
   selectedDateDisplay.textContent = formattedDate;
 
-  // Render time slots
   renderTimeSlots();
 }
 
-// Render Time Slots (marking already booked slots as disabled)
+// Render Time Slots (marking already booked slots for this doctor as disabled)
 function renderTimeSlots() {
   timeSlotsGrid.innerHTML = '';
+  if (!selectedDoctor) return;
   
-  // Find appointments already booked for the selected date
+  // Find appointments already booked for the selected date for this specific doctor
   const bookedSlots = appointments
-    .filter(a => a.appointment_date === selectedDateStr && a.status !== 'cancelled')
+    .filter(a => a.appointment_date === selectedDateStr && a.status !== 'cancelled' && a.doctor_id === selectedDoctorId)
     .map(a => a.appointment_time);
 
   TIME_SLOTS.forEach(time => {
@@ -291,7 +509,6 @@ function renderTimeSlots() {
       slotEl.title = 'This slot is already booked';
     } else {
       if (selectedSlotTime === time) slotEl.classList.add('selected');
-
       slotEl.addEventListener('click', () => selectSlot(time));
     }
 
@@ -304,14 +521,162 @@ function selectSlot(time) {
   selectedSlotTime = time;
   renderTimeSlots();
 
-  // Reveal booking contact form
   bookingForm.style.display = 'block';
   bookingForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+// Render Doctors Dropdown list
+function renderDoctorsDropdown() {
+  const select = document.getElementById('doctor-select');
+  if (!select) return;
+  
+  select.innerHTML = `<option value="" data-i18n="booking-select-prompt">${TRANSLATIONS[currentLanguage]["booking-select-prompt"]}</option>`;
+  
+  doctors.forEach(doc => {
+    const option = document.createElement('option');
+    option.value = doc.id;
+    const name = currentLanguage === 'bn' ? doc.name_bn : doc.name_en;
+    const specialty = currentLanguage === 'bn' ? doc.specialty_bn : doc.specialty_en;
+    option.textContent = `${name} (${specialty})`;
+    select.appendChild(option);
+  });
+  
+  select.removeEventListener('change', handleDoctorChange);
+  select.addEventListener('change', handleDoctorChange);
+}
+
+function handleDoctorChange(e) {
+  const docId = parseInt(e.target.value, 10);
+  const calendarWrapper = document.getElementById('calendar-booking-wrapper');
+  
+  if (isNaN(docId)) {
+    selectedDoctorId = null;
+    selectedDoctor = null;
+    if (calendarWrapper) calendarWrapper.style.display = 'none';
+    document.getElementById('selected-doctor-profile').style.display = 'none';
+    slotsContainer.style.display = 'none';
+    bookingForm.style.display = 'none';
+    return;
+  }
+  
+  selectedDoctorId = docId;
+  selectedDoctor = doctors.find(d => d.id === docId);
+  
+  renderSelectedDoctorProfile();
+  
+  selectedDateStr = null;
+  selectedSlotTime = null;
+  if (calendarWrapper) calendarWrapper.style.display = 'block';
+  slotsContainer.style.display = 'none';
+  bookingForm.style.display = 'none';
+  
+  renderCalendar();
+}
+
+function renderSelectedDoctorProfile() {
+  const profileDiv = document.getElementById('selected-doctor-profile');
+  if (!profileDiv || !selectedDoctor) return;
+  
+  const name = currentLanguage === 'bn' ? selectedDoctor.name_bn : selectedDoctor.name_en;
+  const specialty = currentLanguage === 'bn' ? selectedDoctor.specialty_bn : selectedDoctor.specialty_en;
+  const info = currentLanguage === 'bn' ? selectedDoctor.info_bn : selectedDoctor.info_en;
+  const hours = currentLanguage === 'bn' ? selectedDoctor.visiting_hours_bn : selectedDoctor.visiting_hours_en;
+  
+  profileDiv.innerHTML = `
+    <div class="doctor-details-box">
+      <div class="doctor-avatar" style="background-image: url('${selectedDoctor.image_url}')"></div>
+      <div class="doctor-info-text">
+        <h4>${name}</h4>
+        <p style="font-weight:600; color:var(--primary-color);">${specialty}</p>
+        <p>${info}</p>
+        <p class="hours"><strong>${currentLanguage === 'bn' ? 'ক্লিনিক সময়' : 'Clinic Hours'}:</strong> ${hours}</p>
+      </div>
+    </div>
+  `;
+  profileDiv.style.display = 'flex';
+}
+
+// Render Gallery image grid
+function renderGallery() {
+  const container = document.getElementById('gallery-container');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  if (galleryItems.length === 0) {
+    container.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;" data-i18n="gallery-loading">${TRANSLATIONS[currentLanguage]["gallery-loading"]}</p>`;
+    return;
+  }
+  
+  galleryItems.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'gallery-card';
+    const title = currentLanguage === 'bn' ? item.title_bn : item.title_en;
+    
+    card.innerHTML = `
+      <div class="gallery-img" style="background-image: url('${escapeHTML(item.image_url)}')" onclick="openLightbox('${escapeHTML(item.image_url)}', '${escapeHTML(title)}')"></div>
+      <div class="gallery-title">${escapeHTML(title)}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// News Expansion Modal handlers
+window.openNewsModal = function(e, id) {
+  if (e) e.preventDefault();
+  const item = newsItems.find(n => n.id === id);
+  if (!item) return;
+  
+  const modal = document.getElementById('news-modal');
+  const title = document.getElementById('news-modal-title');
+  const body = document.getElementById('news-modal-body');
+  
+  title.textContent = item.title;
+  
+  const formattedDate = new Date(item.date_posted).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  
+  body.innerHTML = `
+    <div class="modal-news-img" style="background-image: url('${escapeHTML(item.image_url)}')"></div>
+    <div class="modal-news-meta">
+      <span><strong>Category:</strong> ${escapeHTML(item.category)}</span>
+      <span><strong>Posted on:</strong> ${formattedDate}</span>
+    </div>
+    <div class="modal-news-content">${escapeHTML(item.content)}</div>
+  `;
+  
+  modal.style.display = 'flex';
+};
+
+window.closeNewsModal = function(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('news-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+// Lightbox Zoom handlers
+window.openLightbox = function(url, title) {
+  const lightbox = document.getElementById('lightbox-modal');
+  const img = document.getElementById('lightbox-img');
+  const caption = document.getElementById('lightbox-caption');
+  
+  if (lightbox && img && caption) {
+    img.src = url;
+    caption.textContent = title || '';
+    lightbox.style.display = 'flex';
+  }
+};
+
+window.closeLightbox = function() {
+  const lightbox = document.getElementById('lightbox-modal');
+  if (lightbox) lightbox.style.display = 'none';
+};
+
 // Setup Event listeners
 function setupEventListeners() {
-  // Navigation Calendar Shifting
+  // Calendar Shifting
   prevMonthBtn.addEventListener('click', () => {
     currentDate.setMonth(currentDate.getMonth() - 1);
     renderCalendar();
@@ -331,8 +696,8 @@ function setupEventListeners() {
     const patientPhone = document.getElementById('patient-phone').value.trim();
     const bookingNotes = document.getElementById('booking-notes').value.trim();
 
-    if (!selectedDateStr || !selectedSlotTime) {
-      showStatus('Please select a valid date and time slot first.', 'error');
+    if (!selectedDateStr || !selectedSlotTime || !selectedDoctorId) {
+      showStatus('Please select doctor, date, and slot first.', 'error');
       return;
     }
 
@@ -342,12 +707,13 @@ function setupEventListeners() {
       phone: patientPhone,
       appointment_date: selectedDateStr,
       appointment_time: selectedSlotTime,
-      notes: bookingNotes
+      notes: bookingNotes,
+      doctor_id: selectedDoctorId
     };
 
     try {
       if (isFallbackMode) {
-        // Save in LocalStorage
+        // Save in LocalStorage fallback
         const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
         const activeUserId = localStorage.getItem('chc_user_id');
         const newAppt = {
@@ -360,7 +726,6 @@ function setupEventListeners() {
         localAppts.push(newAppt);
         localStorage.setItem('chc_appointments', JSON.stringify(localAppts));
         
-        // Mock successful save
         appointments.push(newAppt);
         showBookingSuccess(newAppt);
       } else {
@@ -370,7 +735,6 @@ function setupEventListeners() {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        // Post to Node.js Backend API
         const response = await fetch('/api/appointments', {
           method: 'POST',
           headers,
@@ -394,30 +758,36 @@ function setupEventListeners() {
 }
 
 function showBookingSuccess(appointment) {
-  // Clear forms and selections
   bookingForm.reset();
   slotsContainer.style.display = 'none';
   bookingForm.style.display = 'none';
   selectedDateStr = null;
   selectedSlotTime = null;
+  selectedDoctorId = null;
+  selectedDoctor = null;
   
-  // Refresh Calendar view
+  const select = document.getElementById('doctor-select');
+  if (select) select.value = '';
+  document.getElementById('selected-doctor-profile').style.display = 'none';
+  document.getElementById('calendar-booking-wrapper').style.display = 'none';
+  
   renderCalendar();
   renderPatientHistory();
 
-  // Scroll to status panel
   statusBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-  // Show status success message
-  const msg = `Successfully booked appointment for ${appointment.patient_name} on ${appointment.appointment_date} at ${appointment.appointment_time}. Status: PENDING admin approval.`;
+  const msg = currentLanguage === 'bn' ? 
+    `ডাক্তার অ্যাপয়েন্টমেন্ট সফলভাবে বুক করা হয়েছে! রোগ নাম: ${appointment.patient_name}, তারিখ: ${appointment.appointment_date}, সময়: ${appointment.appointment_time}। অবস্থা: অ্যাডমিন অনুমোদনের জন্য অপেক্ষমান।` : 
+    `Successfully booked appointment for ${appointment.patient_name} on ${appointment.appointment_date} at ${appointment.appointment_time}. Status: PENDING admin approval.`;
+  
   showStatus(msg, 'success');
 }
 
 function showStatus(message, type) {
   statusBanner.textContent = message;
   statusBanner.className = `status-banner ${type}`;
+  statusBanner.style.display = 'block';
   
-  // Auto clear after 8 seconds
   setTimeout(() => {
     statusBanner.style.display = 'none';
   }, 8000);
@@ -434,17 +804,17 @@ function renderAuthNav() {
   if (role) {
     let portalLink = '';
     if (role === 'Admin' || role === 'Staff') {
-      portalLink = `<a href="admin.html" class="nav-link btn-admin" id="link-admin">Admin Portal</a>`;
+      portalLink = `<a href="admin.html" class="nav-link btn-admin" id="link-admin" data-i18n="nav-admin">${TRANSLATIONS[currentLanguage]["nav-admin"]}</a>`;
     } else {
-      portalLink = `<span class="nav-link" style="color: var(--primary-color); font-weight:600;">Welcome, ${escapeHTML(name)}</span>`;
+      portalLink = `<span class="nav-link" style="color: var(--primary-color); font-weight:600;">${currentLanguage === 'bn' ? 'স্বাগতম, ' : 'Welcome, '}${escapeHTML(name)}</span>`;
     }
 
     navMenu.innerHTML = `
-      <a href="index.html" class="nav-link active" id="link-home">Home</a>
-      <a href="#appointments" class="nav-link" id="link-book">Book Appointment</a>
-      <a href="#news" class="nav-link" id="link-news">News & Events</a>
+      <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
+      <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
+      <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">${TRANSLATIONS[currentLanguage]["nav-news"]}</a>
       ${portalLink}
-      <a href="#" class="nav-link" id="link-logout" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);">Logout</a>
+      <a href="#" class="nav-link" id="link-logout" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);" data-i18n="nav-logout">${TRANSLATIONS[currentLanguage]["nav-logout"]}</a>
     `;
 
     // Pre-populate patient details if form is loaded
@@ -458,10 +828,10 @@ function renderAuthNav() {
     }
   } else {
     navMenu.innerHTML = `
-      <a href="index.html" class="nav-link active" id="link-home">Home</a>
-      <a href="#appointments" class="nav-link" id="link-book">Book Appointment</a>
-      <a href="#news" class="nav-link" id="link-news">News & Events</a>
-      <a href="login.html" class="nav-link btn-admin" id="link-auth-btn">Login / Register</a>
+      <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
+      <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
+      <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">${TRANSLATIONS[currentLanguage]["nav-news"]}</a>
+      <a href="login.html" class="nav-link btn-admin" id="link-auth-btn" data-i18n="nav-login">${TRANSLATIONS[currentLanguage]["nav-login"]}</a>
     `;
   }
 }
@@ -486,7 +856,6 @@ function renderPatientHistory() {
     historySection.style.display = 'block';
     tbody.innerHTML = '';
 
-    // Filter appointments belonging to this patient
     const myAppts = appointments.filter(a => {
       if (isFallbackMode) {
         return String(a.user_id) === String(activeUserId) || a.email === localStorage.getItem('chc_user_email');
@@ -497,8 +866,8 @@ function renderPatientHistory() {
     if (myAppts.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">
-            You have no booked appointments.
+          <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;" data-i18n="history-empty">
+            ${TRANSLATIONS[currentLanguage]["history-empty"]}
           </td>
         </tr>
       `;
@@ -514,10 +883,24 @@ function renderPatientHistory() {
         year: 'numeric'
       });
 
+      let docNameEn = appt.doctor_name_en;
+      let docNameBn = appt.doctor_name_bn;
+      if (!docNameEn && appt.doctor_id) {
+        const d = doctors.find(doc => doc.id === appt.doctor_id);
+        if (d) {
+          docNameEn = d.name_en;
+          docNameBn = d.name_bn;
+        }
+      }
+      const docName = currentLanguage === 'bn' ? 
+        (docNameBn || 'যে কোনো চিকিৎসক') : 
+        (docNameEn || 'Any Available Doctor');
+
       row.innerHTML = `
         <td>
           <strong>${formattedDate}</strong>
           <div style="color: var(--primary-color); font-size: 0.8rem; font-weight:600; margin-top:0.15rem;">${appt.appointment_time}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Doctor: <strong>${escapeHTML(docName)}</strong></div>
         </td>
         <td>
           <span class="badge ${appt.status}">${appt.status}</span>

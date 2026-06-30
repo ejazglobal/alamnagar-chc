@@ -107,7 +107,68 @@
               <textarea id="news-content" class="form-control" placeholder="Details about this update..." required></textarea>
             </div>
 
-            <button type="submit" class="btn">Publish Announcement</button>
+            <div style="display: flex; gap: 0.5rem;">
+              <button type="submit" class="btn" id="news-submit-btn">Publish Announcement</button>
+              <button type="button" class="btn" id="news-cancel-edit-btn" style="background-color: var(--text-muted); display: none;" onclick="cancelNewsEdit()">Cancel Edit</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Manage News and Events Panel -->
+        <section class="panel" style="margin-top: 1.5rem;">
+          <h2 class="panel-title">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2z" />
+            </svg>
+            Manage News & Events
+          </h2>
+          <div class="table-wrapper">
+            <table class="news-manage-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="news-manage-tbody">
+                <!-- Dynamically populated -->
+                <tr>
+                  <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">Loading news items...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Add Photo to Gallery Panel -->
+        <section class="panel" style="margin-top: 1.5rem;">
+          <h2 class="panel-title">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Add Photo to Gallery
+          </h2>
+
+          <div id="gallery-status-banner" class="status-banner" style="margin-bottom: 1rem;"></div>
+
+          <form id="gallery-post-form">
+            <div class="form-group">
+              <label class="form-label" for="gallery-title-en">Title (English) *</label>
+              <input type="text" id="gallery-title-en" class="form-control" placeholder="e.g. Clinic Entrance" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="gallery-title-bn">Title (Bengali) *</label>
+              <input type="text" id="gallery-title-bn" class="form-control" placeholder="e.g. ক্লিনিকের প্রবেশদ্বার" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="gallery-image-file">Upload Image File *</label>
+              <input type="file" id="gallery-image-file" class="form-control" accept="image/*" style="padding: 0.35rem 0.75rem; background: white;" required>
+            </div>
+
+            <button type="submit" class="btn">Add to Gallery</button>
           </form>
         </section>
 

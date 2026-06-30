@@ -1,5 +1,8 @@
 // State Management
 let appointments = [];
+let newsItems = [];
+let doctors = [];
+let editingNewsId = null;
 let currentFilter = 'all';
 let searchQuery = '';
 let isFallbackMode = false;
@@ -36,17 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function unlockDashboard(role) {
   if (authLoading) authLoading.style.display = 'none';
-  dashboardView.style.display = 'block';
+  if (dashboardView) dashboardView.style.display = 'block';
   
-  // Staff are allowed to publish news, so we do not hide the left column.
-
   renderAuthNav();
   await loadData();
   setupDashboardEvents();
   renderDashboard();
+  renderNewsManageTable();
 }
 
-// Load Appointments & News
+// Load Appointments, News, Doctors
 async function loadData() {
   try {
     const token = localStorage.getItem('chc_token');
@@ -57,6 +59,16 @@ async function loadData() {
     });
     if (!apptsResponse.ok) throw new Error('API server unreachable');
     appointments = await apptsResponse.json();
+
+    const doctorsResponse = await fetch('/api/doctors');
+    if (doctorsResponse.ok) {
+      doctors = await doctorsResponse.json();
+    }
+
+    const newsResponse = await fetch('/api/news');
+    if (newsResponse.ok) {
+      newsItems = await newsResponse.json();
+    }
     
     isFallbackMode = false;
     adminDemoNotice.style.display = 'none';
@@ -65,6 +77,8 @@ async function loadData() {
     isFallbackMode = true;
     adminDemoNotice.style.display = 'flex';
     appointments = JSON.parse(localStorage.getItem('chc_appointments')) || [];
+    doctors = JSON.parse(localStorage.getItem('chc_doctors')) || [];
+    newsItems = JSON.parse(localStorage.getItem('chc_news')) || [];
   }
 }
 
@@ -114,7 +128,7 @@ function setupDashboardEvents() {
     renderTable();
   });
 
-  // News publication submit
+  // News publication submit (Handles both POST and PATCH based on editingNewsId)
   newsPostForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('news-title').value.trim();
@@ -144,22 +158,45 @@ function setupDashboardEvents() {
 
     try {
       if (isFallbackMode) {
-        // Save locally
         const localNews = JSON.parse(localStorage.getItem('chc_news')) || [];
-        const newNewsItem = {
-          id: Date.now(),
-          ...payload,
-          date_posted: new Date().toISOString()
-        };
-        localNews.unshift(newNewsItem); // Add to front
-        localStorage.setItem('chc_news', JSON.stringify(localNews));
-        
-        showNewsStatus('News announcement posted successfully (Saved locally).', 'success');
+        if (editingNewsId) {
+          const idx = localNews.findIndex(n => n.id === editingNewsId);
+          if (idx !== -1) {
+            localNews[idx] = {
+              ...localNews[idx],
+              title,
+              category,
+              image_url: image_url || localNews[idx].image_url,
+              content
+            };
+          }
+          localStorage.setItem('chc_news', JSON.stringify(localNews));
+          newsItems = localNews;
+          showNewsStatus('News item updated (Offline fallback).', 'success');
+          cancelNewsEdit();
+        } else {
+          const newNewsItem = {
+            id: Date.now(),
+            title,
+            category,
+            image_url: image_url || 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80',
+            content,
+            date_posted: new Date().toISOString()
+          };
+          localNews.push(newNewsItem);
+          localStorage.setItem('chc_news', JSON.stringify(localNews));
+          newsItems.push(newNewsItem);
+          showNewsStatus('News announcement posted (Offline fallback).', 'success');
+          newsPostForm.reset();
+        }
+        renderNewsManageTable();
       } else {
         const token = localStorage.getItem('chc_token');
-        // Post to server
-        const response = await fetch('/api/news', {
-          method: 'POST',
+        const url = editingNewsId ? `/api/news/${editingNewsId}` : '/api/news';
+        const method = editingNewsId ? 'PATCH' : 'POST';
+        
+        const response = await fetch(url, {
+          method,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -169,20 +206,98 @@ function setupDashboardEvents() {
 
         if (!response.ok) {
           const errData = await response.json();
-          throw new Error(errData.error || 'Failed to post news announcement.');
+          throw new Error(errData.error || 'Failed to publish news item.');
+        }
+
+        if (editingNewsId) {
+          showNewsStatus('News item updated successfully.', 'success');
+          cancelNewsEdit();
+        } else {
+          showNewsStatus('News announcement published successfully.', 'success');
+          newsPostForm.reset();
         }
         
-        showNewsStatus('News announcement published successfully!', 'success');
+        // Reload news list
+        const newsResponse = await fetch('/api/news');
+        if (newsResponse.ok) {
+          newsItems = await newsResponse.json();
+        }
+        renderNewsManageTable();
       }
-      
-      newsPostForm.reset();
-    } catch (err) {
-      console.error(err);
-      showNewsStatus(err.message || 'Error occurred publishing news.', 'error');
+    } catch (error) {
+      console.error(error);
+      showNewsStatus(error.message || 'An error occurred.', 'error');
     }
   });
 
-  // Change password submit
+  // Gallery Form submit handler
+  const galleryPostForm = document.getElementById('gallery-post-form');
+  if (galleryPostForm) {
+    galleryPostForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const titleEn = document.getElementById('gallery-title-en').value.trim();
+      const titleBn = document.getElementById('gallery-title-bn').value.trim();
+      const imageFileInput = document.getElementById('gallery-image-file');
+      const banner = document.getElementById('gallery-status-banner');
+      
+      if (!imageFileInput.files || !imageFileInput.files[0]) {
+        showBanner(banner, 'Please select an image file to upload.', 'error');
+        return;
+      }
+      
+      try {
+        const file = imageFileInput.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+          showBanner(banner, 'Image file must be less than 5MB.', 'error');
+          return;
+        }
+        
+        const base64Str = await fileToBase64(file);
+        const payload = {
+          title_en: titleEn,
+          title_bn: titleBn,
+          image_url: base64Str
+        };
+        
+        if (isFallbackMode) {
+          const localGallery = JSON.parse(localStorage.getItem('chc_gallery')) || [];
+          const newItem = {
+            id: Date.now(),
+            ...payload,
+            image_url: base64Str
+          };
+          localGallery.push(newItem);
+          localStorage.setItem('chc_gallery', JSON.stringify(localGallery));
+          
+          showBanner(banner, 'Photo added to gallery (Offline fallback).', 'success');
+          galleryPostForm.reset();
+        } else {
+          const token = localStorage.getItem('chc_token');
+          const response = await fetch('/api/gallery', {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/json',
+               'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Failed to submit gallery item.');
+          }
+          
+          showBanner(banner, 'Photo added to gallery successfully.', 'success');
+          galleryPostForm.reset();
+        }
+      } catch (err) {
+        console.error(err);
+        showBanner(banner, err.message || 'An error occurred.', 'error');
+      }
+    });
+  }
+
+  // Change Password submit
   const changePasswordForm = document.getElementById('change-password-form');
   if (changePasswordForm) {
     changePasswordForm.addEventListener('submit', async (e) => {
@@ -190,45 +305,48 @@ function setupDashboardEvents() {
       const currentPassword = document.getElementById('current-password').value;
       const newPassword = document.getElementById('new-password').value;
 
-      if (newPassword.length < 6) {
-        showPasswordStatus('New password must be at least 6 characters long.', 'error');
-        return;
-      }
-
       try {
-        const token = localStorage.getItem('chc_token');
-        const response = await fetch('/api/auth/change-password', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ currentPassword, newPassword })
-        });
+        if (isFallbackMode) {
+          showPasswordStatus('Change Password endpoint unavailable in offline fallback mode.', 'error');
+        } else {
+          const token = localStorage.getItem('chc_token');
+          const response = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ currentPassword, newPassword })
+          });
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'Failed to change password.');
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Failed to change password.');
+          }
+
+          showPasswordStatus('Password updated successfully.', 'success');
+          changePasswordForm.reset();
         }
-
-        showPasswordStatus('Password updated successfully!', 'success');
-        changePasswordForm.reset();
-      } catch (err) {
-        console.error(err);
-        showPasswordStatus(err.message || 'Error occurred changing password.', 'error');
+      } catch (error) {
+        console.error(error);
+        showPasswordStatus(error.message || 'An error occurred.', 'error');
       }
     });
   }
 }
 
-// Render overall stats and list components
-function renderDashboard() {
-  calculateMetrics();
-  renderTable();
+function showBanner(element, message, type) {
+  if (!element) return;
+  element.textContent = message;
+  element.className = `status-banner ${type}`;
+  element.style.display = 'block';
+  setTimeout(() => {
+    element.style.display = 'none';
+  }, 6000);
 }
 
-// Stats metrics calculator
-function calculateMetrics() {
+// Render metrics panels & run table populate
+function renderDashboard() {
   const total = appointments.length;
   const pending = appointments.filter(a => a.status === 'pending').length;
   const approved = appointments.filter(a => a.status === 'approved').length;
@@ -236,6 +354,8 @@ function calculateMetrics() {
   statTotal.textContent = total;
   statPending.textContent = pending;
   statApproved.textContent = approved;
+
+  renderTable();
 }
 
 // Render table records based on filter and search queries
@@ -244,12 +364,10 @@ function renderTable() {
 
   // Filter and search logic
   const filtered = appointments.filter(appt => {
-    // 1. Check Category Filter
     if (currentFilter !== 'all' && appt.status !== currentFilter) {
       return false;
     }
     
-    // 2. Check Search Input
     if (searchQuery !== '') {
       const nameMatch = appt.patient_name.toLowerCase().includes(searchQuery);
       const phoneMatch = appt.phone.includes(searchQuery);
@@ -285,6 +403,14 @@ function renderTable() {
     const isApproved = appt.status === 'approved';
     const isCancelled = appt.status === 'cancelled';
 
+    let docName = 'Any Available Doctor';
+    if (appt.doctor_name_en) {
+      docName = appt.doctor_name_en;
+    } else if (appt.doctor_id) {
+      const d = doctors.find(doc => doc.id === appt.doctor_id);
+      if (d) docName = d.name_en;
+    }
+
     row.innerHTML = `
       <td>
         <strong style="font-size: 0.9rem; color: var(--text-dark);">${escapeHTML(appt.patient_name)}</strong>
@@ -297,6 +423,7 @@ function renderTable() {
       <td>
         <div>${formattedDate}</div>
         <div style="font-weight: 600; color: var(--primary-color); font-size: 0.8rem; margin-top: 0.15rem;">${appt.appointment_time}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Doctor: <strong>${escapeHTML(docName)}</strong></div>
       </td>
       <td>
         <span class="badge ${appt.status}">${appt.status}</span>
@@ -317,7 +444,6 @@ function renderTable() {
 window.updateStatus = async function(id, newStatus) {
   try {
     if (isFallbackMode) {
-      // Offline mode local storage update
       const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
       const apptIdx = localAppts.findIndex(a => a.id === id);
       if (apptIdx !== -1) {
@@ -325,7 +451,6 @@ window.updateStatus = async function(id, newStatus) {
         localStorage.setItem('chc_appointments', JSON.stringify(localAppts));
       }
 
-      // Sync local state
       const stateIdx = appointments.findIndex(a => a.id === id);
       if (stateIdx !== -1) {
         appointments[stateIdx].status = newStatus;
@@ -334,7 +459,6 @@ window.updateStatus = async function(id, newStatus) {
       showApptStatus(`Appointment status updated to ${newStatus.toUpperCase()} (Saved locally).`, 'success');
     } else {
       const token = localStorage.getItem('chc_token');
-      // Make standard request to the Node.js database REST API
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: {
@@ -349,7 +473,6 @@ window.updateStatus = async function(id, newStatus) {
         throw new Error(errData.error || 'Failed to update status.');
       }
 
-      // Sync state array
       const stateIdx = appointments.findIndex(a => a.id === id);
       if (stateIdx !== -1) {
         appointments[stateIdx].status = newStatus;
@@ -365,10 +488,102 @@ window.updateStatus = async function(id, newStatus) {
   }
 };
 
+// Render News Management table
+function renderNewsManageTable() {
+  const tbody = document.getElementById('news-manage-tbody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '';
+  if (newsItems.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">No news items published.</td>
+      </tr>
+    `;
+    return;
+  }
+  
+  newsItems.forEach(item => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>
+        <strong style="color: var(--text-dark);">${escapeHTML(item.title)}</strong>
+      </td>
+      <td>
+        <span class="badge ${item.category.toLowerCase()}">${escapeHTML(item.category)}</span>
+      </td>
+      <td>
+        <button class="news-action-btn edit" onclick="editNews(${item.id})">Edit</button>
+        <button class="news-action-btn delete" onclick="deleteNews(${item.id})">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// News Edit Actions
+window.editNews = function(id) {
+  const item = newsItems.find(n => n.id === id);
+  if (!item) return;
+  
+  editingNewsId = id;
+  document.getElementById('news-title').value = item.title;
+  document.getElementById('news-category').value = item.category;
+  document.getElementById('news-image').value = item.image_url.startsWith('data:') ? '' : item.image_url;
+  document.getElementById('news-content').value = item.content;
+  
+  document.getElementById('news-submit-btn').textContent = 'Update Announcement';
+  document.getElementById('news-cancel-edit-btn').style.display = 'inline-block';
+  
+  newsPostForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.cancelNewsEdit = function() {
+  editingNewsId = null;
+  newsPostForm.reset();
+  document.getElementById('news-submit-btn').textContent = 'Publish Announcement';
+  document.getElementById('news-cancel-edit-btn').style.display = 'none';
+};
+
+// News Delete Actions
+window.deleteNews = async function(id) {
+  if (!confirm('Are you sure you want to delete this news item?')) return;
+  
+  try {
+    if (isFallbackMode) {
+      newsItems = newsItems.filter(n => n.id !== id);
+      localStorage.setItem('chc_news', JSON.stringify(newsItems));
+      showNewsStatus('News item deleted (Offline fallback).', 'success');
+      renderNewsManageTable();
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch(`/api/news/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to delete news item');
+      }
+      
+      newsItems = newsItems.filter(n => n.id !== id);
+      showNewsStatus('News item deleted successfully.', 'success');
+      renderNewsManageTable();
+    }
+  } catch (err) {
+    console.error(err);
+    showNewsStatus(err.message || 'Error deleting news item.', 'error');
+  }
+};
+
 // Messaging display components
 function showNewsStatus(message, type) {
   newsStatusBanner.textContent = message;
   newsStatusBanner.className = `status-banner ${type}`;
+  newsStatusBanner.style.display = 'block';
   setTimeout(() => {
     newsStatusBanner.style.display = 'none';
   }, 5000);
@@ -377,6 +592,7 @@ function showNewsStatus(message, type) {
 function showApptStatus(message, type) {
   apptStatusBanner.textContent = message;
   apptStatusBanner.className = `status-banner ${type}`;
+  apptStatusBanner.style.display = 'block';
   setTimeout(() => {
     apptStatusBanner.style.display = 'none';
   }, 5000);
