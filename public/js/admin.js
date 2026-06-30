@@ -5,11 +5,8 @@ let searchQuery = '';
 let isFallbackMode = false;
 
 // DOM Elements
-const loginGate = document.getElementById('admin-login-gate');
-const loginForm = document.getElementById('admin-login-form');
-const loginError = document.getElementById('login-error');
+const authLoading = document.getElementById('auth-loading');
 const dashboardView = document.getElementById('admin-dashboard-view');
-const adminPasscode = document.getElementById('admin-passcode');
 
 const statTotal = document.getElementById('stat-total');
 const statPending = document.getElementById('stat-pending');
@@ -26,33 +23,24 @@ const newsStatusBanner = document.getElementById('news-status-banner');
 
 // Check authentication on startup
 document.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('admin_authenticated') === 'true') {
-    unlockDashboard();
+  const role = localStorage.getItem('chc_user_role');
+  const token = localStorage.getItem('chc_token');
+
+  if (!token || (role !== 'Admin' && role !== 'Staff')) {
+    // Access denied: redirect to login
+    window.location.href = 'login.html';
+  } else {
+    unlockDashboard(role);
   }
-  setupAuthEvents();
 });
 
-function setupAuthEvents() {
-  loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const code = adminPasscode.value;
-    
-    // Simulate secure passcode verification
-    if (code === 'admin123') {
-      sessionStorage.setItem('admin_authenticated', 'true');
-      unlockDashboard();
-    } else {
-      loginError.textContent = 'Invalid access code. Please try again.';
-      loginError.style.display = 'block';
-      adminPasscode.value = '';
-    }
-  });
-}
-
-async function unlockDashboard() {
-  loginGate.style.display = 'none';
+async function unlockDashboard(role) {
+  if (authLoading) authLoading.style.display = 'none';
   dashboardView.style.display = 'block';
   
+  // Staff are allowed to publish news, so we do not hide the left column.
+
+  renderAuthNav();
   await loadData();
   setupDashboardEvents();
   renderDashboard();
@@ -61,7 +49,12 @@ async function unlockDashboard() {
 // Load Appointments & News
 async function loadData() {
   try {
-    const apptsResponse = await fetch('/api/appointments');
+    const token = localStorage.getItem('chc_token');
+    const apptsResponse = await fetch('/api/appointments', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!apptsResponse.ok) throw new Error('API server unreachable');
     appointments = await apptsResponse.json();
     
@@ -74,6 +67,32 @@ async function loadData() {
     appointments = JSON.parse(localStorage.getItem('chc_appointments')) || [];
   }
 }
+
+// Render dynamic authentication UI elements in navigation
+function renderAuthNav() {
+  const navMenu = document.getElementById('nav-menu');
+  if (!navMenu) return;
+
+  const role = localStorage.getItem('chc_user_role');
+  const name = localStorage.getItem('chc_user_name');
+
+  navMenu.innerHTML = `
+    <a href="index.html" class="nav-link" id="link-home">Home</a>
+    <a href="admin.html" class="nav-link active" id="link-admin">Admin Dashboard</a>
+    <span class="nav-link" style="color: var(--primary-color); font-weight:600;">Welcome, ${escapeHTML(name)} (${role})</span>
+    <a href="#" class="nav-link" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);">Logout</a>
+  `;
+}
+
+window.logoutUser = function(e) {
+  if (e) e.preventDefault();
+  localStorage.removeItem('chc_token');
+  localStorage.removeItem('chc_user_role');
+  localStorage.removeItem('chc_user_name');
+  localStorage.removeItem('chc_user_email');
+  localStorage.removeItem('chc_user_id');
+  window.location.href = 'index.html';
+};
 
 // Setup Event listeners for Dashboard controls
 function setupDashboardEvents() {
@@ -119,11 +138,13 @@ function setupDashboardEvents() {
         
         showNewsStatus('News announcement posted successfully (Saved locally).', 'success');
       } else {
+        const token = localStorage.getItem('chc_token');
         // Post to server
         const response = await fetch('/api/news', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(payload)
         });
@@ -142,6 +163,44 @@ function setupDashboardEvents() {
       showNewsStatus(err.message || 'Error occurred publishing news.', 'error');
     }
   });
+
+  // Change password submit
+  const changePasswordForm = document.getElementById('change-password-form');
+  if (changePasswordForm) {
+    changePasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPassword = document.getElementById('current-password').value;
+      const newPassword = document.getElementById('new-password').value;
+
+      if (newPassword.length < 6) {
+        showPasswordStatus('New password must be at least 6 characters long.', 'error');
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('chc_token');
+        const response = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || 'Failed to change password.');
+        }
+
+        showPasswordStatus('Password updated successfully!', 'success');
+        changePasswordForm.reset();
+      } catch (err) {
+        console.error(err);
+        showPasswordStatus(err.message || 'Error occurred changing password.', 'error');
+      }
+    });
+  }
 }
 
 // Render overall stats and list components
@@ -256,11 +315,13 @@ window.updateStatus = async function(id, newStatus) {
       
       showApptStatus(`Appointment status updated to ${newStatus.toUpperCase()} (Saved locally).`, 'success');
     } else {
+      const token = localStorage.getItem('chc_token');
       // Make standard request to the Node.js database REST API
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ status: newStatus })
       });
@@ -301,6 +362,18 @@ function showApptStatus(message, type) {
   setTimeout(() => {
     apptStatusBanner.style.display = 'none';
   }, 5000);
+}
+
+function showPasswordStatus(message, type) {
+  const passwordStatusBanner = document.getElementById('password-status-banner');
+  if (passwordStatusBanner) {
+    passwordStatusBanner.textContent = message;
+    passwordStatusBanner.className = `status-banner ${type}`;
+    passwordStatusBanner.style.display = 'block';
+    setTimeout(() => {
+      passwordStatusBanner.style.display = 'none';
+    }, 5000);
+  }
 }
 
 // XSS Sanitizer Helper

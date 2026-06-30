@@ -1,22 +1,39 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { createClient } = require('@libsql/client');
+const crypto = require('crypto');
 
-const dbPath = path.resolve(__dirname, 'healthcare.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening SQLite database:', err.message);
-  } else {
-    console.log('Connected to the local SQLite database.');
-    initializeDatabase();
-  }
+// Setup a safe local file database client for cross-platform support
+const db = createClient({
+  url: 'file:healthcare.db',
 });
 
-function initializeDatabase() {
-  db.serialize(() => {
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+}
+
+function generateSalt() {
+  return crypto.randomBytes(16).toString('hex');
+}
+
+async function initializeDatabase() {
+  try {
+    // Create users table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create appointments table
-    db.run(`
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS appointments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
         patient_name TEXT NOT NULL,
         email TEXT NOT NULL,
         phone TEXT NOT NULL,
@@ -29,7 +46,7 @@ function initializeDatabase() {
     `);
 
     // Create news table
-    db.run(`
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS news (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -40,90 +57,125 @@ function initializeDatabase() {
       )
     `);
 
+    // Seed default users if the table is empty
+    const userCountRes = await db.execute("SELECT COUNT(*) as count FROM users");
+    const userCount = userCountRes.rows[0].count;
+    if (userCount === 0) {
+      const adminSalt = generateSalt();
+      const staffSalt = generateSalt();
+      const patientSalt = generateSalt();
+
+      await db.execute({
+        sql: "INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)",
+        args: ["admin", "admin@alamnagar-chc.org", hashPassword("adminpass", adminSalt), adminSalt, "Admin"]
+      });
+      await db.execute({
+        sql: "INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)",
+        args: ["staff", "staff@alamnagar-chc.org", hashPassword("staffpass", staffSalt), staffSalt, "Staff"]
+      });
+      await db.execute({
+        sql: "INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)",
+        args: ["patient", "patient@example.com", hashPassword("patientpass", patientSalt), patientSalt, "Patient"]
+      });
+      console.log("Seeded default users (admin, staff, patient).");
+    }
+
     // Insert initial news items if table is empty
-    db.get("SELECT COUNT(*) as count FROM news", [], (err, row) => {
-      if (err) return console.error(err.message);
-      if (row.count === 0) {
-        const stmt = db.prepare("INSERT INTO news (title, content, image_url, category) VALUES (?, ?, ?, ?)");
-        stmt.run(
+    const newsCountRes = await db.execute("SELECT COUNT(*) as count FROM news");
+    const newsCount = newsCountRes.rows[0].count;
+    if (newsCount === 0) {
+      await db.execute({
+        sql: "INSERT INTO news (title, content, image_url, category) VALUES (?, ?, ?, ?)",
+        args: [
           "Free Medical Health Camp Next Saturday",
           "Alamnagar Charitable Healthcare Centre is organizing a free health check-up camp next Saturday. General physicians, pediatricians, and cardiologists will be available for consultations from 9:00 AM to 3:00 PM. Free medicine distribution is also arranged.",
           "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80",
           "Event"
-        );
-        stmt.run(
+        ]
+      });
+      await db.execute({
+        sql: "INSERT INTO news (title, content, image_url, category) VALUES (?, ?, ?, ?)",
+        args: [
           "New Pediatric Specialist Joins Our Team",
           "We are pleased to welcome Dr. Sarah Rahman, MD in Pediatrics, to our medical team. She will be available for consultations every Monday and Wednesday starting next week. Book your appointments online.",
           "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80",
           "News"
-        );
-        stmt.run(
-          "COVID-19 Booster Dose Guidelines",
-          "We are offering booster doses of COVID-19 vaccines for senior citizens and high-risk patients. Walk-ins are welcome from 10:00 AM to 2:00 PM on weekdays. Please bring your previous vaccination records.",
-          "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80",
-          "Alert"
-        );
-        stmt.finalize();
-        console.log("Inserted initial news items.");
-      }
-    });
-  });
+        ]
+      });
+      console.log("Inserted initial news items.");
+    }
+  } catch (err) {
+    console.error('Database initialization error:', err.message);
+  }
 }
 
-// Database query helpers (using promises for clean async/await in Express)
+// Initialize database
+initializeDatabase();
+
+// Database query helpers matching async format
 module.exports = {
-  db,
-  
-  // Appointments operations
-  getAllAppointments: () => {
-    return new Promise((resolve, reject) => {
-      db.all("SELECT * FROM appointments ORDER BY appointment_date ASC, appointment_time ASC", [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+  hashPassword,
+  generateSalt,
+
+  getUserByUsername: async (username) => {
+    const res = await db.execute({ sql: "SELECT * FROM users WHERE username = ?", args: [username] });
+    return res.rows[0] || null;
   },
 
-  createAppointment: (appointment) => {
-    return new Promise((resolve, reject) => {
-      const { patient_name, email, phone, appointment_date, appointment_time, notes } = appointment;
-      const query = `INSERT INTO appointments (patient_name, email, phone, appointment_date, appointment_time, notes) 
-                     VALUES (?, ?, ?, ?, ?, ?)`;
-      db.run(query, [patient_name, email, phone, appointment_date, appointment_time, notes], function(err) {
-        if (err) reject(err);
-        else resolve({ id: this.lastID, ...appointment, status: 'pending' });
-      });
-    });
+  getUserByEmail: async (email) => {
+    const res = await db.execute({ sql: "SELECT * FROM users WHERE email = ?", args: [email] });
+    return res.rows[0] || null;
   },
 
-  updateAppointmentStatus: (id, status) => {
-    return new Promise((resolve, reject) => {
-      const query = `UPDATE appointments SET status = ? WHERE id = ?`;
-      db.run(query, [status, id], function(err) {
-        if (err) reject(err);
-        else resolve({ changes: this.changes });
-      });
-    });
+  createUser: async (user) => {
+    const { username, email, password, role } = user;
+    const salt = generateSalt();
+    const hash = hashPassword(password, salt);
+    const query = `INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)`;
+    const res = await db.execute({ sql: query, args: [username, email, hash, salt, role] });
+    return { id: Number(res.lastInsertRowid), username, email, role };
   },
 
-  // News operations
-  getAllNews: () => {
-    return new Promise((resolve, reject) => {
-      db.all("SELECT * FROM news ORDER BY date_posted DESC", [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+  getAllAppointments: async () => {
+    const res = await db.execute("SELECT * FROM appointments ORDER BY appointment_date ASC, appointment_time ASC");
+    return res.rows;
   },
 
-  createNews: (newsItem) => {
-    return new Promise((resolve, reject) => {
-      const { title, content, image_url, category } = newsItem;
-      const query = `INSERT INTO news (title, content, image_url, category) VALUES (?, ?, ?, ?)`;
-      db.run(query, [title, content, image_url, category], function(err) {
-        if (err) reject(err);
-        else resolve({ id: this.lastID, ...newsItem, date_posted: new Date().toISOString() });
-      });
-    });
+  getAppointmentsByUserId: async (userId) => {
+    const res = await db.execute({ sql: "SELECT * FROM appointments WHERE user_id = ? ORDER BY appointment_date ASC, appointment_time ASC", args: [userId] });
+    return res.rows;
+  },
+
+  createAppointment: async (appointment) => {
+    const { user_id, patient_name, email, phone, appointment_date, appointment_time, notes } = appointment;
+    const query = `INSERT INTO appointments (user_id, patient_name, email, phone, appointment_date, appointment_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const res = await db.execute({ sql: query, args: [user_id || null, patient_name, email, phone, appointment_date, appointment_time, notes || ""] });
+    return { id: Number(res.lastInsertRowid), ...appointment, status: 'pending' };
+  },
+
+  updateAppointmentStatus: async (id, status) => {
+    const query = `UPDATE appointments SET status = ? WHERE id = ?`;
+    const res = await db.execute({ sql: query, args: [status, id] });
+    return { changes: res.rowsAffected };
+  },
+
+  getAllNews: async () => {
+    const res = await db.execute("SELECT * FROM news ORDER BY date_posted DESC");
+    return res.rows;
+  },
+
+  createNews: async (newsItem) => {
+    const { title, content, image_url, category } = newsItem;
+    const query = `INSERT INTO news (title, content, image_url, category) VALUES (?, ?, ?, ?)`;
+    const res = await db.execute({ sql: query, args: [title, content, image_url || "", category] });
+    return { id: Number(res.lastInsertRowid), ...newsItem, date_posted: new Date().toISOString() };
+  },
+
+  updateUserPassword: async (id, newPassword) => {
+    const salt = generateSalt();
+    const hash = hashPassword(newPassword, salt);
+    const query = `UPDATE users SET password_hash = ?, salt = ? WHERE id = ?`;
+    const res = await db.execute({ sql: query, args: [hash, salt, id] });
+    return { changes: res.rowsAffected };
   }
 };

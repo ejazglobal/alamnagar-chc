@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alamnagar Charitable Healthcare Centre - Login Portal</title>
+  <meta name="description" content="Sign in or register to access patient booking details and staff consoles.">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .auth-container {
+      max-width: 450px;
+      margin: 4rem auto;
+      padding: 0 1.5rem;
+    }
+    .auth-header-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border-color);
+      margin-bottom: 1.5rem;
+    }
+    .auth-tab {
+      flex: 1;
+      text-align: center;
+      padding: 0.75rem;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: var(--transition-smooth);
+    }
+    .auth-tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: var(--primary-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 1.5rem;
+    }
+    .auth-logo svg {
+      width: 36px;
+      height: 36px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.5;
+    }
+    .role-helper {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background-color: var(--primary-light);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .role-helper strong {
+      color: var(--primary-color);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="logo" id="nav-logo">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 10.5H13.5V5C13.5 4.17 12.83 3.5 12 3.5C11.17 3.5 10.5 4.17 10.5 5V10.5H5C4.17 10.5 3.5 11.17 3.5 12C3.5 12.83 4.17 13.5 5 13.5H10.5V19C10.5 19.83 11.17 20.5 12 20.5C12.83 20.5 13.5 19.83 13.5 19V13.5H19C19.83 13.5 20.5 12.83 20.5 12C20.5 11.17 19.83 10.5 19 10.5Z"/>
+        </svg>
+        <span>Alamnagar CHC</span>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link" id="link-home">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="auth-container">
+    <div class="panel">
+      
+      <!-- Logo header -->
+      <div class="auth-logo">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 10.5H13.5V5C13.5 4.17 12.83 3.5 12 3.5C11.17 3.5 10.5 4.17 10.5 5V10.5H5C4.17 10.5 3.5 11.17 3.5 12C3.5 12.83 4.17 13.5 5 13.5H10.5V19C10.5 19.83 11.17 20.5 12 20.5C12.83 20.5 13.5 19.83 13.5 19V13.5H19C19.83 13.5 20.5 12.83 20.5 12C20.5 11.17 19.83 10.5 19 10.5Z"/>
+        </svg>
+        <span>Alamnagar CHC Portal</span>
+      </div>
+
+      <!-- Offline Fallback Notification -->
+      <div id="auth-demo-notice" class="fallback-notice" style="display: none;">
+        <svg fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+        </svg>
+        <span>Offline Demo Mode active. Logins use simulated accounts.</span>
+      </div>
+
+      <!-- Status alerts -->
+      <div id="auth-status" class="status-banner" style="margin-bottom: 1rem;"></div>
+
+      <!-- Form toggles -->
+      <div class="auth-header-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</div>
+        <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</div>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label" for="login-username">Username or Email *</label>
+          <input type="text" id="login-username" class="form-control" placeholder="admin / staff / patient" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login-password">Password *</label>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn" style="margin-top: 1rem;">Access Account</button>
+
+        <div class="role-helper">
+          <strong>Testing Credentials:</strong><br>
+          • Admin: <code>admin</code> / <code>adminpass</code><br>
+          • Staff: <code>staff</code> / <code>staffpass</code><br>
+          • Patient: <code>patient</code> / <code>patientpass</code>
+        </div>
+      </form>
+
+      <!-- Register Form (Initially Hidden) -->
+      <form id="register-form" style="display: none;">
+        <div class="form-group">
+          <label class="form-label" for="reg-username">Username *</label>
+          <input type="text" id="reg-username" class="form-control" placeholder="Choose a username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-email">Email Address *</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="yourname@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-password">Password *</label>
+          <input type="password" id="reg-password" class="form-control" placeholder="Minimum 6 characters" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn" style="margin-top: 1rem;">Register Account</button>
+      </form>
+
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-content" style="padding-top: 1rem;">
+      <p style="font-size: 0.8rem; color: #94a3b8;">&copy; 2026 Alamnagar CHC. Secure Authorization Portal.</p>
+    </div>
+  </footer>
+
+  <script>
+    let activeTab = 'login';
+    let isFallbackMode = false;
+
+    // Check backend state on load
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/news');
+        if (!res.ok) throw new Error();
+        isFallbackMode = false;
+        document.getElementById('auth-demo-notice').style.display = 'none';
+      } catch (err) {
+        isFallbackMode = true;
+        document.getElementById('auth-demo-notice').style.display = 'flex';
+      }
+    });
+
+    function switchTab(tab) {
+      activeTab = tab;
+      const tabLogin = document.getElementById('tab-login');
+      const tabRegister = document.getElementById('tab-register');
+      const formLogin = document.getElementById('login-form');
+      const formRegister = document.getElementById('register-form');
+
+      if (tab === 'login') {
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+        formLogin.style.display = 'block';
+        formRegister.style.display = 'none';
+      } else {
+        tabLogin.classList.remove('active');
+        tabRegister.classList.add('active');
+        formLogin.style.display = 'none';
+        formRegister.style.display = 'block';
+      }
+      clearStatus();
+    }
+
+    // Login logic
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      if (isFallbackMode) {
+        // LocalStorage fallback testing
+        let users = JSON.parse(localStorage.getItem('chc_users')) || [];
+        // Seed default local users if empty
+        if (users.length === 0) {
+          users = [
+            { id: 1, username: 'admin', role: 'Admin', password: 'adminpass', email: 'admin@chc.org' },
+            { id: 2, username: 'staff', role: 'Staff', password: 'staffpass', email: 'staff@chc.org' },
+            { id: 3, username: 'patient', role: 'Patient', password: 'patientpass', email: 'patient@example.com' }
+          ];
+          localStorage.setItem('chc_users', JSON.stringify(users));
+        }
+
+        const user = users.find(u => (u.username === username || u.email === username) && u.password === password);
+        if (user) {
+          localStorage.setItem('chc_token', `mock_token_${user.id}_${user.role}`);
+          localStorage.setItem('chc_user_role', user.role);
+          localStorage.setItem('chc_user_name', user.username);
+          localStorage.setItem('chc_user_email', user.email);
+          localStorage.setItem('chc_user_id', user.id);
+
+          showStatus('Login successful! Redirecting...', 'success');
+          setTimeout(() => redirect(user.role), 1500);
+        } else {
+          showStatus('Invalid username/email or password (Demo Mode).', 'error');
+        }
+      } else {
+        // Backend API submission
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Login failed.');
+          }
+
+          const data = await res.json();
+          // Store session details
+          localStorage.setItem('chc_token', data.token);
+          localStorage.setItem('chc_user_role', data.user.role);
+          localStorage.setItem('chc_user_name', data.user.username);
+          localStorage.setItem('chc_user_email', data.user.email);
+          localStorage.setItem('chc_user_id', data.user.id);
+
+          showStatus('Login successful! Redirecting...', 'success');
+          setTimeout(() => redirect(data.user.role), 1500);
+        } catch (error) {
+          showStatus(error.message, 'error');
+        }
+      }
+    });
+
+    // Registration logic
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('reg-username').value.trim();
+      const email = document.getElementById('reg-email').value.trim().toLowerCase();
+      const password = document.getElementById('reg-password').value;
+
+      if (isFallbackMode) {
+        // Register locally
+        const users = JSON.parse(localStorage.getItem('chc_users')) || [
+          { id: 1, username: 'admin', role: 'Admin', password: 'adminpass', email: 'admin@chc.org' },
+          { id: 2, username: 'staff', role: 'Staff', password: 'staffpass', email: 'staff@chc.org' },
+          { id: 3, username: 'patient', role: 'Patient', password: 'patientpass', email: 'patient@example.com' }
+        ];
+
+        if (users.some(u => u.username === username || u.email === email)) {
+          showStatus('Username or Email already exists in Demo mode.', 'error');
+          return;
+        }
+
+        const newUser = { id: Date.now(), username, email, password, role: 'Patient' };
+        users.push(newUser);
+        localStorage.setItem('chc_users', JSON.stringify(users));
+
+        showStatus('Registration successful! Please Sign In.', 'success');
+        setTimeout(() => switchTab('login'), 1800);
+      } else {
+        // Register on backend
+        try {
+          const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+          });
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Registration failed.');
+          }
+
+          showStatus('Registration successful! Please Sign In.', 'success');
+          setTimeout(() => switchTab('login'), 1800);
+        } catch (error) {
+          showStatus(error.message, 'error');
+        }
+      }
+    });
+
+    function redirect(role) {
+      if (role === 'Admin' || role === 'Staff') {
+        window.location.href = 'admin.html';
+      } else {
+        window.location.href = 'index.html';
+      }
+    }
+
+    function showStatus(message, type) {
+      const banner = document.getElementById('auth-status');
+      banner.textContent = message;
+      banner.className = `status-banner ${type}`;
+    }
+
+    function clearStatus() {
+      const banner = document.getElementById('auth-status');
+      banner.style.display = 'none';
+    }
+  </script>
+</body>
+</html>

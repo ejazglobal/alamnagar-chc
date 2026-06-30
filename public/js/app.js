@@ -27,7 +27,9 @@ const newsContainer = document.getElementById('news-container');
 // Initial Setup
 document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
+  renderAuthNav();
   renderCalendar();
+  renderPatientHistory();
   setupEventListeners();
 });
 
@@ -38,7 +40,13 @@ async function loadData() {
     if (!newsResponse.ok) throw new Error('API server unreachable');
     newsItems = await newsResponse.json();
 
-    const apptsResponse = await fetch('/api/appointments');
+    const headers = {};
+    const token = localStorage.getItem('chc_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const apptsResponse = await fetch('/api/appointments', { headers });
     if (!apptsResponse.ok) throw new Error('API server unreachable');
     appointments = await apptsResponse.json();
     
@@ -341,8 +349,10 @@ function setupEventListeners() {
       if (isFallbackMode) {
         // Save in LocalStorage
         const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
+        const activeUserId = localStorage.getItem('chc_user_id');
         const newAppt = {
           id: Date.now(),
+          user_id: activeUserId ? parseInt(activeUserId, 10) : null,
           ...payload,
           status: 'pending',
           created_at: new Date().toISOString()
@@ -354,12 +364,16 @@ function setupEventListeners() {
         appointments.push(newAppt);
         showBookingSuccess(newAppt);
       } else {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = localStorage.getItem('chc_token');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         // Post to Node.js Backend API
         const response = await fetch('/api/appointments', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers,
           body: JSON.stringify(payload)
         });
 
@@ -389,6 +403,7 @@ function showBookingSuccess(appointment) {
   
   // Refresh Calendar view
   renderCalendar();
+  renderPatientHistory();
 
   // Scroll to status panel
   statusBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -406,6 +421,116 @@ function showStatus(message, type) {
   setTimeout(() => {
     statusBanner.style.display = 'none';
   }, 8000);
+}
+
+// Render dynamic authentication UI elements in navigation
+function renderAuthNav() {
+  const navMenu = document.getElementById('nav-menu');
+  if (!navMenu) return;
+
+  const role = localStorage.getItem('chc_user_role');
+  const name = localStorage.getItem('chc_user_name');
+
+  if (role) {
+    let portalLink = '';
+    if (role === 'Admin' || role === 'Staff') {
+      portalLink = `<a href="admin.html" class="nav-link btn-admin" id="link-admin">Admin Portal</a>`;
+    } else {
+      portalLink = `<span class="nav-link" style="color: var(--primary-color); font-weight:600;">Welcome, ${escapeHTML(name)}</span>`;
+    }
+
+    navMenu.innerHTML = `
+      <a href="index.html" class="nav-link active" id="link-home">Home</a>
+      <a href="#appointments" class="nav-link" id="link-book">Book Appointment</a>
+      <a href="#news" class="nav-link" id="link-news">News & Events</a>
+      ${portalLink}
+      <a href="#" class="nav-link" id="link-logout" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);">Logout</a>
+    `;
+
+    // Pre-populate patient details if form is loaded
+    const nameField = document.getElementById('patient-name');
+    const emailField = document.getElementById('patient-email');
+    if (nameField && !nameField.value) {
+      nameField.value = name || '';
+    }
+    if (emailField && !emailField.value) {
+      emailField.value = localStorage.getItem('chc_user_email') || '';
+    }
+  } else {
+    navMenu.innerHTML = `
+      <a href="index.html" class="nav-link active" id="link-home">Home</a>
+      <a href="#appointments" class="nav-link" id="link-book">Book Appointment</a>
+      <a href="#news" class="nav-link" id="link-news">News & Events</a>
+      <a href="login.html" class="nav-link btn-admin" id="link-auth-btn">Login / Register</a>
+    `;
+  }
+}
+
+window.logoutUser = function(e) {
+  if (e) e.preventDefault();
+  localStorage.removeItem('chc_token');
+  localStorage.removeItem('chc_user_role');
+  localStorage.removeItem('chc_user_name');
+  localStorage.removeItem('chc_user_email');
+  localStorage.removeItem('chc_user_id');
+  window.location.reload();
+};
+
+function renderPatientHistory() {
+  const historySection = document.getElementById('patient-history');
+  const tbody = document.getElementById('patient-history-tbody');
+  const role = localStorage.getItem('chc_user_role');
+  const activeUserId = localStorage.getItem('chc_user_id');
+
+  if (role === 'Patient') {
+    historySection.style.display = 'block';
+    tbody.innerHTML = '';
+
+    // Filter appointments belonging to this patient
+    const myAppts = appointments.filter(a => {
+      if (isFallbackMode) {
+        return String(a.user_id) === String(activeUserId) || a.email === localStorage.getItem('chc_user_email');
+      }
+      return a.patient_name !== 'Reserved Slot';
+    });
+
+    if (myAppts.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">
+            You have no booked appointments.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    myAppts.forEach(appt => {
+      const row = document.createElement('tr');
+      const formattedDate = new Date(appt.appointment_date).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+
+      row.innerHTML = `
+        <td>
+          <strong>${formattedDate}</strong>
+          <div style="color: var(--primary-color); font-size: 0.8rem; font-weight:600; margin-top:0.15rem;">${appt.appointment_time}</div>
+        </td>
+        <td>
+          <span class="badge ${appt.status}">${appt.status}</span>
+        </td>
+        <td style="color: var(--text-muted); font-size: 0.85rem;">
+          ${escapeHTML(appt.notes) || '<em>No notes</em>'}
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  } else {
+    historySection.style.display = 'none';
+  }
 }
 
 // XSS Sanitizer Helper
