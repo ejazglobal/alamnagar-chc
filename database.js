@@ -112,11 +112,11 @@ async function initializeDatabase() {
 
       await db.execute({
         sql: "INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)",
-        args: ["admin", "admin@alamnagar-chc.org", hashPassword("adminpass", adminSalt), adminSalt, "Admin"]
+        args: ["admin", "admin@alamnagar-chc.org", hashPassword("14142135", adminSalt), adminSalt, "Admin"]
       });
       await db.execute({
         sql: "INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)",
-        args: ["staff", "staff@alamnagar-chc.org", hashPassword("staffpass", staffSalt), staffSalt, "Staff"]
+        args: ["staff", "staff@alamnagar-chc.org", hashPassword("22360679", staffSalt), staffSalt, "Staff"]
       });
       await db.execute({
         sql: "INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)",
