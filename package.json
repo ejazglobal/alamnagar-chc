@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.22.2"
+    "express": "^4.22.2",
+    "package-name": "^0.1.0"
   },
   "author": "Antigravity",
   "license": "ISC"
