@@ -83,6 +83,14 @@ async function initializeDatabase() {
       )
     `);
 
+    // Safely add visiting_days to doctors table if database is pre-existing
+    try {
+      await db.execute("ALTER TABLE doctors ADD COLUMN visiting_days TEXT DEFAULT '1,2,3,4,5'");
+      console.log("Added visiting_days column to doctors table.");
+    } catch (e) {
+      // Ignore if it already exists
+    }
+
     // Create gallery table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS gallery (

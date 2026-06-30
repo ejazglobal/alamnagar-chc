@@ -4,6 +4,7 @@ let newsItems = [];
 let doctors = [];
 let editingNewsId = null;
 let editingDoctorId = null;
+let editingDoctorImage = '';
 let currentFilter = 'all';
 let searchQuery = '';
 let isFallbackMode = false;
@@ -323,7 +324,7 @@ function setupDashboardEvents() {
       }
       const visitingDays = Array.from(checkedBoxes).map(cb => cb.value).join(',');
 
-      let image_url = '';
+      let image_url = editingDoctorId ? editingDoctorImage : '';
       if (imageFileInput.files && imageFileInput.files[0]) {
         try {
           const file = imageFileInput.files[0];
@@ -745,6 +746,7 @@ window.editDoctor = function(id) {
   if (!doc) return;
 
   editingDoctorId = id;
+  editingDoctorImage = doc.image_url;
   document.getElementById('doctor-name-en').value = doc.name_en;
   document.getElementById('doctor-name-bn').value = doc.name_bn;
   document.getElementById('doctor-specialty-en').value = doc.specialty_en;
@@ -772,6 +774,7 @@ window.editDoctor = function(id) {
 
 window.cancelDoctorEdit = function() {
   editingDoctorId = null;
+  editingDoctorImage = '';
   document.getElementById('doctor-post-form').reset();
   document.querySelectorAll('input[name="visiting-weekday"]').forEach(cb => cb.checked = false);
   document.getElementById('doctor-submit-btn').textContent = 'Add Doctor';
