@@ -264,6 +264,21 @@
               </div>
             </div>
 
+            <div class="form-group" id="doctor-auth-fields" style="background: #f0fdfa; padding: 1rem; border-radius: 8px; border: 1px solid var(--primary-light); margin-bottom: 1.5rem;">
+              <div style="font-weight: 700; color: var(--primary-color); margin-bottom: 0.5rem; font-size: 0.9rem;">Portal Login Account (For Doctor to Log In)</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <div>
+                  <label class="form-label" for="doctor-username" style="font-size: 0.8rem;">Login Username</label>
+                  <input type="text" id="doctor-username" class="form-control" placeholder="e.g. rahnuma" style="background: white;">
+                </div>
+                <div>
+                  <label class="form-label" for="doctor-password" style="font-size: 0.8rem;">Login Password</label>
+                  <input type="password" id="doctor-password" class="form-control" placeholder="Min 6 characters" style="background: white;">
+                </div>
+              </div>
+              <span style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Fill these to automatically create a linked user account for this doctor.</span>
+            </div>
+
             <div class="form-group">
               <label class="form-label" for="doctor-image-file">Profile Photo Upload (File)</label>
               <input type="file" id="doctor-image-file" class="form-control" accept="image/*" style="padding: 0.35rem 0.75rem; background: white;">

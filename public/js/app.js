@@ -500,6 +500,33 @@ function selectDate(dateStr) {
   renderTimeSlots();
 }
 
+// Helper to extract time range in minutes from a string like "09:00 AM - 01:00 PM"
+function getDoctorTimeRange(hoursStr) {
+  if (!hoursStr) return null;
+  const regex = /(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i;
+  const match = hoursStr.match(regex);
+  if (!match) return null;
+  
+  let startHour = parseInt(match[1], 10);
+  const startMin = parseInt(match[2], 10);
+  const startAmPm = match[3].toUpperCase();
+  
+  let endHour = parseInt(match[4], 10);
+  const endMin = parseInt(match[5], 10);
+  const endAmPm = match[6].toUpperCase();
+  
+  if (startAmPm === 'PM' && startHour < 12) startHour += 12;
+  if (startAmPm === 'AM' && startHour === 12) startHour = 0;
+  
+  if (endAmPm === 'PM' && endHour < 12) endHour += 12;
+  if (endAmPm === 'AM' && endHour === 12) endHour = 0;
+  
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+  
+  return { start: startMinutes, end: endMinutes };
+}
+
 // Render Time Slots (marking already booked slots for this doctor as disabled)
 function renderTimeSlots() {
   timeSlotsGrid.innerHTML = '';
@@ -510,7 +537,19 @@ function renderTimeSlots() {
     .filter(a => a.appointment_date === selectedDateStr && a.status !== 'cancelled' && a.doctor_id === selectedDoctorId)
     .map(a => a.appointment_time);
 
+  // Parse doctor's visiting hour boundary
+  const range = getDoctorTimeRange(selectedDoctor.visiting_hours_en);
+
   TIME_SLOTS.forEach(time => {
+    // Check if slot falls within doctor's visiting hour boundary
+    if (range) {
+      const [h, m] = time.split(':').map(Number);
+      const slotMinutes = h * 60 + m;
+      if (slotMinutes < range.start || slotMinutes > range.end) {
+        return; // Skip rendering this slot
+      }
+    }
+
     const slotEl = document.createElement('div');
     slotEl.className = 'slot-btn';
     slotEl.textContent = time;

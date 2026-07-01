@@ -375,6 +375,11 @@ function setupDashboardEvents() {
         }
       }
 
+      const usernameInput = document.getElementById('doctor-username');
+      const passwordInput = document.getElementById('doctor-password');
+      const loginUsername = usernameInput ? usernameInput.value.trim() : '';
+      const loginPassword = passwordInput ? passwordInput.value : '';
+
       const payload = {
         name_en: nameEn,
         name_bn: nameBn,
@@ -385,7 +390,9 @@ function setupDashboardEvents() {
         visiting_hours_en: hoursEn,
         visiting_hours_bn: hoursBn,
         image_url,
-        visiting_days: visitingDays
+        visiting_days: visitingDays,
+        login_username: loginUsername,
+        login_password: loginPassword
       };
 
       try {
@@ -804,6 +811,10 @@ window.editDoctor = function(id) {
   document.getElementById('doctor-submit-btn').textContent = 'Update Doctor';
   document.getElementById('doctor-cancel-edit-btn').style.display = 'inline-block';
 
+  // Hide login fields when editing
+  const authFields = document.getElementById('doctor-auth-fields');
+  if (authFields) authFields.style.display = 'none';
+
   document.getElementById('doctor-post-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 };
 
@@ -814,6 +825,10 @@ window.cancelDoctorEdit = function() {
   document.querySelectorAll('input[name="visiting-weekday"]').forEach(cb => cb.checked = false);
   document.getElementById('doctor-submit-btn').textContent = 'Add Doctor';
   document.getElementById('doctor-cancel-edit-btn').style.display = 'none';
+  
+  // Show login fields when adding new
+  const authFields = document.getElementById('doctor-auth-fields');
+  if (authFields) authFields.style.display = 'block';
 };
 
 // Doctor Delete Actions

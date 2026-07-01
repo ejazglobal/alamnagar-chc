@@ -371,7 +371,7 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Access Denied: You do not have permission to manage doctors.' });
   }
 
-  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = req.body;
+  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, login_username, login_password } = req.body;
 
   if (!name_en || !name_bn || !specialty_en || !specialty_bn || !visiting_hours_en || !visiting_hours_bn || !visiting_days) {
     return res.status(400).json({ error: 'All fields except photo are required.' });
@@ -383,6 +383,14 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
   }
 
   try {
+    // If login credentials are provided, check if the username is already taken
+    if (login_username && login_username.trim().length > 0) {
+      const existingUser = await db.getUserByUsername(login_username.trim());
+      if (existingUser) {
+        return res.status(409).json({ error: 'Doctor login username is already taken.' });
+      }
+    }
+
     const newDoc = await db.createDoctor({
       name_en: name_en.trim(),
       name_bn: name_bn.trim(),
@@ -395,6 +403,20 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
       image_url: finalImageUrl.trim(),
       visiting_days: visiting_days.trim()
     });
+
+    // If username and password are provided, create the doctor user account in users table
+    if (login_username && login_username.trim().length > 0 && login_password && login_password.length >= 6) {
+      const salt = db.generateSalt();
+      const hash = db.hashPassword(login_password, salt);
+      const email = `${login_username.trim().toLowerCase()}@alamnagar-chc.org`;
+      
+      await db.pool.query(
+        "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, 'Doctor', $5)",
+        [login_username.trim(), email, hash, salt, newDoc.id]
+      );
+      console.log(`Automatically created doctor user account: '${login_username}' for Doctor ID ${newDoc.id}`);
+    }
+
     res.status(201).json(newDoc);
   } catch (error) {
     console.error('Error creating doctor:', error);
