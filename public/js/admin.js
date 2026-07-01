@@ -8,6 +8,8 @@ let editingDoctorImage = '';
 let currentFilter = 'all';
 let searchQuery = '';
 let isFallbackMode = false;
+let galleryItems = [];
+let editingGalleryId = null;
 
 // DOM Elements
 const authLoading = document.getElementById('auth-loading');
@@ -49,6 +51,7 @@ async function unlockDashboard(role) {
   renderDashboard();
   renderNewsManageTable();
   renderDoctorsManageTable();
+  renderGalleryManageTable();
   
   if (role === 'Admin') {
     const staffSec = document.getElementById('admin-staff-section');
@@ -59,7 +62,7 @@ async function unlockDashboard(role) {
   applyStaffPermissionsFilter();
 }
 
-// Load Appointments, News, Doctors
+// Load Appointments, News, Doctors, Gallery
 async function loadData() {
   isFallbackMode = false;
   if (adminDemoNotice) adminDemoNotice.style.display = 'none';
@@ -89,6 +92,13 @@ async function loadData() {
       newsItems = await newsResponse.json();
     } else {
       console.error('Failed to fetch news from backend API');
+    }
+
+    const galleryResponse = await fetch('/api/gallery');
+    if (galleryResponse.ok) {
+      galleryItems = await galleryResponse.json();
+    } else {
+      console.error('Failed to fetch gallery items from backend API');
     }
   } catch (err) {
     console.error('Error fetching data from API server:', err);
@@ -243,71 +253,87 @@ function setupDashboardEvents() {
     }
   });
 
-  // Gallery Form submit handler
-  const galleryPostForm = document.getElementById('gallery-post-form');
-  if (galleryPostForm) {
-    galleryPostForm.addEventListener('submit', async (e) => {
+  // Gallery Form submit handler (handles both Add and Edit)
+  const galleryUploadForm = document.getElementById('gallery-upload-form');
+  if (galleryUploadForm) {
+    galleryUploadForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const titleEn = document.getElementById('gallery-title-en').value.trim();
       const titleBn = document.getElementById('gallery-title-bn').value.trim();
       const imageFileInput = document.getElementById('gallery-image-file');
       const banner = document.getElementById('gallery-status-banner');
       
-      if (!imageFileInput.files || !imageFileInput.files[0]) {
+      let image_url = '';
+      
+      // If we are editing, we can keep the old image if no new file is uploaded
+      if (editingGalleryId) {
+        const currentItem = galleryItems.find(g => g.id === editingGalleryId);
+        if (currentItem) {
+          image_url = currentItem.image_url;
+        }
+      }
+
+      if (imageFileInput.files && imageFileInput.files[0]) {
+        try {
+          const file = imageFileInput.files[0];
+          if (file.size > 5 * 1024 * 1024) {
+            showBanner(banner, 'Image file must be less than 5MB.', 'error');
+            return;
+          }
+          image_url = await fileToBase64(file);
+        } catch (fileErr) {
+          console.error(fileErr);
+          showBanner(banner, 'Error reading image file.', 'error');
+          return;
+        }
+      }
+
+      if (!image_url) {
         showBanner(banner, 'Please select an image file to upload.', 'error');
         return;
       }
-      
+
+      const payload = {
+        title_en: titleEn,
+        title_bn: titleBn,
+        image_url
+      };
+
       try {
-        const file = imageFileInput.files[0];
-        if (file.size > 5 * 1024 * 1024) {
-          showBanner(banner, 'Image file must be less than 5MB.', 'error');
-          return;
+        const token = localStorage.getItem('chc_token');
+        const url = editingGalleryId ? `/api/gallery/${editingGalleryId}` : '/api/gallery';
+        const method = editingGalleryId ? 'PATCH' : 'POST';
+
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || 'Failed to save gallery item.');
         }
+
+        showBanner(banner, editingGalleryId ? 'Gallery item updated successfully.' : 'Photo added to gallery successfully.', 'success');
         
-        const base64Str = await fileToBase64(file);
-        const payload = {
-          title_en: titleEn,
-          title_bn: titleBn,
-          image_url: base64Str
-        };
-        
-        if (isFallbackMode) {
-          const localGallery = JSON.parse(localStorage.getItem('chc_gallery')) || [];
-          const newItem = {
-            id: Date.now(),
-            ...payload,
-            image_url: base64Str
-          };
-          localGallery.push(newItem);
-          localStorage.setItem('chc_gallery', JSON.stringify(localGallery));
-          
-          showBanner(banner, 'Photo added to gallery (Offline fallback).', 'success');
-          galleryPostForm.reset();
-        } else {
-          const token = localStorage.getItem('chc_token');
-          const response = await fetch('/api/gallery', {
-            method: 'POST',
-            headers: {
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-          });
-          
-          if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.error || 'Failed to submit gallery item.');
-          }
-          
-          showBanner(banner, 'Photo added to gallery successfully.', 'success');
-          galleryPostForm.reset();
+        cancelGalleryEdit();
+
+        // Reload gallery list
+        const galleryResponse = await fetch('/api/gallery');
+        if (galleryResponse.ok) {
+          galleryItems = await galleryResponse.json();
         }
+        renderGalleryManageTable();
       } catch (err) {
         console.error(err);
         showBanner(banner, err.message || 'An error occurred.', 'error');
       }
     });
+  }
   }
 
   // Doctor form submit listener (Handles both POST and PATCH)
@@ -1043,3 +1069,110 @@ function applyStaffPermissionsFilter() {
     }
   }
 }
+
+// General status banner display helper
+function showBanner(banner, message, type) {
+  if (!banner) return;
+  banner.textContent = message;
+  banner.className = `status-banner ${type}`;
+  banner.style.display = 'block';
+  setTimeout(() => {
+    banner.style.display = 'none';
+  }, 5000);
+}
+
+// Render Gallery Management table
+function renderGalleryManageTable() {
+  const tbody = document.getElementById('gallery-manage-tbody');
+  if (!tbody) return;
+
+  if (galleryItems.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No gallery items found.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = galleryItems.map(item => `
+    <tr>
+      <td>
+        <img src="${escapeHTML(item.image_url)}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);" alt="Preview">
+      </td>
+      <td>
+        <div style="font-weight: 600; color: var(--text-dark);">${escapeHTML(item.title_en || 'Untitled (EN)')}</div>
+        <div style="font-size: 0.85rem; color: var(--text-muted);">${escapeHTML(item.title_bn || 'Untitled (BN)')}</div>
+      </td>
+      <td>
+        <button class="news-action-btn edit" onclick="editGalleryItem(${item.id})">Edit</button>
+        <button class="news-action-btn delete" onclick="deleteGalleryItem(${item.id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+window.editGalleryItem = function(id) {
+  const item = galleryItems.find(g => g.id === id);
+  if (!item) return;
+
+  editingGalleryId = id;
+  document.getElementById('gallery-edit-id').value = id;
+  document.getElementById('gallery-title-en').value = item.title_en || '';
+  document.getElementById('gallery-title-bn').value = item.title_bn || '';
+  
+  // Update UI buttons
+  document.getElementById('gallery-submit-btn').textContent = 'Update Gallery Item';
+  document.getElementById('gallery-cancel-edit-btn').style.display = 'inline-block';
+  
+  // Image is optional when editing
+  document.getElementById('gallery-image-label').textContent = 'Update Image File (Optional)';
+  document.getElementById('gallery-image-help').textContent = 'Leave empty to keep the existing image.';
+  
+  // Scroll to form
+  document.getElementById('gallery-upload-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.cancelGalleryEdit = function() {
+  editingGalleryId = null;
+  document.getElementById('gallery-edit-id').value = '';
+  document.getElementById('gallery-upload-form').reset();
+  
+  document.getElementById('gallery-submit-btn').textContent = 'Upload to Gallery';
+  document.getElementById('gallery-cancel-edit-btn').style.display = 'none';
+  
+  document.getElementById('gallery-image-label').textContent = 'Image File *';
+  document.getElementById('gallery-image-help').textContent = 'Select local image file to upload.';
+};
+
+window.deleteGalleryItem = async function(id) {
+  if (!confirm('Are you sure you want to delete this gallery image?')) return;
+  const banner = document.getElementById('gallery-status-banner');
+  
+  try {
+    const token = localStorage.getItem('chc_token');
+    const response = await fetch(`/api/gallery/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error || 'Failed to delete gallery item.');
+    }
+
+    showBanner(banner, 'Gallery item deleted successfully.', 'success');
+    
+    // Reload gallery items
+    const galleryResponse = await fetch('/api/gallery');
+    if (galleryResponse.ok) {
+      galleryItems = await galleryResponse.json();
+    }
+    renderGalleryManageTable();
+  } catch (err) {
+    console.error(err);
+    showBanner(banner, err.message || 'Error deleting gallery item.', 'error');
+  }
+};

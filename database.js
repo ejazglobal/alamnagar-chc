@@ -343,23 +343,7 @@ async function initializeDatabase() {
     }
 
     // --- SEED GALLERY ---
-    const galleryCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM gallery");
-    const galleryCount = parseInt(galleryCountRes.rows[0].count, 10);
-    if (galleryCount === 0) {
-      await pool.query(
-        "INSERT INTO gallery (title_en, title_bn, image_url) VALUES ($1, $2, $3)",
-        ["Medical Checkup Camp", "বিনামূল্যে চিকিৎসা ক্যাম্প", "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80"]
-      );
-      await pool.query(
-        "INSERT INTO gallery (title_en, title_bn, image_url) VALUES ($1, $2, $3)",
-        ["Our Clinic Facilities", "আমাদের ক্লিনিক ভবন ও সুবিধা", "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80"]
-      );
-      await pool.query(
-        "INSERT INTO gallery (title_en, title_bn, image_url) VALUES ($1, $2, $3)",
-        ["Doctors Consultation Room", "ডাক্তারদের পরামর্শ কক্ষ", "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80"]
-      );
-      console.log("Seeded default gallery items.");
-    }
+    // Disabled seeding default gallery items as requested by user.
   } catch (err) {
     console.error('Database initialization error:', err.message);
   }
@@ -496,6 +480,19 @@ module.exports = {
     const query = `INSERT INTO gallery (title_en, title_bn, image_url) VALUES ($1, $2, $3) RETURNING id`;
     const res = await pool.query(query, [title_en || "", title_bn || "", image_url]);
     return { id: res.rows[0].id, ...item, created_at: new Date().toISOString() };
+  },
+
+  updateGalleryItem: async (id, item) => {
+    const { title_en, title_bn, image_url } = item;
+    const query = `UPDATE gallery SET title_en = $1, title_bn = $2, image_url = $3 WHERE id = $4`;
+    const res = await pool.query(query, [title_en || "", title_bn || "", image_url, id]);
+    return { changes: res.rowCount };
+  },
+
+  deleteGalleryItem: async (id) => {
+    const query = `DELETE FROM gallery WHERE id = $1`;
+    const res = await pool.query(query, [id]);
+    return { changes: res.rowCount };
   },
 
   updateUserPassword: async (id, newPassword) => {

@@ -611,6 +611,81 @@ app.post('/api/gallery', authenticateToken, async (req, res) => {
   }
 });
 
+// 5.6 Edit a gallery item (Admin & Staff)
+app.patch('/api/gallery/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can manage gallery.' });
+  }
+
+  const itemId = parseInt(req.params.id, 10);
+  if (isNaN(itemId)) {
+    return res.status(400).json({ error: 'Invalid gallery item ID' });
+  }
+
+  const { title_en, title_bn, image_url } = req.body;
+
+  let finalImageUrl = image_url;
+  if (image_url && image_url.startsWith('data:image/')) {
+    try {
+      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
+      if (matches) {
+        const ext = matches[1];
+        const data = matches[2];
+        const buffer = Buffer.from(data, 'base64');
+        const filename = `gallery_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+        const imagesDir = path.join(__dirname, 'images');
+        if (!fs.existsSync(imagesDir)) {
+          fs.mkdirSync(imagesDir, { recursive: true });
+        }
+        const filePath = path.join(imagesDir, filename);
+        fs.writeFileSync(filePath, buffer);
+        finalImageUrl = `/images/${filename}`;
+      }
+    } catch (writeErr) {
+      console.error('Failed to write gallery image:', writeErr);
+      return res.status(500).json({ error: 'Failed to save uploaded image file.' });
+    }
+  }
+
+  try {
+    const result = await db.updateGalleryItem(itemId, {
+      title_en: title_en ? title_en.trim() : '',
+      title_bn: title_bn ? title_bn.trim() : '',
+      image_url: finalImageUrl
+    });
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Gallery item not found' });
+    }
+    res.json({ message: 'Gallery item updated successfully.', image_url: finalImageUrl });
+  } catch (error) {
+    console.error('Error updating gallery item:', error);
+    res.status(500).json({ error: 'Failed to update gallery item' });
+  }
+});
+
+// 5.7 Delete a gallery item (Admin & Staff)
+app.delete('/api/gallery/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can delete gallery items.' });
+  }
+
+  const itemId = parseInt(req.params.id, 10);
+  if (isNaN(itemId)) {
+    return res.status(400).json({ error: 'Invalid gallery item ID' });
+  }
+
+  try {
+    const result = await db.deleteGalleryItem(itemId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Gallery item not found' });
+    }
+    res.json({ message: 'Gallery item deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting gallery item:', error);
+    res.status(500).json({ error: 'Failed to delete gallery item' });
+  }
+});
+
 // 6. Get all appointments (Admin/Staff get all, Patients/Guests get calendar slots and own history)
 app.get('/api/appointments', optionalAuthenticateToken, async (req, res) => {
   try {
