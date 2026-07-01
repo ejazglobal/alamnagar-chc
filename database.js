@@ -174,6 +174,16 @@ async function initializeDatabase() {
       await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS package_size TEXT");
       await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS image_url TEXT");
 
+      // Gallery table column updates
+      await pool.query("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS title_en VARCHAR(255)");
+      await pool.query("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS title_bn VARCHAR(255)");
+      await pool.query("ALTER TABLE gallery ALTER COLUMN image_url TYPE TEXT");
+      try {
+        await pool.query("UPDATE gallery SET title_en = title WHERE title_en IS NULL AND title IS NOT NULL");
+      } catch (titleMigErr) {
+        // Ignore if old 'title' column doesn't exist
+      }
+
       // Handle brand_name transition safely
       await pool.query("UPDATE medicines SET brand_name = name WHERE brand_name IS NULL AND name IS NOT NULL");
       await pool.query("UPDATE medicines SET brand_name = 'Unknown Medicine' WHERE brand_name IS NULL");
