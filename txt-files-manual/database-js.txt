@@ -1,17 +1,11 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-
-const dbPath = path.resolve(__dirname, 'healthcare.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening SQLite database:', err.message);
-  } else {
-    console.log('Connected to the local SQLite database.');
-    initializeDatabase();
-  }
-});
-
+const { Pool } = require('pg');
 const crypto = require('crypto');
+
+// Connection options using pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
 function hashPassword(password, salt) {
   return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
@@ -21,206 +15,171 @@ function generateSalt() {
   return crypto.randomBytes(16).toString('hex');
 }
 
-function initializeDatabase() {
-  db.serialize(() => {
+async function initializeDatabase() {
+  try {
     // Create users table
-    db.run(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient')),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Create appointments table with user_id
-    db.run(`
+    // Create appointments table with user_id & doctor_id
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS appointments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        patient_name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        appointment_date TEXT NOT NULL,
-        appointment_time TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        patient_name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(50) NOT NULL,
+        appointment_date VARCHAR(50) NOT NULL,
+        appointment_time VARCHAR(50) NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
         notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        doctor_id INTEGER
       )
     `);
-
-    // Attempt to alter appointments table to add user_id in case it was created without it previously
-    db.run("ALTER TABLE appointments ADD COLUMN user_id INTEGER", (err) => {
-      // Ignore error if column already exists
-    });
 
     // Create news table
-    db.run(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS news (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
         content TEXT NOT NULL,
         image_url TEXT,
-        category TEXT NOT NULL,
-        date_posted DATETIME DEFAULT CURRENT_TIMESTAMP
+        category VARCHAR(100) NOT NULL,
+        date_posted TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Seed default users if the table is empty
-    db.get("SELECT COUNT(*) as count FROM users", [], (err, row) => {
-      if (err) return console.error(err.message);
-      if (row.count === 0) {
-        const stmt = db.prepare("INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)");
-        
-        // Admin user
-        const adminSalt = generateSalt();
-        stmt.run("admin", "admin@alamnagar-chc.org", hashPassword("adminpass", adminSalt), adminSalt, "Admin");
-        
-        // Staff user
-        const staffSalt = generateSalt();
-        stmt.run("staff", "staff@alamnagar-chc.org", hashPassword("staffpass", staffSalt), staffSalt, "Staff");
-        
-        // Patient user
-        const patientSalt = generateSalt();
-        stmt.run("patient", "patient@example.com", hashPassword("patientpass", patientSalt), patientSalt, "Patient");
-        
-        stmt.finalize();
-        console.log("Seeded default users (admin, staff, patient).");
-      }
-    });
+    const userCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM users");
+    if (parseInt(userCountRes.rows[0].count, 10) === 0) {
+      const adminSalt = generateSalt();
+      const staffSalt = generateSalt();
+      const patientSalt = generateSalt();
+      
+      await pool.query(
+        "INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, $5)",
+        ["admin", "admin@alamnagar-chc.org", hashPassword("adminpass", adminSalt), adminSalt, "Admin"]
+      );
+      await pool.query(
+        "INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, $5)",
+        ["staff", "staff@alamnagar-chc.org", hashPassword("staffpass", staffSalt), staffSalt, "Staff"]
+      );
+      await pool.query(
+        "INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, $5)",
+        ["patient", "patient@example.com", hashPassword("patientpass", patientSalt), patientSalt, "Patient"]
+      );
+      console.log("Seeded default users (admin, staff, patient).");
+    }
 
     // Insert initial news items if table is empty
-    db.get("SELECT COUNT(*) as count FROM news", [], (err, row) => {
-      if (err) return console.error(err.message);
-      if (row.count === 0) {
-        const stmt = db.prepare("INSERT INTO news (title, content, image_url, category) VALUES (?, ?, ?, ?)");
-        stmt.run(
+    const newsCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM news");
+    if (parseInt(newsCountRes.rows[0].count, 10) === 0) {
+      await pool.query(
+        "INSERT INTO news (title, content, image_url, category) VALUES ($1, $2, $3, $4)",
+        [
           "Free Medical Health Camp Next Saturday",
           "Alamnagar Charitable Healthcare Centre is organizing a free health check-up camp next Saturday. General physicians, pediatricians, and cardiologists will be available for consultations from 9:00 AM to 3:00 PM. Free medicine distribution is also arranged.",
           "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80",
           "Event"
-        );
-        stmt.run(
+        ]
+      );
+      await pool.query(
+        "INSERT INTO news (title, content, image_url, category) VALUES ($1, $2, $3, $4)",
+        [
           "New Pediatric Specialist Joins Our Team",
           "We are pleased to welcome Dr. Sarah Rahman, MD in Pediatrics, to our medical team. She will be available for consultations every Monday and Wednesday starting next week. Book your appointments online.",
           "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80",
           "News"
-        );
-        stmt.run(
+        ]
+      );
+      await pool.query(
+        "INSERT INTO news (title, content, image_url, category) VALUES ($1, $2, $3, $4)",
+        [
           "COVID-19 Booster Dose Guidelines",
           "We are offering booster doses of COVID-19 vaccines for senior citizens and high-risk patients. Walk-ins are welcome from 10:00 AM to 2:00 PM on weekdays. Please bring your previous vaccination records.",
           "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80",
           "Alert"
-        );
-        stmt.finalize();
-        console.log("Inserted initial news items.");
-      }
-    });
-  });
+        ]
+      );
+      console.log("Inserted initial news items.");
+    }
+  } catch (err) {
+    console.error('Database initialization error:', err.message);
+  }
 }
 
 // Database query helpers
 module.exports = {
-  db,
+  pool,
   hashPassword,
   generateSalt,
+  initializeDatabase,
   
   // User operations
-  getUserByUsername: (username) => {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT * FROM users WHERE username = ?", [username], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+  getUserByUsername: async (username) => {
+    const res = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
+    return res.rows[0] || null;
   },
 
-  getUserByEmail: (email) => {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT * FROM users WHERE email = ?", [email], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+  getUserByEmail: async (email) => {
+    const res = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    return res.rows[0] || null;
   },
 
-  createUser: (user) => {
-    return new Promise((resolve, reject) => {
-      const { username, email, password, role } = user;
-      const salt = generateSalt();
-      const hash = hashPassword(password, salt);
-      const query = `INSERT INTO users (username, email, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)`;
-      
-      db.run(query, [username, email, hash, salt, role], function(err) {
-        if (err) reject(err);
-        else resolve({ id: this.lastID, username, email, role });
-      });
-    });
+  createUser: async (user) => {
+    const { username, email, password, role } = user;
+    const salt = generateSalt();
+    const hash = hashPassword(password, salt);
+    const query = `INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, $5) RETURNING id`;
+    const res = await pool.query(query, [username, email, hash, salt, role]);
+    return { id: res.rows[0].id, username, email, role };
   },
 
   // Appointments operations
-  getAllAppointments: () => {
-    return new Promise((resolve, reject) => {
-      db.all("SELECT * FROM appointments ORDER BY appointment_date ASC, appointment_time ASC", [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+  getAllAppointments: async () => {
+    const res = await pool.query("SELECT * FROM appointments ORDER BY appointment_date ASC, appointment_time ASC");
+    return res.rows;
   },
 
-  getAppointmentsByUserId: (userId) => {
-    return new Promise((resolve, reject) => {
-      db.all("SELECT * FROM appointments WHERE user_id = ? ORDER BY appointment_date ASC, appointment_time ASC", [userId], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+  getAppointmentsByUserId: async (userId) => {
+    const res = await pool.query("SELECT * FROM appointments WHERE user_id = $1 ORDER BY appointment_date ASC, appointment_time ASC", [userId]);
+    return res.rows;
   },
 
-  createAppointment: (appointment) => {
-    return new Promise((resolve, reject) => {
-      const { user_id, patient_name, email, phone, appointment_date, appointment_time, notes } = appointment;
-      const query = `INSERT INTO appointments (user_id, patient_name, email, phone, appointment_date, appointment_time, notes) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?)`;
-      db.run(query, [user_id || null, patient_name, email, phone, appointment_date, appointment_time, notes], function(err) {
-        if (err) reject(err);
-        else resolve({ id: this.lastID, ...appointment, status: 'pending' });
-      });
-    });
+  createAppointment: async (appointment) => {
+    const { user_id, patient_name, email, phone, appointment_date, appointment_time, notes } = appointment;
+    const query = `INSERT INTO appointments (user_id, patient_name, email, phone, appointment_date, appointment_time, notes) 
+                   VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`;
+    const res = await pool.query(query, [user_id || null, patient_name, email, phone, appointment_date, appointment_time, notes]);
+    return { id: res.rows[0].id, ...appointment, status: 'pending' };
   },
 
-  updateAppointmentStatus: (id, status) => {
-    return new Promise((resolve, reject) => {
-      const query = `UPDATE appointments SET status = ? WHERE id = ?`;
-      db.run(query, [status, id], function(err) {
-        if (err) reject(err);
-        else resolve({ changes: this.changes });
-      });
-    });
+  updateAppointmentStatus: async (id, status) => {
+    const query = `UPDATE appointments SET status = $1 WHERE id = $2`;
+    const res = await pool.query(query, [status, id]);
+    return { changes: res.rowCount };
   },
 
   // News operations
-  getAllNews: () => {
-    return new Promise((resolve, reject) => {
-      db.all("SELECT * FROM news ORDER BY date_posted DESC", [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+  getAllNews: async () => {
+    const res = await pool.query("SELECT * FROM news ORDER BY date_posted DESC");
+    return res.rows;
   },
 
-  createNews: (newsItem) => {
-    return new Promise((resolve, reject) => {
-      const { title, content, image_url, category } = newsItem;
-      const query = `INSERT INTO news (title, content, image_url, category) VALUES (?, ?, ?, ?)`;
-      db.run(query, [title, content, image_url, category], function(err) {
-        if (err) reject(err);
-        else resolve({ id: this.lastID, ...newsItem, date_posted: new Date().toISOString() });
-      });
-    });
+  createNews: async (newsItem) => {
+    const { title, content, image_url, category } = newsItem;
+    const query = `INSERT INTO news (title, content, image_url, category) VALUES ($1, $2, $3, $4) RETURNING id`;
+    const res = await pool.query(query, [title, content, image_url, category]);
+    return { id: res.rows[0].id, ...newsItem, date_posted: new Date().toISOString() };
   }
 };
