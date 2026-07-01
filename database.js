@@ -184,6 +184,14 @@ async function initializeDatabase() {
         // Ignore if old 'title' column doesn't exist
       }
 
+      // Address, Age, Gender, Weight, and Signature migrations
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT");
+      await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS address TEXT");
+      await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS age VARCHAR(50)");
+      await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS gender VARCHAR(50)");
+      await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS weight VARCHAR(50)");
+      await pool.query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS signature_url TEXT");
+
       // Handle brand_name transition safely
       await pool.query("UPDATE medicines SET brand_name = name WHERE brand_name IS NULL AND name IS NOT NULL");
       await pool.query("UPDATE medicines SET brand_name = 'Unknown Medicine' WHERE brand_name IS NULL");

@@ -207,35 +207,156 @@
     }
 
     /* Print & Export styles */
+    #print-prescription-template {
+      display: none !important;
+    }
+
     @media print {
       body {
         background: #ffffff;
         color: #000000;
       }
-      header, footer, .queue-panel, .med-builder-grid, .signature-upload-box input, .btn, .prescription-sidebar h3, .prescription-main h3, .med-remove-btn {
+      header, footer, .doctor-grid, #share-modal {
         display: none !important;
       }
-      .doctor-grid {
-        grid-template-columns: 1fr;
+      #print-prescription-template {
+        display: block !important;
+        padding-top: 1in; /* Margin top for letterhead placement */
+      }
+      .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .print-logo-section {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .print-logo-svg {
+        width: 50px;
+        height: 50px;
+      }
+      .print-clinic-title {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #0d9488;
         margin: 0;
-        padding: 0;
       }
-      .prescription-builder {
-        border: none;
-        box-shadow: none;
-        padding: 0;
+      .print-clinic-sub {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
       }
-      .prescription-layout {
+      .print-clinic-contact {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin: 2px 0 0 0;
+      }
+      .print-doctor-section {
+        text-align: right;
+      }
+      .print-doctor-name {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin: 0 0 2px 0;
+        color: #1e293b;
+      }
+      .print-doctor-specialty {
+        font-size: 0.85rem;
+        color: #0d9488;
+        margin: 0 0 2px 0;
+        font-weight: 600;
+      }
+      .print-doctor-hours {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin: 0;
+      }
+      .print-divider {
+        border-top: 2px solid #0d9488;
+        margin: 0.75rem 0;
+      }
+      .print-patient-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1.5fr;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: #1e293b;
+        background: #f8fafc;
+        padding: 0.75rem;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        margin-top: 10px;
+      }
+      .print-body-layout {
+        display: grid;
         grid-template-columns: 200px 1fr;
-        border: none;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+        min-height: 400px;
       }
-      .prescription-sidebar {
-        border-right: 2px solid #000000;
+      .print-sidebar-col {
+        border-right: 1.5px solid #cbd5e1;
+        padding-right: 1rem;
       }
-      .patient-summary-card {
-        background: none;
-        border: 2px solid #000000;
-        color: #000000;
+      .print-section-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #0d9488;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+      }
+      .print-obs-text {
+        font-size: 0.85rem;
+        line-height: 1.4;
+        color: #334155;
+        white-space: pre-line;
+      }
+      .print-diag-list {
+        padding-left: 1.25rem;
+        font-size: 0.85rem;
+        color: #334155;
+        margin: 0;
+      }
+      .print-rx-label {
+        font-size: 1.8rem;
+        font-weight: 800;
+        font-style: italic;
+        color: #0d9488;
+        margin-bottom: 0.5rem;
+      }
+      .print-med-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .print-med-table th, .print-med-table td {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 0.5rem;
+        text-align: left;
+        font-size: 0.85rem;
+      }
+      .print-med-table th {
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+      .print-footer-section {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 2rem;
+        page-break-inside: avoid;
+      }
+      .print-signature-area {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .print-sig-img {
+        max-height: 50px;
       }
     }
   </style>
@@ -302,6 +423,30 @@
           </div>
           <div>
             <span class="badge" id="patient-banner-status" style="font-size: 0.85rem; padding: 0.4rem 1rem;">Status</span>
+          </div>
+        </div>
+
+        <!-- Patient Demographics and Clinical Metrics Form -->
+        <div class="patient-metrics-form" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; background: #f8fafc; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Age *</label>
+            <input type="text" id="patient-age" class="form-control" placeholder="e.g. 28 Yrs" style="background: white;" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Gender *</label>
+            <select id="patient-gender" class="form-control" style="background: white;" required>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Weight</label>
+            <input type="text" id="patient-weight" class="form-control" placeholder="e.g. 68 kg" style="background: white;">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Patient Address</label>
+            <input type="text" id="patient-address" class="form-control" placeholder="e.g. Dhaka, Bangladesh" style="background: white;">
           </div>
         </div>
 
@@ -435,6 +580,87 @@
         <a id="share-email" href="#" class="btn" style="background-color: var(--primary-color); display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
           Email Client
         </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden high-fidelity printable prescription (letterhead pad style) -->
+  <div id="print-prescription-template">
+    <!-- Letterhead Header -->
+    <div class="print-header">
+      <div class="print-logo-section">
+        <svg class="print-logo-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 10.5H13.5V5C13.5 4.17 12.83 3.5 12 3.5C11.17 3.5 10.5 4.17 10.5 5V10.5H5C4.17 10.5 3.5 11.17 3.5 12C3.5 12.83 4.17 13.5 5 13.5H10.5V19C10.5 19.83 11.17 20.5 12 20.5C12.83 20.5 13.5 19.83 13.5 19V13.5H19C19.83 13.5 20.5 12.83 20.5 12C20.5 11.17 19.83 10.5 19 10.5Z" fill="#0d9488"/>
+        </svg>
+        <div class="print-clinic-meta">
+          <h1 class="print-clinic-title">Alamnagar CHC</h1>
+          <p class="print-clinic-sub">Charitable Healthcare Centre</p>
+          <p class="print-clinic-contact">Phone: +8801912562131 | Email: info@alamnagar-chc.org</p>
+        </div>
+      </div>
+      
+      <div class="print-doctor-section" id="print-doc-info">
+        <h2 class="print-doctor-name" id="print-doctor-name-display">Doctor Name</h2>
+        <p class="print-doctor-specialty" id="print-doctor-specialty-display">Specialty</p>
+        <p class="print-doctor-hours" id="print-doctor-hours-display">Visiting Hours</p>
+      </div>
+    </div>
+    
+    <div class="print-divider"></div>
+    
+    <!-- Patient Info Grid -->
+    <div class="print-patient-grid">
+      <div><strong>Patient Name:</strong> <span id="print-patient-name">...</span></div>
+      <div><strong>Age:</strong> <span id="print-patient-age">...</span></div>
+      <div><strong>Gender:</strong> <span id="print-patient-gender">...</span></div>
+      <div><strong>Date:</strong> <span id="print-patient-date">...</span></div>
+      
+      <div style="grid-column: span 2;"><strong>Address:</strong> <span id="print-patient-address">...</span></div>
+      <div><strong>Weight:</strong> <span id="print-patient-weight">...</span></div>
+      <div><strong>Phone:</strong> <span id="print-patient-phone">...</span></div>
+    </div>
+    
+    <div class="print-divider"></div>
+    
+    <!-- Rx Body Layout -->
+    <div class="print-body-layout">
+      <!-- Sidebar -->
+      <div class="print-sidebar-col">
+        <div class="print-section-title">OBSERVATIONS & SYMPTOMS</div>
+        <p class="print-obs-text" id="print-patient-obs">...</p>
+        
+        <div class="print-section-title" style="margin-top: 1.5rem;">RECOMMENDED DIAGNOSTICS</div>
+        <ul class="print-diag-list" id="print-patient-diags">
+          <!-- Populated dynamically -->
+        </ul>
+      </div>
+      
+      <!-- Main Content -->
+      <div class="print-main-col">
+        <div class="print-rx-label">Rx</div>
+        <table class="print-med-table">
+          <thead>
+            <tr>
+              <th>Medicine Name</th>
+              <th>Dosage</th>
+              <th>Instructions</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody id="print-med-tbody">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="print-footer-section">
+      <div class="print-signature-area">
+        <img class="print-sig-img" id="print-doctor-signature" src="" alt="Signature" style="display: none;">
+        <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;" id="print-sig-doc-name">
+          Authorized Signature
+        </div>
       </div>
     </div>
   </div>

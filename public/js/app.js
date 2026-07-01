@@ -665,7 +665,9 @@ function renderGallery() {
     const title = currentLanguage === 'bn' ? item.title_bn : item.title_en;
     
     card.innerHTML = `
-      <div class="gallery-img" style="background-image: url('${escapeHTML(item.image_url)}')" onclick="openLightbox('${escapeHTML(item.image_url)}', '${escapeHTML(title)}')"></div>
+      <div class="gallery-img" onclick="openLightbox('${escapeHTML(item.image_url)}', '${escapeHTML(title)}')" style="overflow: hidden; cursor: pointer;">
+        <img src="${escapeHTML(item.image_url)}" alt="${escapeHTML(title)}" style="width: 100%; height: 100%; object-fit: cover; transition: var(--transition-smooth);" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+      </div>
       <div class="gallery-title">${escapeHTML(title)}</div>
     `;
     container.appendChild(card);

@@ -14,6 +14,8 @@ const activeBuilder = document.getElementById('prescription-active-builder');
 const welcomeText = document.getElementById('doc-welcome');
 let selectedMedicine = null;
 
+let doctorProfile = null;
+
 // Auth validation
 document.addEventListener('DOMContentLoaded', async () => {
   const role = localStorage.getItem('chc_user_role');
@@ -27,8 +29,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (welcomeText) welcomeText.textContent = `Welcome, Dr. ${name}`;
+
+  // Fetch doctor profile to load signature from DB
+  try {
+    const res = await fetch('/api/doctor/profile', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      doctorProfile = await res.json();
+      if (doctorProfile && doctorProfile.signature_url) {
+        signatureBase64 = doctorProfile.signature_url;
+      }
+    }
+  } catch (err) {
+    console.error('Error loading doctor profile:', err);
+  }
   
-  // Set signature preview if already cached
+  // Set signature preview if already cached or loaded
   if (signatureBase64) {
     const preview = document.getElementById('sig-image');
     const prompt = document.getElementById('sig-prompt');
@@ -235,6 +252,13 @@ async function selectPatient(appointment) {
   document.getElementById('obs-input').value = '';
   document.getElementById('diag-custom').value = '';
   document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+  
+  // Populate demographics inputs
+  document.getElementById('patient-age').value = appointment.age || '';
+  document.getElementById('patient-gender').value = appointment.gender || 'Male';
+  document.getElementById('patient-weight').value = appointment.weight || '';
+  document.getElementById('patient-address').value = appointment.address || appointment.user_profile_address || '';
+
   prescribedMedicines = [];
   renderMedRows();
 
@@ -438,12 +462,26 @@ window.savePrescription = async function() {
 
   const banner = document.getElementById('prescription-status');
 
+  const age = document.getElementById('patient-age').value.trim();
+  const gender = document.getElementById('patient-gender').value;
+  const weight = document.getElementById('patient-weight').value.trim();
+  const address = document.getElementById('patient-address').value.trim();
+
+  if (!age) {
+    alert('Please enter patient age.');
+    return;
+  }
+
   const payload = {
     appointment_id: activeAppointment.id,
     diagnostics,
     observations,
     medicines: prescribedMedicines,
-    doctor_signature: signatureBase64
+    doctor_signature: signatureBase64,
+    age,
+    gender,
+    weight,
+    address
   };
 
   try {
@@ -495,6 +533,24 @@ window.savePrescription = async function() {
 
       showStatusBanner(banner, 'Prescription saved successfully. Patient visit marked COMPLETED.', 'success');
       
+      // Sync signature to database profile if it differs
+      if (doctorProfile && doctorProfile.signature_url !== signatureBase64) {
+        try {
+          await fetch('/api/doctor/profile/signature', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ signature_url: signatureBase64 })
+          });
+          doctorProfile.signature_url = signatureBase64;
+          console.log('Signature synced to backend.');
+        } catch (sigErr) {
+          console.error('Failed to sync signature to backend:', sigErr);
+        }
+      }
+
       // Update status and reload lists
       activeAppointment.status = 'completed';
       await loadData();
@@ -520,6 +576,80 @@ function showStatusBanner(element, message, type) {
 
 // Print / PDF export
 window.printPrescription = function() {
+  if (!activeAppointment) return;
+
+  // 1. Populate Doctor info
+  const docName = doctorProfile ? doctorProfile.name_en : 'Doctor Name';
+  const docSpecialty = doctorProfile ? doctorProfile.specialty_en : 'Specialty';
+  const docHours = doctorProfile ? doctorProfile.visiting_hours_en : 'Visiting Hours';
+  
+  document.getElementById('print-doctor-name-display').textContent = `Dr. ${docName.replace(/^Dr\.\s+/i, '')}`;
+  document.getElementById('print-doctor-specialty-display').textContent = docSpecialty;
+  document.getElementById('print-doctor-hours-display').textContent = docHours;
+
+  // 2. Populate Patient Info
+  const age = document.getElementById('patient-age').value.trim();
+  const gender = document.getElementById('patient-gender').value;
+  const weight = document.getElementById('patient-weight').value.trim() || 'N/A';
+  const address = document.getElementById('patient-address').value.trim() || 'N/A';
+  
+  document.getElementById('print-patient-name').textContent = activeAppointment.patient_name;
+  document.getElementById('print-patient-age').textContent = age;
+  document.getElementById('print-patient-gender').textContent = gender;
+  document.getElementById('print-patient-date').textContent = new Date(activeAppointment.appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  document.getElementById('print-patient-address').textContent = address;
+  document.getElementById('print-patient-weight').textContent = weight;
+  document.getElementById('print-patient-phone').textContent = activeAppointment.phone;
+
+  // 3. Observations and Diagnostics
+  document.getElementById('print-patient-obs').textContent = document.getElementById('obs-input').value.trim() || 'None';
+  
+  const diagList = document.getElementById('print-patient-diags');
+  diagList.innerHTML = '';
+  document.querySelectorAll('#diag-checkboxes input[type="checkbox"]:checked').forEach(cb => {
+    const li = document.createElement('li');
+    li.textContent = cb.value;
+    diagList.appendChild(li);
+  });
+  const customDiag = document.getElementById('diag-custom').value.trim();
+  if (customDiag) {
+    const li = document.createElement('li');
+    li.textContent = customDiag;
+    diagList.appendChild(li);
+  }
+  if (diagList.children.length === 0) {
+    diagList.innerHTML = '<li>None recommended</li>';
+  }
+
+  // 4. Medicines
+  const medTbody = document.getElementById('print-med-tbody');
+  medTbody.innerHTML = '';
+  if (prescribedMedicines.length === 0) {
+    medTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No medicines prescribed</td></tr>';
+  } else {
+    prescribedMedicines.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${escapeHTML(m.name)}</strong></td>
+        <td>${escapeHTML(m.dosage)}</td>
+        <td>${escapeHTML(m.timing)}</td>
+        <td>${escapeHTML(m.duration)}</td>
+      `;
+      medTbody.appendChild(tr);
+    });
+  }
+
+  // 5. Signature
+  const printSigImg = document.getElementById('print-doctor-signature');
+  const printSigName = document.getElementById('print-sig-doc-name');
+  if (signatureBase64) {
+    printSigImg.src = signatureBase64;
+    printSigImg.style.display = 'block';
+  } else {
+    printSigImg.style.display = 'none';
+  }
+  printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${docName.replace(/^Dr\.\s+/i, '')}</span>`;
+
   window.print();
 };
 
@@ -531,13 +661,17 @@ window.openShareModal = function() {
   const whatsapp = document.getElementById('share-whatsapp');
   const email = document.getElementById('share-email');
 
+  const age = document.getElementById('patient-age').value.trim();
+  const gender = document.getElementById('patient-gender').value;
+  const weight = document.getElementById('patient-weight').value.trim() || 'N/A';
+
   // Format observations and medicines text
   let medsText = '';
   prescribedMedicines.forEach(m => {
     medsText += `- ${m.name} (${m.dosage}, ${m.timing}, ${m.duration})\n`;
   });
 
-  const messageText = `Hello ${activeAppointment.patient_name},\n\nYour digital prescription from Alamnagar CHC has been prepared.\n\nMedicines prescribed:\n${medsText}\nObservations:\n${document.getElementById('obs-input').value.trim()}\n\nWish you a speedy recovery!`;
+  const messageText = `Hello ${activeAppointment.patient_name},\n\nYour digital prescription from Alamnagar CHC has been prepared.\n\nPatient Details:\n- Age: ${age}\n- Gender: ${gender}\n- Weight: ${weight}\n\nMedicines prescribed:\n${medsText}\nObservations:\n${document.getElementById('obs-input').value.trim()}\n\nWish you a speedy recovery!`;
 
   // WhatsApp link
   const formattedPhone = activeAppointment.phone.replace(/[^0-9]/g, '');

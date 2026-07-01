@@ -842,15 +842,50 @@ app.get('/api/doctor/appointments', authenticateToken, async (req, res) => {
   try {
     const doctorId = req.user.doctor_id;
     const query = `
-      SELECT * FROM appointments 
-      WHERE doctor_id = $1 
-      ORDER BY appointment_date DESC, appointment_time ASC
+      SELECT appointments.*, users.address as user_profile_address 
+      FROM appointments 
+      LEFT JOIN users ON appointments.user_id = users.id
+      WHERE appointments.doctor_id = $1 
+      ORDER BY appointments.appointment_date DESC, appointments.appointment_time ASC
     `;
     const resDb = await db.pool.query(query, [doctorId]);
     res.json(resDb.rows);
   } catch (err) {
     console.error('Error fetching doctor appointments:', err);
     res.status(500).json({ error: 'Failed to retrieve appointments.' });
+  }
+});
+
+// GET doctor profile (including signature)
+app.get('/api/doctor/profile', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Doctor') {
+    return res.status(403).json({ error: 'Access Denied: Doctor only.' });
+  }
+  try {
+    const profile = await db.getDoctorById(req.user.doctor_id);
+    if (!profile) return res.status(404).json({ error: 'Doctor profile not found.' });
+    res.json(profile);
+  } catch (err) {
+    console.error('Error fetching doctor profile:', err);
+    res.status(500).json({ error: 'Failed to retrieve doctor profile.' });
+  }
+});
+
+// POST update doctor signature
+app.post('/api/doctor/profile/signature', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Doctor') {
+    return res.status(403).json({ error: 'Access Denied: Doctor only.' });
+  }
+  const { signature_url } = req.body;
+  if (!signature_url) {
+    return res.status(400).json({ error: 'Signature is required.' });
+  }
+  try {
+    await db.pool.query("UPDATE doctors SET signature_url = $1 WHERE id = $2", [signature_url, req.user.doctor_id]);
+    res.json({ success: true, message: 'Signature updated successfully.' });
+  } catch (err) {
+    console.error('Error saving doctor signature:', err);
+    res.status(500).json({ error: 'Failed to save signature.' });
   }
 });
 
@@ -903,7 +938,7 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Doctor') {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
-  const { appointment_id, diagnostics, observations, medicines, doctor_signature } = req.body;
+  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address } = req.body;
   if (!appointment_id || !medicines) {
     return res.status(400).json({ error: 'Appointment ID and medicines list are required.' });
   }
@@ -917,6 +952,19 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       medicines,
       doctor_signature
     });
+
+    // Update appointment demographics (Age, Gender, Weight, and Address)
+    await db.pool.query(
+      "UPDATE appointments SET age = $1, gender = $2, weight = $3, address = $4 WHERE id = $5",
+      [age || '', gender || '', weight || '', address || '', parseInt(appointment_id, 10)]
+    );
+
+    // If this appointment is linked to a registered user, also save address to their profile
+    const apptRes = await db.pool.query("SELECT user_id FROM appointments WHERE id = $1", [parseInt(appointment_id, 10)]);
+    if (apptRes.rows.length > 0 && apptRes.rows[0].user_id && address) {
+      await db.pool.query("UPDATE users SET address = $1 WHERE id = $2", [address, apptRes.rows[0].user_id]);
+    }
+
     res.status(201).json(result);
   } catch (err) {
     console.error('Error saving prescription:', err);
