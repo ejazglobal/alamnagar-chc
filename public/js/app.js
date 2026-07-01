@@ -864,27 +864,24 @@ function setupEventListeners() {
         appointments.push(newAppt);
         showBookingSuccess(newAppt);
       } else {
-        // Request OTP first
-        const reqOtpResponse = await fetch('/api/appointments/request-otp', {
+        // Direct appointment booking without showing OTP modal (temporarily bypassed)
+        const response = await fetch('/api/appointments/confirm-with-otp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: patientEmail, phone: patientPhone })
+          body: JSON.stringify({
+            otp: 'bypass',
+            appointment: payload
+          })
         });
 
-        if (!reqOtpResponse.ok) {
-          const errData = await reqOtpResponse.json();
-          throw new Error(errData.error || 'Failed to request OTP code.');
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || 'Failed to confirm booking.');
         }
 
-        // Store payload in state and open verification modal
-        pendingBookingPayload = payload;
-        
-        const statusBannerOtp = document.getElementById('otp-status-banner');
-        if (statusBannerOtp) statusBannerOtp.style.display = 'none';
-        
-        document.getElementById('otp-input').value = '';
-        document.getElementById('otp-modal').style.display = 'flex';
-        startResendTimer(60);
+        const newAppt = await response.json();
+        appointments.push(newAppt);
+        showBookingSuccess(newAppt);
       }
     } catch (error) {
       console.error(error);
