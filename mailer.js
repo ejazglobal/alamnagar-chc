@@ -3,51 +3,71 @@ const path = require('path');
 const https = require('https');
 const querystring = require('querystring');
 
-// Helper to send real SMS via Twilio API (no npm module required)
-function sendSMS(to, message) {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNum = process.env.TWILIO_FROM_NUMBER;
+// Normalize Bangladeshi phone numbers to the 8801XXXXXXXXX format
+function normalizeBDPhoneNumber(phone) {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('880') && digits.length === 13) {
+    return digits;
+  }
+  if (digits.startsWith('0') && digits.length === 11) {
+    return '880' + digits;
+  }
+  if (digits.startsWith('1') && digits.length === 10) {
+    return '880' + digits;
+  }
+  return digits;
+}
 
-  if (!accountSid || !authToken || !fromNum) {
-    console.log(`[SIMULATED SMS] OTP/Message for ${to}: "${message}"`);
+// Helper to send real SMS via Shiram System API (no npm module required)
+function sendSMS(to, message) {
+  const normalizedPhone = normalizeBDPhoneNumber(to);
+  
+  // Load Shiram SMS gateway credentials from environment variables or use the user's defaults
+  const smsUrl = process.env.SMS_URL || 'https://smsapi.shiramsystem.com/user_api/';
+  const smsUser = process.env.SMS_USER || 'inforcmc@gmail.com';
+  const smsPass = process.env.SMS_PASS || '14142135';
+  const smsMask = process.env.SMS_MASK || 'HEALTH CITY';
+  const smsSenderId = process.env.SMS_SENDER_ID || 'send_sms';
+
+  if (!smsUser || !smsPass) {
+    console.log(`[SIMULATED SMS] Phone: ${normalizedPhone}, Msg: "${message}"`);
     return;
   }
 
-  const postData = querystring.stringify({
-    To: to,
-    From: fromNum,
-    Body: message
-  });
-
-  const auth = 'Basic ' + Buffer.from(accountSid + ':' + authToken).toString('base64');
-
-  const options = {
-    hostname: 'api.twilio.com',
-    port: 443,
-    path: `/2010-04-01/Accounts/${accountSid}/Messages.json`,
-    method: 'POST',
-    headers: {
-      'Authorization': auth,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Content-Length': postData.length
-    }
+  // Compile all standard parameter variations for Bangladeshi SMS Aggregators
+  const params = {
+    user: smsUser,
+    username: smsUser,
+    pass: smsPass,
+    password: smsPass,
+    mobile: normalizedPhone,
+    to: normalizedPhone,
+    number: normalizedPhone,
+    msg: message,
+    message: message,
+    text: message,
+    mask: smsMask,
+    sender: smsMask,
+    senderid: smsSenderId,
+    action: 'send_sms'
   };
 
-  const req = https.request(options, (res) => {
+  const queryString = querystring.stringify(params);
+  const fullUrl = `${smsUrl}?${queryString}`;
+
+  console.log(`[SMS DISPATCH] Sending real SMS to ${normalizedPhone} via Shiram System...`);
+
+  const req = https.get(fullUrl, (res) => {
     let data = '';
     res.on('data', (chunk) => { data += chunk; });
     res.on('end', () => {
-      console.log(`[TWILIO SMS] Status: ${res.statusCode}. SMS dispatch completed.`);
+      console.log(`[SMS DISPATCH] Response Status: ${res.statusCode}. Gateway body: ${data.trim()}`);
     });
   });
 
   req.on('error', (e) => {
-    console.error(`[TWILIO SMS] Request error: ${e.message}`);
+    console.error(`[SMS DISPATCH] Gateway connection failed: ${e.message}`);
   });
-
-  req.write(postData);
-  req.end();
 }
 
 // Helper to send real Email via SendGrid API (no npm module required)
