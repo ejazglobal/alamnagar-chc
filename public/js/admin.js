@@ -61,6 +61,9 @@ async function unlockDashboard(role) {
 
 // Load Appointments, News, Doctors
 async function loadData() {
+  isFallbackMode = false;
+  if (adminDemoNotice) adminDemoNotice.style.display = 'none';
+
   try {
     const token = localStorage.getItem('chc_token');
     const apptsResponse = await fetch('/api/appointments', {
@@ -68,28 +71,27 @@ async function loadData() {
         'Authorization': `Bearer ${token}`
       }
     });
-    if (!apptsResponse.ok) throw new Error('API server unreachable');
-    appointments = await apptsResponse.json();
+    if (apptsResponse.ok) {
+      appointments = await apptsResponse.json();
+    } else {
+      console.error('Failed to fetch appointments from backend API');
+    }
 
     const doctorsResponse = await fetch('/api/doctors');
     if (doctorsResponse.ok) {
       doctors = await doctorsResponse.json();
+    } else {
+      console.error('Failed to fetch doctors from backend API');
     }
 
     const newsResponse = await fetch('/api/news');
     if (newsResponse.ok) {
       newsItems = await newsResponse.json();
+    } else {
+      console.error('Failed to fetch news from backend API');
     }
-    
-    isFallbackMode = false;
-    adminDemoNotice.style.display = 'none';
   } catch (err) {
-    console.warn('Backend server unreachable. Switching to local storage fallback mode.', err);
-    isFallbackMode = true;
-    adminDemoNotice.style.display = 'flex';
-    appointments = JSON.parse(localStorage.getItem('chc_appointments')) || [];
-    doctors = JSON.parse(localStorage.getItem('chc_doctors')) || [];
-    newsItems = JSON.parse(localStorage.getItem('chc_news')) || [];
+    console.error('Error fetching data from API server:', err);
   }
 }
 

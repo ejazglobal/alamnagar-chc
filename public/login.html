@@ -156,17 +156,11 @@
     let activeTab = 'login';
     let isFallbackMode = false;
 
-    // Check backend state on load
-    document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        const res = await fetch('/api/news');
-        if (!res.ok) throw new Error();
-        isFallbackMode = false;
-        document.getElementById('auth-demo-notice').style.display = 'none';
-      } catch (err) {
-        isFallbackMode = true;
-        document.getElementById('auth-demo-notice').style.display = 'flex';
-      }
+    // Backend state active
+    document.addEventListener('DOMContentLoaded', () => {
+      isFallbackMode = false;
+      const notice = document.getElementById('auth-demo-notice');
+      if (notice) notice.style.display = 'none';
     });
 
     function switchTab(tab) {

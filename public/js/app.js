@@ -9,6 +9,7 @@ let galleryItems = [];
 let selectedDoctorId = null;
 let selectedDoctor = null;
 let currentLanguage = localStorage.getItem('chc_lang') || 'en';
+let isFallbackMode = false;
 
 const TIME_SLOTS = [
   '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
@@ -166,39 +167,52 @@ function translateUI() {
   });
 }
 
-// Load News, Appointments, Doctors & Gallery (from Backend API, falling back to LocalStorage)
+// Load News, Appointments, Doctors & Gallery from Backend API
 async function loadData() {
+  isFallbackMode = false;
+  if (demoModeNotice) demoModeNotice.style.display = 'none';
+
   try {
     const newsResponse = await fetch('/api/news');
-    if (!newsResponse.ok) throw new Error('API server unreachable');
-    newsItems = await newsResponse.json();
-
-    const headers = {};
-    const token = localStorage.getItem('chc_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (newsResponse.ok) {
+      newsItems = await newsResponse.json();
+    } else {
+      console.error('Failed to fetch news from backend API');
     }
 
-    const apptsResponse = await fetch('/api/appointments', { headers });
-    if (!apptsResponse.ok) throw new Error('API server unreachable');
-    appointments = await apptsResponse.json();
-
     const doctorsResponse = await fetch('/api/doctors');
-    if (!doctorsResponse.ok) throw new Error('API server unreachable');
-    doctors = await doctorsResponse.json();
+    if (doctorsResponse.ok) {
+      doctors = await doctorsResponse.json();
+    } else {
+      console.error('Failed to fetch doctors from backend API');
+    }
 
     const galleryResponse = await fetch('/api/gallery');
-    if (!galleryResponse.ok) throw new Error('API server unreachable');
-    galleryItems = await galleryResponse.json();
-    
-    isFallbackMode = false;
-    demoModeNotice.style.display = 'none';
+    if (galleryResponse.ok) {
+      galleryItems = await galleryResponse.json();
+    } else {
+      console.error('Failed to fetch gallery from backend API');
+    }
+
+    const token = localStorage.getItem('chc_token');
+    if (token) {
+      const apptsResponse = await fetch('/api/appointments', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (apptsResponse.ok) {
+        appointments = await apptsResponse.json();
+      } else {
+        console.error('Failed to fetch appointments from backend API');
+        if (apptsResponse.status === 401 || apptsResponse.status === 403) {
+          localStorage.removeItem('chc_token');
+          localStorage.removeItem('chc_user_role');
+        }
+      }
+    } else {
+      appointments = [];
+    }
   } catch (err) {
-    console.warn('Backend server unreachable. Switching to offline LocalStorage fallback mode.', err);
-    isFallbackMode = true;
-    demoModeNotice.style.display = 'flex';
-    initLocalStorageFallback();
-    loadLocalStorageData();
+    console.error('Error fetching data from API server:', err);
   }
 
   renderNews();

@@ -43,18 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function verifyBackendAndLoad() {
-  try {
-    const token = localStorage.getItem('chc_token');
-    const testRes = await fetch('/api/medicines', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!testRes.ok) throw new Error();
-    isFallbackMode = false;
-  } catch (err) {
-    isFallbackMode = true;
-    console.warn('Running Doctor Portal in local mock fallback mode.');
-  }
-
+  isFallbackMode = false;
   await loadData();
   renderQueue();
   setupMedicineAutocomplete();
