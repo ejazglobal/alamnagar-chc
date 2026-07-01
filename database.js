@@ -150,6 +150,34 @@ async function initializeDatabase() {
 
     console.log("PostgreSQL database tables verified/created.");
 
+    // Safe column migrations for existing old tables
+    try {
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL");
+      await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL");
+      await pool.query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS visiting_days VARCHAR(255) DEFAULT '1,2,3,4,5'");
+      
+      // Medicines table column updates
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS brand_id INTEGER");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS brand_name VARCHAR(255)");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS type VARCHAR(100)");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS slug VARCHAR(255)");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS dosage_form VARCHAR(100)");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS generic VARCHAR(255)");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS strength VARCHAR(100)");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS manufacturer VARCHAR(255)");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS package_container TEXT");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS package_size TEXT");
+      await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS image_url TEXT");
+
+      // Handle brand_name transition safely
+      await pool.query("UPDATE medicines SET brand_name = name WHERE brand_name IS NULL AND name IS NOT NULL");
+      await pool.query("UPDATE medicines SET brand_name = 'Unknown Medicine' WHERE brand_name IS NULL");
+      await pool.query("ALTER TABLE medicines ALTER COLUMN brand_name SET NOT NULL");
+    } catch (migErr) {
+      console.warn("Table migrations warning (might be already modified):", migErr.message);
+    }
+
     // --- SEED DOCTORS ---
     const docCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM doctors");
     const docCount = parseInt(docCountRes.rows[0].count, 10);

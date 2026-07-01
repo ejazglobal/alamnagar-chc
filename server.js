@@ -967,6 +967,100 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
   }
 });
 
+// Helper for parsing CSV lines in setup route
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+app.get('/api/run-seed', async (req, res) => {
+  console.log("Web route seeding triggered...");
+  const filePath = path.join(__dirname, 'medicines.csv');
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send("Error: medicines.csv not found in the root folder of Render server.");
+  }
+
+  const client = await db.pool.connect();
+  try {
+    const csvContent = fs.readFileSync(filePath, 'utf8');
+    const lines = csvContent.split(/\r?\n/).filter(line => line.trim().length > 0);
+    const headers = lines.shift(); // remove headers
+    
+    await client.query('BEGIN');
+    
+    // Truncate existing medicines table
+    await client.query("TRUNCATE TABLE medicines");
+    
+    const batchSize = 500;
+    let insertedCount = 0;
+
+    for (let i = 0; i < lines.length; i += batchSize) {
+      const batchLines = lines.slice(i, i + batchSize);
+      
+      const placeholders = [];
+      const values = [];
+      let valIdx = 1;
+      
+      batchLines.forEach(line => {
+        const fields = parseCSVLine(line);
+        if (fields.length < 2 || !fields[1]) return;
+        
+        const brandId = parseInt(fields[0], 10) || null;
+        const brandName = fields[1];
+        const type = fields[2] || null;
+        const slug = fields[3] || null;
+        const dosageForm = fields[4] || null;
+        const generic = fields[5] || null;
+        const strength = fields[6] || null;
+        const manufacturer = fields[7] || null;
+        const packageContainer = fields[8] || null;
+        const packageSize = fields[9] || null;
+        const imageUrl = fields[10] || null;
+        
+        placeholders.push(`($${valIdx}, $${valIdx+1}, $${valIdx+2}, $${valIdx+3}, $${valIdx+4}, $${valIdx+5}, $${valIdx+6}, $${valIdx+7}, $${valIdx+8}, $${valIdx+9}, $${valIdx+10})`);
+        
+        values.push(brandId, brandName, type, slug, dosageForm, generic, strength, manufacturer, packageContainer, packageSize, imageUrl);
+        valIdx += 11;
+        insertedCount++;
+      });
+      
+      if (values.length > 0) {
+        const query = `
+          INSERT INTO medicines (brand_id, brand_name, type, slug, dosage_form, generic, strength, manufacturer, package_container, package_size, image_url)
+          VALUES ${placeholders.join(', ')}
+        `;
+        await client.query(query, values);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.send(`Successfully seeded ${insertedCount} medicines into Supabase PostgreSQL database on Render!`);
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch(rollbackErr) {}
+    console.error("Web seeding failed:", err);
+    res.status(500).send(`Seeding failed: ${err.message}`);
+  } finally {
+    client.release();
+  }
+});
+
 // --- DOCTOR FALLBACK PATH ---
 app.get('/doctor', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'doctor.html'));
