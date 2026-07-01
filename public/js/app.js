@@ -444,7 +444,6 @@ function renderCalendar() {
     const dayOfWeek = new Date(year, month, dayNum).getDay(); // 0 = Sun, 1 = Mon ... 6 = Sat
 
     // Check conditions
-    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
     const isPast = localDateStr < todayStr;
     const isToday = localDateStr === todayStr;
     const isDocVisiting = allowedDays.includes(dayOfWeek);
@@ -452,7 +451,7 @@ function renderCalendar() {
     // Has appointment indicator
     const hasBookings = appointments.some(a => a.appointment_date === localDateStr && a.status !== 'cancelled' && a.doctor_id === selectedDoctorId);
 
-    if (isWeekend || isPast || !isDocVisiting) {
+    if (isPast || !isDocVisiting) {
       dayEl.classList.add('disabled');
     } else {
       if (isToday) dayEl.classList.add('today');
@@ -688,6 +687,63 @@ function setupEventListeners() {
   });
 
   // Submit Booking request
+  let pendingBookingPayload = null;
+
+  window.closeOtpModal = function(e) {
+    if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+    document.getElementById('otp-modal').style.display = 'none';
+    pendingBookingPayload = null;
+  };
+
+  window.verifyBookingOtp = async function() {
+    const otpInput = document.getElementById('otp-input').value.trim();
+    const statusBannerOtp = document.getElementById('otp-status-banner');
+    
+    if (otpInput.length !== 6 || isNaN(otpInput)) {
+      statusBannerOtp.textContent = 'Please enter a valid 6-digit OTP code.';
+      statusBannerOtp.className = 'status-banner error';
+      statusBannerOtp.style.display = 'block';
+      return;
+    }
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = localStorage.getItem('chc_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      statusBannerOtp.textContent = 'Verifying...';
+      statusBannerOtp.className = 'status-banner warning';
+      statusBannerOtp.style.display = 'block';
+
+      const response = await fetch('/api/appointments/confirm-with-otp', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          otp: otpInput,
+          appointment: pendingBookingPayload
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to verify OTP code.');
+      }
+
+      const newAppt = await response.json();
+      appointments.push(newAppt);
+      
+      document.getElementById('otp-modal').style.display = 'none';
+      showBookingSuccess(newAppt);
+    } catch (error) {
+      console.error(error);
+      statusBannerOtp.textContent = error.message || 'OTP verification failed.';
+      statusBannerOtp.className = 'status-banner error';
+      statusBannerOtp.style.display = 'block';
+    }
+  };
+
   bookingForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -713,7 +769,7 @@ function setupEventListeners() {
 
     try {
       if (isFallbackMode) {
-        // Save in LocalStorage fallback
+        // Save in LocalStorage fallback (skips OTP verification in fallback demo mode)
         const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
         const activeUserId = localStorage.getItem('chc_user_id');
         const newAppt = {
@@ -729,26 +785,26 @@ function setupEventListeners() {
         appointments.push(newAppt);
         showBookingSuccess(newAppt);
       } else {
-        const headers = { 'Content-Type': 'application/json' };
-        const token = localStorage.getItem('chc_token');
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch('/api/appointments', {
+        // Request OTP first
+        const reqOtpResponse = await fetch('/api/appointments/request-otp', {
           method: 'POST',
-          headers,
-          body: JSON.stringify(payload)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: patientEmail, phone: patientPhone })
         });
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'Failed to submit appointment booking.');
+        if (!reqOtpResponse.ok) {
+          const errData = await reqOtpResponse.json();
+          throw new Error(errData.error || 'Failed to request OTP code.');
         }
 
-        const newAppt = await response.json();
-        appointments.push(newAppt);
-        showBookingSuccess(newAppt);
+        // Store payload in state and open verification modal
+        pendingBookingPayload = payload;
+        
+        const statusBannerOtp = document.getElementById('otp-status-banner');
+        if (statusBannerOtp) statusBannerOtp.style.display = 'none';
+        
+        document.getElementById('otp-input').value = '';
+        document.getElementById('otp-modal').style.display = 'flex';
       }
     } catch (error) {
       console.error(error);

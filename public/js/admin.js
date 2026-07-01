@@ -49,6 +49,14 @@ async function unlockDashboard(role) {
   renderDashboard();
   renderNewsManageTable();
   renderDoctorsManageTable();
+  
+  if (role === 'Admin') {
+    const staffSec = document.getElementById('admin-staff-section');
+    if (staffSec) staffSec.style.display = 'block';
+    setupStaffDashboardEvents();
+    await loadStaffAndRender();
+  }
+  applyStaffPermissionsFilter();
 }
 
 // Load Appointments, News, Doctors
@@ -865,4 +873,171 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// --- STAFF MANAGEMENT FUNCTIONS ---
+let staffMembers = [];
+
+async function loadStaffAndRender() {
+  const tbody = document.getElementById('staff-manage-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">Loading staff accounts...</td></tr>';
+  
+  try {
+    if (isFallbackMode) {
+      staffMembers = JSON.parse(localStorage.getItem('chc_staff_members')) || [];
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch('/api/admin/staff', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        staffMembers = await response.json();
+      } else {
+        throw new Error('Failed to fetch staff registry.');
+      }
+    }
+    renderStaffTable();
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger); padding: 1rem 0;">Failed to load staff list.</td></tr>';
+  }
+}
+
+function renderStaffTable() {
+  const tbody = document.getElementById('staff-manage-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (staffMembers.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">No staff members registered.</td></tr>';
+    return;
+  }
+  
+  staffMembers.forEach(member => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td><strong style="color: var(--text-dark);">${escapeHTML(member.username)}</strong></td>
+      <td>${escapeHTML(member.email)}</td>
+      <td><span class="badge" style="background: var(--primary-light); color: var(--primary-color);">${escapeHTML(member.permissions)}</span></td>
+      <td>
+        <button class="news-action-btn delete" onclick="deleteStaff(${member.id})">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+function setupStaffDashboardEvents() {
+  const form = document.getElementById('staff-create-form');
+  if (!form) return;
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('staff-username').value.trim();
+    const email = document.getElementById('staff-email').value.trim().toLowerCase();
+    const password = document.getElementById('staff-password').value;
+    const permissions = document.getElementById('staff-permissions').value;
+    
+    const banner = document.getElementById('staff-status-banner');
+    
+    try {
+      if (isFallbackMode) {
+        const newStaff = { id: Date.now(), username, email, permissions };
+        staffMembers.push(newStaff);
+        localStorage.setItem('chc_staff_members', JSON.stringify(staffMembers));
+        showBanner(banner, 'Staff member added (Offline fallback).', 'success');
+        form.reset();
+        renderStaffTable();
+      } else {
+        const token = localStorage.getItem('chc_token');
+        const response = await fetch('/api/admin/staff', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ username, email, password, permissions })
+        });
+        
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || 'Failed to add staff member.');
+        }
+        
+        showBanner(banner, 'Staff member registered successfully.', 'success');
+        form.reset();
+        await loadStaffAndRender();
+      }
+    } catch (err) {
+      console.error(err);
+      showBanner(banner, err.message || 'Error registering staff.', 'error');
+    }
+  });
+}
+
+window.deleteStaff = async function(id) {
+  if (!confirm('Are you sure you want to delete this staff member?')) return;
+  const banner = document.getElementById('staff-status-banner');
+  
+  try {
+    if (isFallbackMode) {
+      staffMembers = staffMembers.filter(s => s.id !== id);
+      localStorage.setItem('chc_staff_members', JSON.stringify(staffMembers));
+      showBanner(banner, 'Staff member deleted (Offline fallback).', 'success');
+      renderStaffTable();
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch(`/api/admin/staff/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to delete staff member.');
+      }
+      
+      showBanner(banner, 'Staff member deleted successfully.', 'success');
+      await loadStaffAndRender();
+    }
+  } catch (err) {
+    console.error(err);
+    showBanner(banner, err.message || 'Error deleting staff member.', 'error');
+  }
+};
+
+function applyStaffPermissionsFilter() {
+  const role = localStorage.getItem('chc_user_role');
+  const permissions = localStorage.getItem('chc_user_permissions');
+  if (role === 'Staff') {
+    if (permissions === 'news') {
+      const docForm = document.getElementById('doctor-post-form');
+      if (docForm) {
+        const panel = docForm.closest('.panel');
+        if (panel) panel.style.display = 'none';
+      }
+      const docTable = document.getElementById('doctors-manage-tbody');
+      if (docTable) {
+        const panel = docTable.closest('.panel');
+        if (panel) panel.style.display = 'none';
+      }
+    } else if (permissions === 'doctors') {
+      const newsForm = document.getElementById('news-post-form');
+      if (newsForm) {
+        const panel = newsForm.closest('.panel');
+        if (panel) panel.style.display = 'none';
+      }
+      const newsTable = document.getElementById('news-manage-tbody');
+      if (newsTable) {
+        const panel = newsTable.closest('.panel');
+        if (panel) panel.style.display = 'none';
+      }
+      const galleryForm = document.getElementById('gallery-post-form');
+      if (galleryForm) {
+        const panel = galleryForm.closest('.panel');
+        if (panel) panel.style.display = 'none';
+      }
+    }
+  }
 }

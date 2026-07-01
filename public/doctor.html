@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alamnagar CHC - Doctor Clinical Portal</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Premium clinical styles */
+    .doctor-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1.5rem;
+      max-width: 1300px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      min-height: 80vh;
+    }
+    
+    .queue-panel {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      height: fit-content;
+      max-height: 85vh;
+    }
+    
+    .queue-header {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--primary-light);
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .queue-badge {
+      background: var(--primary-color);
+      color: #ffffff;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    
+    .queue-list {
+      list-style: none;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .queue-item {
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      background: var(--bg-main);
+    }
+    
+    .queue-item:hover, .queue-item.active {
+      border-color: var(--primary-color);
+      background: var(--primary-light);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .queue-item.active {
+      box-shadow: 0 0 0 2px var(--primary-color);
+    }
+    
+    .queue-item-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .queue-item-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .prescription-builder {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .patient-summary-card {
+      background: var(--primary-light);
+      border: 1px solid var(--primary-color);
+      border-radius: 8px;
+      padding: 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .patient-details h3 {
+      color: var(--primary-hover);
+      font-size: 1.2rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .prescription-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 2rem;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1.5rem;
+    }
+
+    .prescription-sidebar {
+      border-right: 1px solid var(--border-color);
+      padding-right: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .prescription-main {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .med-builder-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1.2fr auto;
+      gap: 0.5rem;
+      align-items: flex-end;
+      background: #f8fafc;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .med-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    .med-table th, .med-table td {
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem;
+      text-align: left;
+    }
+
+    .med-table th {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .med-remove-btn {
+      color: var(--danger);
+      background: none;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .signature-upload-box {
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      position: relative;
+    }
+
+    .signature-upload-box:hover {
+      border-color: var(--primary-color);
+      background: var(--primary-light);
+    }
+
+    .signature-preview {
+      max-height: 80px;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    /* Print & Export styles */
+    @media print {
+      body {
+        background: #ffffff;
+        color: #000000;
+      }
+      header, footer, .queue-panel, .med-builder-grid, .signature-upload-box input, .btn, .prescription-sidebar h3, .prescription-main h3, .med-remove-btn {
+        display: none !important;
+      }
+      .doctor-grid {
+        grid-template-columns: 1fr;
+        margin: 0;
+        padding: 0;
+      }
+      .prescription-builder {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+      }
+      .prescription-layout {
+        grid-template-columns: 200px 1fr;
+        border: none;
+      }
+      .prescription-sidebar {
+        border-right: 2px solid #000000;
+      }
+      .patient-summary-card {
+        background: none;
+        border: 2px solid #000000;
+        color: #000000;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="logo" id="nav-logo">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 10.5H13.5V5C13.5 4.17 12.83 3.5 12 3.5C11.17 3.5 10.5 4.17 10.5 5V10.5H5C4.17 10.5 3.5 11.17 3.5 12C3.5 12.83 4.17 13.5 5 13.5H10.5V19C10.5 19.83 11.17 20.5 12 20.5C12.83 20.5 13.5 19.83 13.5 19V13.5H19C19.83 13.5 20.5 12.83 20.5 12C20.5 11.17 19.83 10.5 19 10.5Z"/>
+        </svg>
+        <span>Alamnagar CHC</span>
+      </a>
+      <nav class="nav-links" id="nav-menu">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="doctor.html" class="nav-link active">Clinical Dashboard</a>
+        <span class="nav-link" id="doc-welcome" style="color: var(--primary-color); font-weight:600;">Welcome, Doctor</span>
+        <a href="#" class="nav-link" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main View -->
+  <main class="doctor-grid">
+    
+    <!-- Left Column: Patient Queue -->
+    <aside class="queue-panel">
+      <div class="queue-header">
+        <span>Patient Queue</span>
+        <span class="queue-badge" id="queue-count">0</span>
+      </div>
+      <ul class="queue-list" id="queue-list">
+        <!-- Rendered dynamically -->
+        <li style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No patients in queue.</li>
+      </ul>
+    </aside>
+
+    <!-- Right Column: Prescription Engine -->
+    <section id="prescription-container">
+      <div class="prescription-builder" id="prescription-empty-state" style="justify-content: center; align-items: center; text-align: center; min-height: 400px;">
+        <svg style="width: 64px; height: 64px; color: var(--text-muted); margin-bottom: 1.5rem;" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path>
+        </svg>
+        <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-dark); margin-bottom: 0.5rem;">No Patient Selected</h3>
+        <p style="color: var(--text-muted); max-width: 320px;">Please click on a patient from the left sidebar queue to start prescribing.</p>
+      </div>
+
+      <div class="prescription-builder" id="prescription-active-builder" style="display: none;">
+        
+        <!-- Patient Banner -->
+        <div class="patient-summary-card">
+          <div class="patient-details">
+            <h3 id="patient-banner-name">Patient Name</h3>
+            <div style="font-size: 0.85rem; color: #475569; display: flex; gap: 1.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+              <span><strong>Phone:</strong> <span id="patient-banner-phone">...</span></span>
+              <span><strong>Email:</strong> <span id="patient-banner-email">...</span></span>
+              <span><strong>Date:</strong> <span id="patient-banner-date">...</span></span>
+            </div>
+            <div style="font-size: 0.85rem; color: #475569; margin-top: 0.5rem;" id="patient-banner-notes-div">
+              <strong>Notes:</strong> <em id="patient-banner-notes">...</em>
+            </div>
+          </div>
+          <div>
+            <span class="badge" id="patient-banner-status" style="font-size: 0.85rem; padding: 0.4rem 1rem;">Status</span>
+          </div>
+        </div>
+
+        <div id="prescription-status" class="status-banner" style="display: none; margin-bottom: 1rem;"></div>
+
+        <!-- Prescription Layout Grid -->
+        <div class="prescription-layout">
+          
+          <!-- Left Column (Diagnostics & Observations) -->
+          <div class="prescription-sidebar">
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem; color: var(--primary-hover);">OBSERVATIONS / SYMPTOMS</label>
+              <textarea id="obs-input" class="form-control" style="height: 120px; font-size: 0.9rem;" placeholder="e.g. Dry cough, mild fever, throat pain..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem; color: var(--primary-hover);">COMMON DIAGNOSTICS</label>
+              <div style="display:flex; flex-direction:column; gap:0.4rem; margin-bottom: 0.75rem;" id="diag-checkboxes">
+                <label><input type="checkbox" value="Complete Blood Count (CBC)"> CBC</label>
+                <label><input type="checkbox" value="Fast Blood Sugar (FBS)"> FBS</label>
+                <label><input type="checkbox" value="Electrocardiogram (ECG)"> ECG</label>
+                <label><input type="checkbox" value="Chest X-Ray"> Chest X-Ray</label>
+                <label><input type="checkbox" value="Urine Routine Examination"> Urine R/E</label>
+              </div>
+              <input type="text" id="diag-custom" class="form-control" placeholder="Other diagnostic test..." style="font-size: 0.85rem;">
+            </div>
+          </div>
+
+          <!-- Right Column (Rx Medicines List) -->
+          <div class="prescription-main">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-dark);">Rx (Prescribed Medicines)</h3>
+            
+            <!-- Medicine Add Grid -->
+            <div class="med-builder-grid">
+              <div class="form-group" style="margin-bottom:0; position: relative;">
+                <label class="form-label" style="font-size: 0.75rem;">Medicine Name (Type to search) *</label>
+                <input type="text" id="med-search-input" class="form-control" placeholder="e.g. Celofen or Paracetamol" style="background: white; font-size: 0.85rem;" autocomplete="off">
+                <div id="med-search-results" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 220px; overflow-y: auto; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: var(--shadow-md); z-index: 1000; padding: 0.25rem 0;"></div>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size: 0.75rem;">Dosage *</label>
+                <select id="med-dosage" class="form-control" style="background: white;">
+                  <option value="1-0-1">1-0-1</option>
+                  <option value="1-1-1">1-1-1</option>
+                  <option value="1-0-0">1-0-0</option>
+                  <option value="0-0-1">0-0-1</option>
+                  <option value="1-1-1-1">1-1-1-1</option>
+                  <option value="As needed">As needed</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size: 0.75rem;">Timing *</label>
+                <select id="med-timing" class="form-control" style="background: white;">
+                  <option value="After food">After food</option>
+                  <option value="Before food">Before food</option>
+                  <option value="With food">With food</option>
+                  <option value="Empty stomach">Empty stomach</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size: 0.75rem;">Duration *</label>
+                <input type="text" id="med-duration" class="form-control" placeholder="e.g. 5 days" value="5 days">
+              </div>
+              <button type="button" class="btn" style="width: auto; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem;" onclick="addMedicineRow()">Add</button>
+            </div>
+
+            <!-- Medicines Table -->
+            <table class="med-table">
+              <thead>
+                <tr>
+                  <th>Medicine Name</th>
+                  <th>Dosage</th>
+                  <th>Timing</th>
+                  <th>Duration</th>
+                  <th style="width: 60px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="med-rows-tbody">
+                <!-- Dynamically populated -->
+                <tr id="med-empty-row">
+                  <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No medicines prescribed yet.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Signature and Save Section -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; align-items: flex-end;">
+              
+              <!-- Signature Upload -->
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size: 0.8rem;">DOCTOR SIGNATURE *</label>
+                <div class="signature-upload-box" onclick="document.getElementById('sig-file').click()">
+                  <span id="sig-prompt" style="font-size: 0.85rem; color: var(--text-muted);">Click to upload signature image</span>
+                  <input type="file" id="sig-file" accept="image/*" style="display: none;" onchange="handleSignatureUpload(event)">
+                  <img id="sig-image" class="signature-preview" src="" alt="Doctor Signature">
+                </div>
+              </div>
+
+              <!-- Action buttons -->
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <button type="button" class="btn" onclick="savePrescription()" style="background-color: var(--primary-color);">Save & Complete Visit</button>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button type="button" class="btn" onclick="printPrescription()" style="flex:1; background-color: var(--accent-color);">Print Prescription</button>
+                  <button type="button" class="btn" onclick="openShareModal()" id="share-btn-ctrl" style="flex:1; background-color: var(--warning); display: none;">Share / Send</button>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Share Modal Dialog -->
+  <div id="share-modal" class="modal-overlay" onclick="closeShareModal(event)">
+    <div class="modal-container" style="max-width: 400px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Share Prescription</h3>
+        <button class="modal-close" onclick="closeShareModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:1rem;">
+        <p style="font-size: 0.95rem; color: var(--text-dark);">Share the digital prescription with the patient via:</p>
+        <a id="share-whatsapp" href="#" target="_blank" class="btn" style="background-color: #25D366; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
+          WhatsApp Handle
+        </a>
+        <a id="share-email" href="#" class="btn" style="background-color: var(--primary-color); display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none;">
+          Email Client
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/doctor.js"></script>
+</body>
+</html>

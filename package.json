@@ -12,7 +12,7 @@
     "cors": "^2.8.5",
     "express": "^4.22.2",
     "package-name": "^0.1.0",
-    "pg": "^8.11.3"
+    "pg": "^8.22.0"
   },
   "author": "Antigravity",
   "license": "ISC"

@@ -259,6 +259,8 @@
                 <label><input type="checkbox" name="visiting-weekday" value="3"> Wed</label>
                 <label><input type="checkbox" name="visiting-weekday" value="4"> Thu</label>
                 <label><input type="checkbox" name="visiting-weekday" value="5"> Fri</label>
+                <label><input type="checkbox" name="visiting-weekday" value="6"> Sat</label>
+                <label><input type="checkbox" name="visiting-weekday" value="0"> Sun</label>
               </div>
             </div>
 
@@ -273,6 +275,63 @@
               <button type="button" class="btn" id="doctor-cancel-edit-btn" style="background-color: var(--text-muted); display: none;" onclick="cancelDoctorEdit()">Cancel Edit</button>
             </div>
           </form>
+        </section>
+
+        <!-- Manage Staff Registry (Admin Only) -->
+        <section class="panel" id="admin-staff-section" style="margin-top: 1.5rem; display: none;">
+          <h2 class="panel-title">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Manage Staff Registry
+          </h2>
+          
+          <div id="staff-status-banner" class="status-banner" style="margin-bottom: 1rem;"></div>
+
+          <form id="staff-create-form" style="margin-bottom: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem; margin-bottom: 1rem;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="staff-username">Username *</label>
+                <input type="text" id="staff-username" class="form-control" placeholder="staffuser" required>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="staff-email">Email *</label>
+                <input type="email" id="staff-email" class="form-control" placeholder="staff@chc.org" required>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="staff-password">Password *</label>
+                <input type="password" id="staff-password" class="form-control" placeholder="••••••" required>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="staff-permissions">Permissions *</label>
+                <select id="staff-permissions" class="form-control" style="background-color: white;" required>
+                  <option value="news">News editor only</option>
+                  <option value="doctors">Doctor editor only</option>
+                  <option value="all">Full staff access</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn" style="width: auto; padding: 0.5rem 1.5rem;">Add Staff Member</button>
+          </form>
+
+          <div class="table-wrapper">
+            <table class="news-manage-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Permissions</th>
+                  <th style="width: 100px; text-align: center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="staff-manage-tbody">
+                <!-- Dynamically populated -->
+                <tr>
+                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">Loading staff accounts...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <!-- Change Password Form -->

@@ -133,6 +133,10 @@
           <input type="email" id="reg-email" class="form-control" placeholder="yourname@example.com" required autocomplete="email">
         </div>
         <div class="form-group">
+          <label class="form-label" for="reg-phone">Mobile Number *</label>
+          <input type="tel" id="reg-phone" class="form-control" placeholder="e.g. 01712345678" required autocomplete="tel">
+        </div>
+        <div class="form-group">
           <label class="form-label" for="reg-password">Password *</label>
           <input type="password" id="reg-password" class="form-control" placeholder="Minimum 6 characters" required autocomplete="new-password">
         </div>
@@ -239,7 +243,17 @@
           localStorage.setItem('chc_user_name', data.user.username);
           localStorage.setItem('chc_user_email', data.user.email);
           localStorage.setItem('chc_user_id', data.user.id);
-
+          if (data.user.permissions) {
+            localStorage.setItem('chc_user_permissions', data.user.permissions);
+          } else {
+            localStorage.removeItem('chc_user_permissions');
+          }
+          if (data.user.doctor_id) {
+            localStorage.setItem('chc_doctor_id', data.user.doctor_id);
+          } else {
+            localStorage.removeItem('chc_doctor_id');
+          }
+          
           showStatus('Login successful! Redirecting...', 'success');
           setTimeout(() => redirect(data.user.role), 1500);
         } catch (error) {
@@ -253,6 +267,7 @@
       e.preventDefault();
       const username = document.getElementById('reg-username').value.trim();
       const email = document.getElementById('reg-email').value.trim().toLowerCase();
+      const phone = document.getElementById('reg-phone').value.trim();
       const password = document.getElementById('reg-password').value;
 
       if (isFallbackMode) {
@@ -268,7 +283,7 @@
           return;
         }
 
-        const newUser = { id: Date.now(), username, email, password, role: 'Patient' };
+        const newUser = { id: Date.now(), username, email, phone, password, role: 'Patient' };
         users.push(newUser);
         localStorage.setItem('chc_users', JSON.stringify(users));
 
@@ -280,7 +295,7 @@
           const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, password })
+            body: JSON.stringify({ username, email, password, phone })
           });
 
           if (!res.ok) {
@@ -299,6 +314,8 @@
     function redirect(role) {
       if (role === 'Admin' || role === 'Staff') {
         window.location.href = 'admin.html';
+      } else if (role === 'Doctor') {
+        window.location.href = 'doctor.html';
       } else {
         window.location.href = 'index.html';
       }

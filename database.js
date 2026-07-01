@@ -23,20 +23,7 @@ function generateSalt() {
 
 async function initializeDatabase() {
   try {
-    // Create users table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        salt TEXT NOT NULL,
-        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient')),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create doctors table
+    // 1. Create doctors table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS doctors (
         id SERIAL PRIMARY KEY,
@@ -53,7 +40,22 @@ async function initializeDatabase() {
       )
     `);
 
-    // Create appointments table
+    // 2. Create users table (supporting Doctor role and phone field)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor')),
+        phone VARCHAR(50),
+        doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 3. Create appointments table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS appointments (
         id SERIAL PRIMARY KEY,
@@ -70,7 +72,7 @@ async function initializeDatabase() {
       )
     `);
 
-    // Create news table
+    // 4. Create news table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS news (
         id SERIAL PRIMARY KEY,
@@ -82,7 +84,7 @@ async function initializeDatabase() {
       )
     `);
 
-    // Create gallery table
+    // 5. Create gallery table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS gallery (
         id SERIAL PRIMARY KEY,
@@ -93,16 +95,133 @@ async function initializeDatabase() {
       )
     `);
 
+    // 6. Create staff_permissions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS staff_permissions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        permissions VARCHAR(50) NOT NULL CHECK(permissions IN ('news', 'doctors', 'all'))
+      )
+    `);
+
+    // 7. Create otp_verifications table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS otp_verifications (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(50) NOT NULL,
+        otp VARCHAR(6) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 8. Create medicines table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS medicines (
+        id SERIAL PRIMARY KEY,
+        brand_id INTEGER,
+        brand_name VARCHAR(255) NOT NULL,
+        type VARCHAR(100),
+        slug VARCHAR(255),
+        dosage_form VARCHAR(100),
+        generic VARCHAR(255),
+        strength VARCHAR(100),
+        manufacturer VARCHAR(255),
+        package_container TEXT,
+        package_size TEXT,
+        image_url TEXT
+      )
+    `);
+
+    // 9. Create prescriptions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS prescriptions (
+        id SERIAL PRIMARY KEY,
+        appointment_id INTEGER NOT NULL UNIQUE REFERENCES appointments(id) ON DELETE CASCADE,
+        doctor_id INTEGER NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+        diagnostics TEXT,
+        observations TEXT,
+        medicines JSONB NOT NULL,
+        doctor_signature TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log("PostgreSQL database tables verified/created.");
 
-    // Seed default users if the table is empty
+    // --- SEED DOCTORS ---
+    const docCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM doctors");
+    const docCount = parseInt(docCountRes.rows[0].count, 10);
+    if (docCount === 0) {
+      await pool.query(
+        `INSERT INTO doctors (id, name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          1,
+          "Dr. Sarah Rahman",
+          "ডাঃ সারাহ রহমান",
+          "Pediatric Specialist",
+          "শিশু বিশেষজ্ঞ",
+          "MD in Pediatrics, 8+ years of clinical experience in child healthcare.",
+          "শিশুরোগবিদ্যায় এমডি, শিশু স্বাস্থ্যসেবায় ৮+ বছরের ক্লিনিকাল অভিজ্ঞতা।",
+          "Mon, Wed (09:00 AM - 01:00 PM)",
+          "সোম, বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)",
+          "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80",
+          "1,3"
+        ]
+      );
+
+      await pool.query(
+        `INSERT INTO doctors (id, name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          2,
+          "Dr. Azam Khan",
+          "ডাঃ আজম খান",
+          "Cardiologist",
+          "হৃদরোগ বিশেষজ্ঞ",
+          "FACS, clinical specialist in preventive and curative cardiology.",
+          "এফএসিএস, প্রতিরোধমূলক এবং নিরাময়মূলক কার্ডিওলজির ক্লিনিকাল বিশেষজ্ঞ।",
+          "Tue, Thu (10:00 AM - 02:00 PM)",
+          "মঙ্গল, বৃহস্পতি (সকাল ১০:০০ - দুপুর ০২:০০)",
+          "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80",
+          "2,4"
+        ]
+      );
+
+      await pool.query(
+        `INSERT INTO doctors (id, name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          3,
+          "Dr. Rahat Kabir",
+          "ডাঃ রাহাত কবির",
+          "General Physician",
+          "সাধারণ চিকিৎসক",
+          "MBBS, providing comprehensive primary care and medical consults.",
+          "এমবিবিএস, ব্যাপক প্রাথমিক চিকিৎসা এবং পরামর্শ প্রদানকারী।",
+          "Mon, Tue, Wed, Thu, Fri (09:00 AM - 04:00 PM)",
+          "সোম, মঙ্গল, বুধ, বৃহস্পতি, শুক্র (সকাল ০৯:০০ - বিকেল ০৪:০০)",
+          "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=600&q=80",
+          "1,2,3,4,5"
+        ]
+      );
+      // Reset serial sequence for doctors id
+      await pool.query("SELECT setval('doctors_id_seq', (SELECT MAX(id) FROM doctors))");
+      console.log("Seeded default doctors.");
+    }
+
+    // --- SEED USERS ---
     const userCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM users");
     const userCount = parseInt(userCountRes.rows[0].count, 10);
     if (userCount === 0) {
       const adminSalt = generateSalt();
       const staffSalt = generateSalt();
       const patientSalt = generateSalt();
+      
+      const sarahSalt = generateSalt();
+      const azamSalt = generateSalt();
+      const rahatSalt = generateSalt();
 
+      // Standard seeded users
       await pool.query(
         "INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, $5)",
         ["admin", "admin@alamnagar-chc.org", hashPassword("14142135", adminSalt), adminSalt, "Admin"]
@@ -115,10 +234,58 @@ async function initializeDatabase() {
         "INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, $5)",
         ["patient", "patient@example.com", hashPassword("patientpass", patientSalt), patientSalt, "Patient"]
       );
-      console.log("Seeded default users (admin, staff, patient).");
+
+      // Seed Doctor accounts linked to doctors
+      await pool.query(
+        "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, $6)",
+        ["sarah", "sarah@alamnagar-chc.org", hashPassword("doctorpass", sarahSalt), sarahSalt, "Doctor", 1]
+      );
+      await pool.query(
+        "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, $6)",
+        ["azam", "azam@alamnagar-chc.org", hashPassword("doctorpass", azamSalt), azamSalt, "Doctor", 2]
+      );
+      await pool.query(
+        "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, $6)",
+        ["rahat", "rahat@alamnagar-chc.org", hashPassword("doctorpass", rahatSalt), rahatSalt, "Doctor", 3]
+      );
+
+      console.log("Seeded default users (admin, staff, patient, and doctor users).");
     }
 
-    // Insert initial news items if table is empty
+    // --- SEED STAFF PERMISSIONS ---
+    // Link staff user (email staff@alamnagar-chc.org) to have 'all' permissions by default
+    const staffUserRes = await pool.query("SELECT id FROM users WHERE username = 'staff'");
+    if (staffUserRes.rows.length > 0) {
+      const staffUserId = staffUserRes.rows[0].id;
+      const permCheck = await pool.query("SELECT id FROM staff_permissions WHERE user_id = $1", [staffUserId]);
+      if (permCheck.rows.length === 0) {
+        await pool.query(
+          "INSERT INTO staff_permissions (user_id, permissions) VALUES ($1, $2)",
+          [staffUserId, "all"]
+        );
+        console.log("Seeded permissions for 'staff' user.");
+      }
+    }
+
+    // --- SEED MEDICINES ---
+    const medicineCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM medicines");
+    if (parseInt(medicineCountRes.rows[0].count, 10) === 0) {
+      const defaultMedicines = [
+        { brand_id: 1, brand_name: 'Paracetamol', dosage_form: 'Tablet', generic: 'Paracetamol', strength: '500 mg', manufacturer: 'Square Pharmaceuticals Ltd.', type: 'allopathic' },
+        { brand_id: 2, brand_name: 'Amoxicillin', dosage_form: 'Capsule', generic: 'Amoxicillin', strength: '250 mg', manufacturer: 'Beximco Pharmaceuticals Ltd.', type: 'allopathic' },
+        { brand_id: 3, brand_name: 'Omeprazole', dosage_form: 'Capsule', generic: 'Omeprazole', strength: '20 mg', manufacturer: 'Square Pharmaceuticals Ltd.', type: 'allopathic' }
+      ];
+
+      for (const med of defaultMedicines) {
+        await pool.query(
+          "INSERT INTO medicines (brand_id, brand_name, dosage_form, generic, strength, manufacturer, type) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+          [med.brand_id, med.brand_name, med.dosage_form, med.generic, med.strength, med.manufacturer, med.type]
+        );
+      }
+      console.log("Seeded default medicine list.");
+    }
+
+    // --- SEED NEWS ---
     const newsCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM news");
     const newsCount = parseInt(newsCountRes.rows[0].count, 10);
     if (newsCount === 0) {
@@ -143,61 +310,7 @@ async function initializeDatabase() {
       console.log("Inserted initial news items.");
     }
 
-    // Seed default doctors if table is empty
-    const docCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM doctors");
-    const docCount = parseInt(docCountRes.rows[0].count, 10);
-    if (docCount === 0) {
-      await pool.query(
-        `INSERT INTO doctors (name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          "Dr. Sarah Rahman",
-          "ডাঃ সারাহ রহমান",
-          "Pediatric Specialist",
-          "শিশু বিশেষজ্ঞ",
-          "MD in Pediatrics, 8+ years of clinical experience in child healthcare.",
-          "শিশুরোগবিদ্যায় এমডি, শিশু স্বাস্থ্যসেবায় ৮+ বছরের ক্লিনিকাল অভিজ্ঞতা।",
-          "Mon, Wed (09:00 AM - 01:00 PM)",
-          "সোম, বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)",
-          "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80",
-          "1,3"
-        ]
-      );
-
-      await pool.query(
-        `INSERT INTO doctors (name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          "Dr. Azam Khan",
-          "ডাঃ আজম খান",
-          "Cardiologist",
-          "হৃদরোগ বিশেষজ্ঞ",
-          "FACS, clinical specialist in preventive and curative cardiology.",
-          "এফএসিএস, প্রতিরোধমূলক এবং নিরাময়মূলক কার্ডিওলজির ক্লিনিকাল বিশেষজ্ঞ।",
-          "Tue, Thu (10:00 AM - 02:00 PM)",
-          "মঙ্গল, বৃহস্পতি (সকাল ১০:০০ - দুপুর ০২:০০)",
-          "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80",
-          "2,4"
-        ]
-      );
-
-      await pool.query(
-        `INSERT INTO doctors (name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          "Dr. Rahat Kabir",
-          "ডাঃ রাহাত কবির",
-          "General Physician",
-          "সাধারণ চিকিৎসক",
-          "MBBS, providing comprehensive primary care and medical consults.",
-          "এমবিবিএস, ব্যাপক প্রাথমিক চিকিৎসা এবং পরামর্শ প্রদানকারী।",
-          "Mon, Tue, Wed, Thu, Fri (09:00 AM - 04:00 PM)",
-          "সোম, মঙ্গল, বুধ, বৃহস্পতি, শুক্র (সকাল ০৯:০০ - বিকেল ০৪:০০)",
-          "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=600&q=80",
-          "1,2,3,4,5"
-        ]
-      );
-      console.log("Seeded default doctors.");
-    }
-
-    // Seed default gallery images if table is empty
+    // --- SEED GALLERY ---
     const galleryCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM gallery");
     const galleryCount = parseInt(galleryCountRes.rows[0].count, 10);
     if (galleryCount === 0) {
@@ -227,7 +340,7 @@ initializeDatabase();
 module.exports = {
   hashPassword,
   generateSalt,
-  pool, // Export pool for custom raw queries if needed in tests/other modules
+  pool,
 
   getUserByUsername: async (username) => {
     const res = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
@@ -240,12 +353,12 @@ module.exports = {
   },
 
   createUser: async (user) => {
-    const { username, email, password, role } = user;
+    const { username, email, password, role, phone } = user;
     const salt = generateSalt();
     const hash = hashPassword(password, salt);
-    const query = `INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, $5) RETURNING id`;
-    const res = await pool.query(query, [username, email, hash, salt, role]);
-    return { id: res.rows[0].id, username, email, role };
+    const query = `INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
+    const res = await pool.query(query, [username, email, hash, salt, role, phone || null]);
+    return { id: res.rows[0].id, username, email, role, phone };
   },
 
   getAllAppointments: async () => {
@@ -359,5 +472,139 @@ module.exports = {
     const query = `UPDATE users SET password_hash = $1, salt = $2 WHERE id = $3`;
     const res = await pool.query(query, [hash, salt, id]);
     return { changes: res.rowCount };
+  },
+
+  // --- STAFF PERMISSIONS HELPERS ---
+  getStaffPermissions: async (userId) => {
+    const res = await pool.query("SELECT permissions FROM staff_permissions WHERE user_id = $1", [userId]);
+    return res.rows[0] ? res.rows[0].permissions : null;
+  },
+
+  getAllStaffWithPermissions: async () => {
+    const res = await pool.query(`
+      SELECT users.id, users.username, users.email, staff_permissions.permissions 
+      FROM users 
+      JOIN staff_permissions ON users.id = staff_permissions.user_id 
+      WHERE users.role = 'Staff'
+      ORDER BY users.username ASC
+    `);
+    return res.rows;
+  },
+
+  createStaffWithPermissions: async (staffData) => {
+    const { username, email, password, permissions } = staffData;
+    const salt = generateSalt();
+    const hash = hashPassword(password, salt);
+    
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const userRes = await client.query(
+        "INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, 'Staff') RETURNING id",
+        [username, email, hash, salt]
+      );
+      const userId = userRes.rows[0].id;
+      await client.query(
+        "INSERT INTO staff_permissions (user_id, permissions) VALUES ($1, $2)",
+        [userId, permissions]
+      );
+      await client.query('COMMIT');
+      return { id: userId, username, email, role: 'Staff', permissions };
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  },
+
+  deleteStaffMember: async (userId) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query("DELETE FROM staff_permissions WHERE user_id = $1", [userId]);
+      const res = await client.query("DELETE FROM users WHERE id = $1 AND role = 'Staff'", [userId]);
+      await client.query('COMMIT');
+      return { changes: res.rowCount };
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  },
+
+  // --- OTP HELPERS ---
+  createOTP: async (email, phone, otp) => {
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    // Clean up old ones for this email/phone first
+    await pool.query("DELETE FROM otp_verifications WHERE email = $1 OR phone = $2", [email, phone]);
+    const query = `INSERT INTO otp_verifications (email, phone, otp, expires_at) VALUES ($1, $2, $3, $4) RETURNING id`;
+    const res = await pool.query(query, [email, phone, otp, expiresAt]);
+    return res.rows[0].id;
+  },
+
+  verifyOTP: async (email, phone, otp) => {
+    const res = await pool.query(
+      "SELECT * FROM otp_verifications WHERE email = $1 AND phone = $2 AND otp = $3 AND expires_at > NOW()",
+      [email, phone, otp]
+    );
+    if (res.rows.length > 0) {
+      // Invalidate it immediately so it can't be reused
+      await pool.query("DELETE FROM otp_verifications WHERE id = $1", [res.rows[0].id]);
+      return true;
+    }
+    return false;
+  },
+
+  // --- MEDICINE HELPERS ---
+  getAllMedicines: async () => {
+    const res = await pool.query("SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer, type, image_url FROM medicines ORDER BY brand_name ASC LIMIT 100");
+    return res.rows;
+  },
+
+  // --- PRESCRIPTION HELPERS ---
+  getPrescriptionByAppointmentId: async (appointmentId) => {
+    const res = await pool.query("SELECT * FROM prescriptions WHERE appointment_id = $1", [appointmentId]);
+    return res.rows[0] || null;
+  },
+
+  createPrescription: async (prescription) => {
+    const { appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature } = prescription;
+    
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      const query = `
+        INSERT INTO prescriptions (appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (appointment_id) DO UPDATE 
+        SET diagnostics = EXCLUDED.diagnostics,
+            observations = EXCLUDED.observations,
+            medicines = EXCLUDED.medicines,
+            doctor_signature = EXCLUDED.doctor_signature
+        RETURNING id
+      `;
+      const res = await client.query(query, [
+        appointment_id,
+        doctor_id,
+        diagnostics,
+        observations,
+        JSON.stringify(medicines),
+        doctor_signature
+      ]);
+
+      // Set appointment status to completed
+      await client.query("UPDATE appointments SET status = 'completed' WHERE id = $1", [appointment_id]);
+
+      await client.query('COMMIT');
+      return { id: res.rows[0].id, ...prescription };
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 };

@@ -98,7 +98,7 @@ function isValidTime(timeStr) {
 
 // 1. Patient Registration
 app.post('/api/auth/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, phone } = req.body;
 
   if (!username || typeof username !== 'string' || username.trim().length < 3) {
     return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
@@ -108,6 +108,9 @@ app.post('/api/auth/register', async (req, res) => {
   }
   if (!password || typeof password !== 'string' || password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  }
+  if (!phone || !isValidPhone(phone)) {
+    return res.status(400).json({ error: 'A valid mobile number is required.' });
   }
 
   try {
@@ -122,7 +125,8 @@ app.post('/api/auth/register', async (req, res) => {
       username: username.trim(),
       email: email.trim().toLowerCase(),
       password,
-      role: 'Patient' // Self-registered users are always patients
+      role: 'Patient',
+      phone: phone.trim()
     });
 
     res.status(201).json({ message: 'User registered successfully!', user: newUser });
@@ -158,11 +162,17 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Generate encrypted token session
+    let permissions = null;
+    if (user.role === 'Staff') {
+      permissions = await db.getStaffPermissions(user.id);
+    }
     const token = encryptToken({
       id: user.id,
       username: user.username,
       email: user.email,
-      role: user.role
+      role: user.role,
+      permissions: permissions,
+      doctor_id: user.doctor_id
     });
 
     res.json({
@@ -171,7 +181,9 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        permissions: permissions,
+        doctor_id: user.doctor_id
       }
     });
   } catch (error) {
@@ -231,8 +243,9 @@ app.get('/api/news', async (req, res) => {
 
 // 5. Post a news item (Admin & Staff)
 app.post('/api/news', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
-    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can publish news.' });
+  const hasNewsPerm = req.user.role === 'Admin' || (req.user.role === 'Staff' && (req.user.permissions === 'news' || req.user.permissions === 'all'));
+  if (!hasNewsPerm) {
+    return res.status(403).json({ error: 'Access Denied: You do not have permission to publish news.' });
   }
 
   const { title, content, image_url, category } = req.body;
@@ -288,8 +301,9 @@ app.post('/api/news', authenticateToken, async (req, res) => {
 
 // 5.1 Edit a news item (Admin & Staff)
 app.patch('/api/news/:id', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
-    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can edit news.' });
+  const hasNewsPerm = req.user.role === 'Admin' || (req.user.role === 'Staff' && (req.user.permissions === 'news' || req.user.permissions === 'all'));
+  if (!hasNewsPerm) {
+    return res.status(403).json({ error: 'Access Denied: You do not have permission to edit news.' });
   }
 
   const newsId = parseInt(req.params.id, 10);
@@ -353,8 +367,9 @@ app.patch('/api/news/:id', authenticateToken, async (req, res) => {
 
 // 5.2 Delete a news item (Admin & Staff)
 app.delete('/api/news/:id', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
-    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can delete news.' });
+  const hasNewsPerm = req.user.role === 'Admin' || (req.user.role === 'Staff' && (req.user.permissions === 'news' || req.user.permissions === 'all'));
+  if (!hasNewsPerm) {
+    return res.status(403).json({ error: 'Access Denied: You do not have permission to delete news.' });
   }
 
   const newsId = parseInt(req.params.id, 10);
@@ -387,8 +402,9 @@ app.get('/api/doctors', async (req, res) => {
 
 // 5.3a Add a new doctor (Admin & Staff Only)
 app.post('/api/doctors', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
-    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can manage doctors.' });
+  const hasDocPerm = req.user.role === 'Admin' || (req.user.role === 'Staff' && (req.user.permissions === 'doctors' || req.user.permissions === 'all'));
+  if (!hasDocPerm) {
+    return res.status(403).json({ error: 'Access Denied: You do not have permission to manage doctors.' });
   }
 
   const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = req.body;
@@ -444,8 +460,9 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
 
 // 5.3b Edit doctor details (Admin & Staff Only)
 app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
-    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can manage doctors.' });
+  const hasDocPerm = req.user.role === 'Admin' || (req.user.role === 'Staff' && (req.user.permissions === 'doctors' || req.user.permissions === 'all'));
+  if (!hasDocPerm) {
+    return res.status(403).json({ error: 'Access Denied: You do not have permission to manage doctors.' });
   }
 
   const docId = parseInt(req.params.id, 10);
@@ -509,8 +526,9 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
 
 // 5.3c Delete a doctor (Admin & Staff Only)
 app.delete('/api/doctors/:id', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
-    return res.status(403).json({ error: 'Access Denied: Only Admin and Staff can manage doctors.' });
+  const hasDocPerm = req.user.role === 'Admin' || (req.user.role === 'Staff' && (req.user.permissions === 'doctors' || req.user.permissions === 'all'));
+  if (!hasDocPerm) {
+    return res.status(403).json({ error: 'Access Denied: You do not have permission to manage doctors.' });
   }
 
   const docId = parseInt(req.params.id, 10);
@@ -646,11 +664,7 @@ app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'A valid appointment time (HH:MM) is required' });
   }
 
-  const dateObj = new Date(appointment_date);
-  const day = dateObj.getDay();
-  if (day === 0 || day === 6) {
-    return res.status(400).json({ error: 'Appointments cannot be scheduled on weekends.' });
-  }
+  // Weekend restriction removed - Saturday and Sunday are fully open
 
   const todayStr = new Date().toISOString().split('T')[0];
   if (appointment_date < todayStr) {
@@ -711,6 +725,251 @@ app.patch('/api/appointments/:id', authenticateToken, async (req, res) => {
     console.error('Error updating appointment:', error);
     res.status(500).json({ error: 'Failed to update appointment status' });
   }
+});
+
+// --- STAFF REGISTRY ENDPOINTS (ADMIN ONLY) ---
+app.get('/api/admin/staff', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+  try {
+    const list = await db.getAllStaffWithPermissions();
+    res.json(list);
+  } catch (err) {
+    console.error('Error fetching staff list:', err);
+    res.status(500).json({ error: 'Database error fetching staff.' });
+  }
+});
+
+app.post('/api/admin/staff', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+  const { username, email, password, permissions } = req.body;
+  if (!username || !email || !password || !permissions) {
+    return res.status(400).json({ error: 'All fields are required.' });
+  }
+  try {
+    const existingUser = await db.getUserByUsername(username.trim());
+    if (existingUser) return res.status(409).json({ error: 'Username is already taken.' });
+
+    const existingEmail = await db.getUserByEmail(email.trim().toLowerCase());
+    if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
+
+    const newStaff = await db.createStaffWithPermissions({
+      username: username.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      permissions
+    });
+    res.status(201).json(newStaff);
+  } catch (err) {
+    console.error('Error creating staff:', err);
+    res.status(500).json({ error: 'Database error creating staff.' });
+  }
+});
+
+app.delete('/api/admin/staff/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+  const staffId = parseInt(req.params.id, 10);
+  if (isNaN(staffId)) {
+    return res.status(400).json({ error: 'Invalid staff ID.' });
+  }
+  try {
+    const result = await db.deleteStaffMember(staffId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Staff member not found.' });
+    }
+    res.json({ message: 'Staff member deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting staff:', err);
+    res.status(500).json({ error: 'Database error deleting staff.' });
+  }
+});
+
+// --- OTP VERIFICATION ENDPOINTS ---
+app.post('/api/appointments/request-otp', async (req, res) => {
+  const { email, phone } = req.body;
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ error: 'A valid email address is required.' });
+  }
+  if (!phone || !isValidPhone(phone)) {
+    return res.status(400).json({ error: 'A valid mobile number is required.' });
+  }
+  
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  try {
+    await db.createOTP(email.trim().toLowerCase(), phone.trim(), otp);
+    
+    // Write OTP verification mail
+    const emailDir = path.join(__dirname, 'sent_emails');
+    if (!fs.existsSync(emailDir)) {
+      fs.mkdirSync(emailDir, { recursive: true });
+    }
+    const filePath = path.join(emailDir, `otp_${email.trim().replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.html`);
+    const emailHtml = `<!DOCTYPE html>
+    <html>
+    <head><style>body { font-family: sans-serif; line-height: 1.5; color: #333; }</style></head>
+    <body>
+      <div style="max-width: 500px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+        <h2 style="color: #0d9488;">Appointment Booking OTP Verification</h2>
+        <p>You have initiated an appointment booking. Please use the following One-Time Password (OTP) to confirm your request:</p>
+        <div style="font-size: 24px; font-weight: bold; background: #f0fdfa; color: #0d9488; text-align: center; padding: 15px; letter-spacing: 5px; border-radius: 6px; margin: 20px 0;">
+          ${otp}
+        </div>
+        <p>This code will expire in 10 minutes. If you did not make this request, please ignore this email.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 12px; color: #999;">Alamnagar Charitable Healthcare Centre</p>
+      </div>
+    </body>
+    </html>`;
+    fs.writeFileSync(filePath, emailHtml);
+    console.log(`[SIMULATED SMS/EMAIL] OTP generated for ${email} / ${phone}: ${otp}`);
+
+    res.json({ success: true, message: 'OTP sent successfully!' });
+  } catch (err) {
+    console.error('OTP request error:', err);
+    res.status(500).json({ error: 'Failed to generate OTP.' });
+  }
+});
+
+app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async (req, res) => {
+  const { otp, appointment } = req.body;
+  if (!otp) return res.status(400).json({ error: 'OTP is required.' });
+  if (!appointment) return res.status(400).json({ error: 'Appointment details are required.' });
+
+  const { patient_name, email, phone, appointment_date, appointment_time, notes, doctor_id } = appointment;
+
+  if (!patient_name || !email || !phone || !appointment_date || !appointment_time) {
+    return res.status(400).json({ error: 'Missing appointment details.' });
+  }
+
+  try {
+    const verified = await db.verifyOTP(email.trim().toLowerCase(), phone.trim(), otp);
+    if (!verified) {
+      return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
+    }
+
+    const newAppointment = await db.createAppointment({
+      user_id: req.user ? req.user.id : null,
+      patient_name: patient_name.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      appointment_date,
+      appointment_time,
+      notes: notes ? notes.trim() : '',
+      doctor_id: doctor_id ? parseInt(doctor_id, 10) : null
+    });
+
+    try {
+      mailer.sendAppointmentConfirmation(newAppointment);
+    } catch (mailErr) {
+      console.error('Failed to send confirmation email:', mailErr);
+    }
+
+    res.status(201).json(newAppointment);
+  } catch (err) {
+    console.error('OTP confirmation error:', err);
+    res.status(500).json({ error: 'Failed to create appointment.' });
+  }
+});
+
+// --- DOCTOR PORTAL CLINICAL ENDPOINTS ---
+app.get('/api/doctor/appointments', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Doctor') {
+    return res.status(403).json({ error: 'Access Denied: Doctor portal only.' });
+  }
+  try {
+    const doctorId = req.user.doctor_id;
+    const query = `
+      SELECT * FROM appointments 
+      WHERE doctor_id = $1 
+      ORDER BY appointment_date DESC, appointment_time ASC
+    `;
+    const resDb = await db.pool.query(query, [doctorId]);
+    res.json(resDb.rows);
+  } catch (err) {
+    console.error('Error fetching doctor appointments:', err);
+    res.status(500).json({ error: 'Failed to retrieve appointments.' });
+  }
+});
+
+app.get('/api/medicines', authenticateToken, async (req, res) => {
+  const search = req.query.q || '';
+  try {
+    let list;
+    if (search) {
+      const query = `
+        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer 
+        FROM medicines 
+        WHERE brand_name ILIKE $1 OR generic ILIKE $1 
+        ORDER BY brand_name ASC 
+        LIMIT 50
+      `;
+      const resDb = await db.pool.query(query, [`%${search}%`]);
+      list = resDb.rows;
+    } else {
+      const query = `
+        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer 
+        FROM medicines 
+        ORDER BY brand_name ASC 
+        LIMIT 100
+      `;
+      const resDb = await db.pool.query(query);
+      list = resDb.rows;
+    }
+    res.json(list);
+  } catch (err) {
+    console.error('Error fetching medicines:', err);
+    res.status(500).json({ error: 'Database error fetching medicines.' });
+  }
+});
+
+app.get('/api/prescriptions/:appointmentId', authenticateToken, async (req, res) => {
+  const apptId = parseInt(req.params.appointmentId, 10);
+  if (isNaN(apptId)) {
+    return res.status(400).json({ error: 'Invalid appointment ID.' });
+  }
+  try {
+    const prescription = await db.getPrescriptionByAppointmentId(apptId);
+    res.json(prescription);
+  } catch (err) {
+    console.error('Error fetching prescription:', err);
+    res.status(500).json({ error: 'Database error fetching prescription.' });
+  }
+});
+
+app.post('/api/prescriptions', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Doctor') {
+    return res.status(403).json({ error: 'Access Denied: Doctor only.' });
+  }
+  const { appointment_id, diagnostics, observations, medicines, doctor_signature } = req.body;
+  if (!appointment_id || !medicines) {
+    return res.status(400).json({ error: 'Appointment ID and medicines list are required.' });
+  }
+  try {
+    const doctorId = req.user.doctor_id;
+    const result = await db.createPrescription({
+      appointment_id: parseInt(appointment_id, 10),
+      doctor_id: doctorId,
+      diagnostics,
+      observations,
+      medicines,
+      doctor_signature
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('Error saving prescription:', err);
+    res.status(500).json({ error: 'Failed to save prescription.' });
+  }
+});
+
+// --- DOCTOR FALLBACK PATH ---
+app.get('/doctor', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'doctor.html'));
 });
 
 // Serve frontend SPA routing fallback
