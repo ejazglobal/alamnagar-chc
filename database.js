@@ -192,6 +192,23 @@ async function initializeDatabase() {
       console.warn("Table migrations warning (might be already modified):", migErr.message);
     }
 
+    // Proactively link user 'rahnuma' to Doctor 'Dr. Rahnuma Rahman' if both exist
+    try {
+      const docRes = await pool.query("SELECT id FROM doctors WHERE name_en ILIKE '%Rahnuma%' LIMIT 1");
+      if (docRes.rows.length > 0) {
+        const docId = docRes.rows[0].id;
+        const updateRes = await pool.query(
+          "UPDATE users SET role = 'Doctor', doctor_id = $1 WHERE username = 'rahnuma' OR email ILIKE '%rahnuma%'",
+          [docId]
+        );
+        if (updateRes.rowCount > 0) {
+          console.log(`Successfully migrated and mapped user 'rahnuma' to Doctor ID ${docId} (Doctor role).`);
+        }
+      }
+    } catch (linkErr) {
+      console.warn("Could not auto-link 'rahnuma' user:", linkErr.message);
+    }
+
     // --- SEED DOCTORS ---
     const docCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM doctors");
     const docCount = parseInt(docCountRes.rows[0].count, 10);
