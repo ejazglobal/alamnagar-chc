@@ -1,5 +1,103 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const querystring = require('querystring');
+
+// Helper to send real SMS via Twilio API (no npm module required)
+function sendSMS(to, message) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNum = process.env.TWILIO_FROM_NUMBER;
+
+  if (!accountSid || !authToken || !fromNum) {
+    console.log(`[SIMULATED SMS] OTP/Message for ${to}: "${message}"`);
+    return;
+  }
+
+  const postData = querystring.stringify({
+    To: to,
+    From: fromNum,
+    Body: message
+  });
+
+  const auth = 'Basic ' + Buffer.from(accountSid + ':' + authToken).toString('base64');
+
+  const options = {
+    hostname: 'api.twilio.com',
+    port: 443,
+    path: `/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    method: 'POST',
+    headers: {
+      'Authorization': auth,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': postData.length
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => { data += chunk; });
+    res.on('end', () => {
+      console.log(`[TWILIO SMS] Status: ${res.statusCode}. SMS dispatch completed.`);
+    });
+  });
+
+  req.on('error', (e) => {
+    console.error(`[TWILIO SMS] Request error: ${e.message}`);
+  });
+
+  req.write(postData);
+  req.end();
+}
+
+// Helper to send real Email via SendGrid API (no npm module required)
+function sendEmail(to, subject, htmlContent) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@alamnagar-chc.org';
+
+  if (!apiKey) {
+    console.log(`[SIMULATED EMAIL] Skipping real email to ${to} (no SendGrid credentials).`);
+    return;
+  }
+
+  const postData = JSON.stringify({
+    personalizations: [{ to: [{ email: to }] }],
+    from: { email: fromEmail, name: 'Alamnagar CHC' },
+    subject: subject,
+    content: [{ type: 'text/html', value: htmlContent }]
+  });
+
+  const options = {
+    hostname: 'api.sendgrid.com',
+    port: 443,
+    path: '/v3/mail/send',
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Content-Length': postData.length
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      console.log(`[SENDGRID EMAIL] Real email sent successfully to ${to}`);
+    } else {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        console.error(`[SENDGRID EMAIL] Failed with status ${res.statusCode}: ${data}`);
+      });
+    }
+  });
+
+  req.on('error', (e) => {
+    console.error(`[SENDGRID EMAIL] Request error: ${e.message}`);
+  });
+
+  req.write(postData);
+  req.end();
+}
 
 /**
  * Sends a confirmation email by saving it as a beautifully styled HTML file.
@@ -195,9 +293,48 @@ function sendAppointmentConfirmation(appointment) {
   
   fs.writeFileSync(filePath, emailHtml, 'utf8');
   console.log(`[MAILER] Confirmation email successfully written for ${patient_name} (${email}) -> ${filePath}`);
+  
+  // Real delivery
+  sendEmail(email, "Appointment Booking Confirmation - Alamnagar CHC", emailHtml);
+  sendSMS(phone, `[Alamnagar CHC] Hello ${patient_name}, your appointment booking has been registered and is pending approval.`);
+  
   return filePath;
 }
 
+function sendBookingOTP(email, phone, otp) {
+  const subject = "Appointment Booking OTP Verification";
+  const emailHtml = `<!DOCTYPE html>
+  <html>
+  <head><style>body { font-family: sans-serif; line-height: 1.5; color: #333; }</style></head>
+  <body>
+    <div style="max-width: 500px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+      <h2 style="color: #0d9488;">Appointment Booking OTP Verification</h2>
+      <p>You have initiated an appointment booking. Please use the following One-Time Password (OTP) to confirm your request:</p>
+      <div style="font-size: 24px; font-weight: bold; background: #f0fdfa; color: #0d9488; text-align: center; padding: 15px; letter-spacing: 5px; border-radius: 6px; margin: 20px 0;">
+        ${otp}
+      </div>
+      <p>This code will expire in 10 minutes. If you did not make this request, please ignore this email.</p>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="font-size: 12px; color: #999;">Alamnagar Charitable Healthcare Centre</p>
+    </div>
+  </body>
+  </html>`;
+
+  const emailDir = path.join(__dirname, 'sent_emails');
+  if (!fs.existsSync(emailDir)) {
+    fs.mkdirSync(emailDir, { recursive: true });
+  }
+  const filePath = path.join(emailDir, `otp_${email.trim().replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.html`);
+  
+  fs.writeFileSync(filePath, emailHtml);
+  console.log(`[MAILER] OTP email successfully written for ${email} -> ${filePath}`);
+
+  // Real delivery
+  sendEmail(email, subject, emailHtml);
+  sendSMS(phone, `[Alamnagar CHC] Your OTP for appointment booking is: ${otp}. Valid for 10 minutes.`);
+}
+
 module.exports = {
-  sendAppointmentConfirmation
+  sendAppointmentConfirmation,
+  sendBookingOTP
 };

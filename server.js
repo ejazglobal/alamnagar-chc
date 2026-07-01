@@ -808,30 +808,8 @@ app.post('/api/appointments/request-otp', async (req, res) => {
   try {
     await db.createOTP(email.trim().toLowerCase(), phone.trim(), otp);
     
-    // Write OTP verification mail
-    const emailDir = path.join(__dirname, 'sent_emails');
-    if (!fs.existsSync(emailDir)) {
-      fs.mkdirSync(emailDir, { recursive: true });
-    }
-    const filePath = path.join(emailDir, `otp_${email.trim().replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.html`);
-    const emailHtml = `<!DOCTYPE html>
-    <html>
-    <head><style>body { font-family: sans-serif; line-height: 1.5; color: #333; }</style></head>
-    <body>
-      <div style="max-width: 500px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-        <h2 style="color: #0d9488;">Appointment Booking OTP Verification</h2>
-        <p>You have initiated an appointment booking. Please use the following One-Time Password (OTP) to confirm your request:</p>
-        <div style="font-size: 24px; font-weight: bold; background: #f0fdfa; color: #0d9488; text-align: center; padding: 15px; letter-spacing: 5px; border-radius: 6px; margin: 20px 0;">
-          ${otp}
-        </div>
-        <p>This code will expire in 10 minutes. If you did not make this request, please ignore this email.</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #999;">Alamnagar Charitable Healthcare Centre</p>
-      </div>
-    </body>
-    </html>`;
-    fs.writeFileSync(filePath, emailHtml);
-    console.log(`[SIMULATED SMS/EMAIL] OTP generated for ${email} / ${phone}: ${otp}`);
+    // Delegate to mailer client (supports simulation + real SendGrid/Twilio dispatch)
+    mailer.sendBookingOTP(email.trim().toLowerCase(), phone.trim(), otp);
 
     res.json({ success: true, message: 'OTP sent successfully!' });
   } catch (err) {
