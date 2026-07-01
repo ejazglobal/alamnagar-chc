@@ -334,7 +334,6 @@ function setupDashboardEvents() {
       }
     });
   }
-  }
 
   // Doctor form submit listener (Handles both POST and PATCH)
   const doctorPostForm = document.getElementById('doctor-post-form');

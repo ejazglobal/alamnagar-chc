@@ -267,26 +267,6 @@ app.post('/api/news', authenticateToken, async (req, res) => {
   let finalImageUrl = image_url;
   if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
     finalImageUrl = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80';
-  } else if (image_url.startsWith('data:image/')) {
-    try {
-      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
-      if (matches) {
-        const ext = matches[1];
-        const data = matches[2];
-        const buffer = Buffer.from(data, 'base64');
-        const filename = `upload_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
-        const imagesDir = path.join(__dirname, 'images');
-        if (!fs.existsSync(imagesDir)) {
-          fs.mkdirSync(imagesDir, { recursive: true });
-        }
-        const filePath = path.join(imagesDir, filename);
-        fs.writeFileSync(filePath, buffer);
-        finalImageUrl = `/images/${filename}`;
-      }
-    } catch (writeErr) {
-      console.error('Failed to write uploaded image:', writeErr);
-      finalImageUrl = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80';
-    }
   }
 
   try {
@@ -330,26 +310,6 @@ app.patch('/api/news/:id', authenticateToken, async (req, res) => {
   let finalImageUrl = image_url;
   if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
     finalImageUrl = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80';
-  } else if (image_url.startsWith('data:image/')) {
-    try {
-      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
-      if (matches) {
-        const ext = matches[1];
-        const data = matches[2];
-        const buffer = Buffer.from(data, 'base64');
-        const filename = `upload_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
-        const imagesDir = path.join(__dirname, 'images');
-        if (!fs.existsSync(imagesDir)) {
-          fs.mkdirSync(imagesDir, { recursive: true });
-        }
-        const filePath = path.join(imagesDir, filename);
-        fs.writeFileSync(filePath, buffer);
-        finalImageUrl = `/images/${filename}`;
-      }
-    } catch (writeErr) {
-      console.error('Failed to write uploaded image:', writeErr);
-      finalImageUrl = 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80';
-    }
   }
 
   try {
@@ -420,26 +380,6 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
   let finalImageUrl = image_url;
   if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
     finalImageUrl = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80';
-  } else if (image_url.startsWith('data:image/')) {
-    try {
-      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
-      if (matches) {
-        const ext = matches[1];
-        const data = matches[2];
-        const buffer = Buffer.from(data, 'base64');
-        const filename = `doctor_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
-        const imagesDir = path.join(__dirname, 'images');
-        if (!fs.existsSync(imagesDir)) {
-          fs.mkdirSync(imagesDir, { recursive: true });
-        }
-        const filePath = path.join(imagesDir, filename);
-        fs.writeFileSync(filePath, buffer);
-        finalImageUrl = `/images/${filename}`;
-      }
-    } catch (writeErr) {
-      console.error('Failed to write uploaded doctor image:', writeErr);
-      finalImageUrl = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80';
-    }
   }
 
   try {
@@ -483,26 +423,6 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
   let finalImageUrl = image_url;
   if (!image_url || typeof image_url !== 'string' || image_url.trim().length === 0) {
     finalImageUrl = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80';
-  } else if (image_url.startsWith('data:image/')) {
-    try {
-      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
-      if (matches) {
-        const ext = matches[1];
-        const data = matches[2];
-        const buffer = Buffer.from(data, 'base64');
-        const filename = `doctor_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
-        const imagesDir = path.join(__dirname, 'images');
-        if (!fs.existsSync(imagesDir)) {
-          fs.mkdirSync(imagesDir, { recursive: true });
-        }
-        const filePath = path.join(imagesDir, filename);
-        fs.writeFileSync(filePath, buffer);
-        finalImageUrl = `/images/${filename}`;
-      }
-    } catch (writeErr) {
-      console.error('Failed to write uploaded doctor image:', writeErr);
-      finalImageUrl = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80';
-    }
   }
 
   try {
@@ -576,27 +496,6 @@ app.post('/api/gallery', authenticateToken, async (req, res) => {
   }
 
   let finalImageUrl = image_url;
-  if (image_url.startsWith('data:image/')) {
-    try {
-      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
-      if (matches) {
-        const ext = matches[1];
-        const data = matches[2];
-        const buffer = Buffer.from(data, 'base64');
-        const filename = `gallery_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
-        const imagesDir = path.join(__dirname, 'images');
-        if (!fs.existsSync(imagesDir)) {
-          fs.mkdirSync(imagesDir, { recursive: true });
-        }
-        const filePath = path.join(imagesDir, filename);
-        fs.writeFileSync(filePath, buffer);
-        finalImageUrl = `/images/${filename}`;
-      }
-    } catch (writeErr) {
-      console.error('Failed to write gallery image:', writeErr);
-      return res.status(500).json({ error: 'Failed to save uploaded image file.' });
-    }
-  }
 
   try {
     const newItem = await db.createGalleryItem({
@@ -625,27 +524,6 @@ app.patch('/api/gallery/:id', authenticateToken, async (req, res) => {
   const { title_en, title_bn, image_url } = req.body;
 
   let finalImageUrl = image_url;
-  if (image_url && image_url.startsWith('data:image/')) {
-    try {
-      const matches = image_url.match(/^data:image\/([A-Za-z0-9+]+);base64,(.+)$/);
-      if (matches) {
-        const ext = matches[1];
-        const data = matches[2];
-        const buffer = Buffer.from(data, 'base64');
-        const filename = `gallery_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
-        const imagesDir = path.join(__dirname, 'images');
-        if (!fs.existsSync(imagesDir)) {
-          fs.mkdirSync(imagesDir, { recursive: true });
-        }
-        const filePath = path.join(imagesDir, filename);
-        fs.writeFileSync(filePath, buffer);
-        finalImageUrl = `/images/${filename}`;
-      }
-    } catch (writeErr) {
-      console.error('Failed to write gallery image:', writeErr);
-      return res.status(500).json({ error: 'Failed to save uploaded image file.' });
-    }
-  }
 
   try {
     const result = await db.updateGalleryItem(itemId, {
