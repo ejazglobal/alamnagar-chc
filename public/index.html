@@ -232,8 +232,9 @@
           <input type="text" id="otp-input" class="form-control" placeholder="123456" style="font-size: 1.75rem; letter-spacing: 6px; text-align: center; font-weight: 700; height: 3.5rem;" maxlength="6" required>
         </div>
       </div>
-      <div class="modal-footer" style="display: flex; gap: 0.5rem; justify-content: flex-end; padding: 1rem 1.5rem;">
+      <div class="modal-footer" style="display: flex; gap: 0.5rem; justify-content: flex-end; padding: 1rem 1.5rem; flex-wrap: wrap;">
         <button class="btn" style="background-color: var(--text-muted); width: auto; padding: 0.5rem 1rem;" onclick="closeOtpModal()">Cancel</button>
+        <button class="btn" style="background-color: var(--accent-color); width: auto; padding: 0.5rem 1rem;" id="otp-resend-btn" onclick="resendBookingOtp()">Resend OTP</button>
         <button class="btn" style="width: auto; padding: 0.5rem 1.5rem;" onclick="verifyBookingOtp()">Verify & Confirm</button>
       </div>
     </div>

@@ -707,7 +707,72 @@ function setupEventListeners() {
     if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
     document.getElementById('otp-modal').style.display = 'none';
     pendingBookingPayload = null;
+    clearInterval(resendTimer);
   };
+
+  let resendTimer = null;
+  let resendSecondsRemaining = 0;
+
+  window.resendBookingOtp = async function() {
+    if (resendSecondsRemaining > 0) return;
+    
+    const patientEmail = document.getElementById('patient-email').value.trim();
+    const patientPhone = document.getElementById('patient-phone').value.trim();
+    const statusBannerOtp = document.getElementById('otp-status-banner');
+    
+    try {
+      statusBannerOtp.textContent = 'Sending new OTP...';
+      statusBannerOtp.className = 'status-banner warning';
+      statusBannerOtp.style.display = 'block';
+
+      const response = await fetch('/api/appointments/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: patientEmail, phone: patientPhone })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to request new OTP.');
+      }
+
+      statusBannerOtp.textContent = 'A new OTP has been sent!';
+      statusBannerOtp.className = 'status-banner success';
+      statusBannerOtp.style.display = 'block';
+      document.getElementById('otp-input').value = '';
+      
+      startResendTimer(60);
+    } catch (error) {
+      console.error(error);
+      statusBannerOtp.textContent = error.message || 'Failed to resend OTP.';
+      statusBannerOtp.className = 'status-banner error';
+      statusBannerOtp.style.display = 'block';
+    }
+  };
+
+  function startResendTimer(seconds) {
+    const resendBtn = document.getElementById('otp-resend-btn');
+    if (!resendBtn) return;
+    
+    resendSecondsRemaining = seconds;
+    resendBtn.disabled = true;
+    resendBtn.style.opacity = '0.5';
+    resendBtn.style.cursor = 'not-allowed';
+    
+    clearInterval(resendTimer);
+    resendTimer = setInterval(() => {
+      resendSecondsRemaining--;
+      if (resendSecondsRemaining <= 0) {
+        clearInterval(resendTimer);
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend OTP';
+        resendBtn.style.opacity = '1';
+        resendBtn.style.cursor = 'pointer';
+      } else {
+        resendBtn.textContent = `Resend in ${resendSecondsRemaining}s`;
+      }
+    }, 1000);
+  }
 
   window.verifyBookingOtp = async function() {
     const otpInput = document.getElementById('otp-input').value.trim();
@@ -819,6 +884,7 @@ function setupEventListeners() {
         
         document.getElementById('otp-input').value = '';
         document.getElementById('otp-modal').style.display = 'flex';
+        startResendTimer(60);
       }
     } catch (error) {
       console.error(error);
