@@ -37,8 +37,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     if (res.ok) {
       doctorProfile = await res.json();
-      if (doctorProfile && doctorProfile.signature_url) {
-        signatureBase64 = doctorProfile.signature_url;
+      if (doctorProfile) {
+        if (doctorProfile.signature_url) {
+          signatureBase64 = doctorProfile.signature_url;
+        }
+        // Populate profile modal fields
+        const profName = document.getElementById('profile-name-en');
+        const profSpecialty = document.getElementById('profile-specialty-en');
+        const profHours = document.getElementById('profile-hours-en');
+        const profSigImg = document.getElementById('profile-sig-image');
+        const profSigPrompt = document.getElementById('profile-sig-prompt');
+        
+        if (profName) profName.value = doctorProfile.name_en || '';
+        if (profSpecialty) profSpecialty.value = doctorProfile.specialty_en || '';
+        if (profHours) profHours.value = doctorProfile.visiting_hours_en || '';
+        
+        if (signatureBase64 && profSigImg && profSigPrompt) {
+          profSigImg.src = signatureBase64;
+          profSigImg.style.display = 'inline-block';
+          profSigPrompt.style.display = 'none';
+        }
       }
     }
   } catch (err) {
@@ -147,6 +165,31 @@ function renderQueue() {
   });
 }
 
+function getDosageAbbreviation(dosageForm) {
+  if (!dosageForm) return '';
+  const form = dosageForm.toLowerCase().trim();
+  if (form.includes('tablet')) return 'Tab.';
+  if (form.includes('capsule')) return 'Cap.';
+  if (form.includes('syrup')) return 'Syp.';
+  if (form.includes('suspension')) return 'Susp.';
+  if (form.includes('injection')) return 'Inj.';
+  if (form.includes('drop')) return 'Drop.';
+  if (form.includes('ointment')) return 'Oint.';
+  if (form.includes('cream')) return 'Cream';
+  if (form.includes('gel')) return 'Gel';
+  if (form.includes('inhaler')) return 'Inhaler';
+  if (form.includes('suppository')) return 'Supp.';
+  // Default fallback: capitalize first letter and add a period
+  return dosageForm.charAt(0).toUpperCase() + dosageForm.slice(1) + '.';
+}
+
+function formatMedicineName(med) {
+  const prefix = getDosageAbbreviation(med.dosage_form);
+  const strength = med.strength ? ` ${med.strength}` : '';
+  const brand = med.name || med.brand_name || '';
+  return `${prefix ? prefix + ' ' : ''}${brand}${strength}`.trim();
+}
+
 function setupMedicineAutocomplete() {
   const searchInput = document.getElementById('med-search-input');
   const resultsDiv = document.getElementById('med-search-results');
@@ -196,14 +239,20 @@ function setupMedicineAutocomplete() {
           div.style.borderBottom = '1px solid #f1f5f9';
           div.className = 'autocomplete-suggestion';
           
-          const strengthText = med.strength ? ` - ${med.strength}` : '';
+          const formattedName = formatMedicineName(med);
           const genericText = med.generic ? ` (${med.generic})` : '';
           const mfgText = med.manufacturer ? ` [${med.manufacturer}]` : '';
-          div.innerHTML = `<strong>${escapeHTML(med.name)}</strong>${escapeHTML(strengthText)}${escapeHTML(genericText)}<span style="display:block; font-size:0.75rem; color:var(--text-muted);">${escapeHTML(med.dosage_form || 'Tablet')} - ${escapeHTML(mfgText)}</span>`;
+          div.innerHTML = `<strong>${escapeHTML(formattedName)}</strong>${escapeHTML(genericText)}<span style="display:block; font-size:0.75rem; color:var(--text-muted);">${escapeHTML(med.dosage_form || '')} - ${escapeHTML(mfgText)}</span>`;
           
           div.addEventListener('click', () => {
-            searchInput.value = `${med.name}${strengthText}`;
-            selectedMedicine = med;
+            searchInput.value = formattedName;
+            selectedMedicine = {
+              id: med.id,
+              name: formattedName,
+              dosage_form: med.dosage_form,
+              strength: med.strength,
+              generic: med.generic
+            };
             resultsDiv.innerHTML = '';
             resultsDiv.style.display = 'none';
           });
@@ -385,8 +434,9 @@ function renderMedRows() {
   }
 
   prescribedMedicines.forEach((med, idx) => {
-    const row = document.createElement('tr');
-    row.innerHTML = `
+    const row1 = document.createElement('tr');
+    row1.style.borderBottom = 'none';
+    row1.innerHTML = `
       <td><strong>${escapeHTML(med.name)}</strong></td>
       <td>${escapeHTML(med.dosage)}</td>
       <td>${escapeHTML(med.timing)}</td>
@@ -395,13 +445,31 @@ function renderMedRows() {
         <button type="button" class="med-remove-btn" onclick="removeMedicineRow(${idx})">Delete</button>
       </td>
     `;
-    tbody.appendChild(row);
+    tbody.appendChild(row1);
+
+    const row2 = document.createElement('tr');
+    row2.innerHTML = `
+      <td colspan="5" style="padding-top: 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color);">
+        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+          <textarea class="form-control" style="height: 48px; min-height: 48px; font-size: 0.8rem; background: #fafaf9; width: 100%; border: 1px solid #e7e5e4;" 
+            placeholder="Custom advice / special instructions for this medicine..."
+            oninput="updateMedAdvice(${idx}, this.value)">${escapeHTML(med.advice || '')}</textarea>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(row2);
   });
 }
 
 window.removeMedicineRow = function(idx) {
   prescribedMedicines.splice(idx, 1);
   renderMedRows();
+};
+
+window.updateMedAdvice = function(idx, val) {
+  if (prescribedMedicines[idx]) {
+    prescribedMedicines[idx].advice = val;
+  }
 };
 
 // Handle Signature Upload Base64 conversion
@@ -629,6 +697,7 @@ window.printPrescription = function() {
   } else {
     prescribedMedicines.forEach(m => {
       const tr = document.createElement('tr');
+      tr.style.borderBottom = m.advice ? 'none' : '1px solid #e2e8f0';
       tr.innerHTML = `
         <td><strong>${escapeHTML(m.name)}</strong></td>
         <td>${escapeHTML(m.dosage)}</td>
@@ -636,6 +705,16 @@ window.printPrescription = function() {
         <td>${escapeHTML(m.duration)}</td>
       `;
       medTbody.appendChild(tr);
+
+      if (m.advice) {
+        const trAdvice = document.createElement('tr');
+        trAdvice.innerHTML = `
+          <td colspan="4" style="padding-top: 0; padding-bottom: 0.5rem; color: #475569; font-size: 0.8rem; border-bottom: 1px solid #e2e8f0;">
+            <span style="font-weight: 600; color: #0d9488;">Advice:</span> <em>${escapeHTML(m.advice)}</em>
+          </td>
+        `;
+        medTbody.appendChild(trAdvice);
+      }
     });
   }
 
@@ -669,6 +748,9 @@ window.openShareModal = function() {
   let medsText = '';
   prescribedMedicines.forEach(m => {
     medsText += `- ${m.name} (${m.dosage}, ${m.timing}, ${m.duration})\n`;
+    if (m.advice) {
+      medsText += `  Advice: ${m.advice}\n`;
+    }
   });
 
   const messageText = `Hello ${activeAppointment.patient_name},\n\nYour digital prescription from Alamnagar CHC has been prepared.\n\nPatient Details:\n- Age: ${age}\n- Gender: ${gender}\n- Weight: ${weight}\n\nMedicines prescribed:\n${medsText}\nObservations:\n${document.getElementById('obs-input').value.trim()}\n\nWish you a speedy recovery!`;
@@ -700,6 +782,109 @@ window.logoutUser = function(e) {
   localStorage.removeItem('chc_user_permissions');
   localStorage.removeItem('chc_doctor_id');
   window.location.href = 'index.html';
+};
+
+// Profile modal control handlers
+window.openProfileModal = function(e) {
+  if (e) e.preventDefault();
+  const modal = document.getElementById('profile-modal');
+  if (modal) {
+    // Make sure signature preview in modal is up to date with signatureBase64
+    const profSigImg = document.getElementById('profile-sig-image');
+    const profSigPrompt = document.getElementById('profile-sig-prompt');
+    if (signatureBase64 && profSigImg && profSigPrompt) {
+      profSigImg.src = signatureBase64;
+      profSigImg.style.display = 'inline-block';
+      profSigPrompt.style.display = 'none';
+    } else if (profSigImg && profSigPrompt) {
+      profSigImg.src = '';
+      profSigImg.style.display = 'none';
+      profSigPrompt.style.display = 'block';
+    }
+    modal.style.display = 'flex';
+  }
+};
+
+window.closeProfileModal = function(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('profile-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.handleProfileSignatureUpload = function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (file.size > 2 * 1024 * 1024) {
+    alert('Signature image must be less than 2MB.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const profSigBase64 = evt.target.result;
+    
+    const preview = document.getElementById('profile-sig-image');
+    const prompt = document.getElementById('profile-sig-prompt');
+    if (preview && prompt) {
+      preview.src = profSigBase64;
+      preview.style.display = 'inline-block';
+      prompt.style.display = 'none';
+      preview.dataset.tempSig = profSigBase64;
+    }
+  };
+  reader.readAsDataURL(file);
+};
+
+window.saveProfileSignature = async function() {
+  const preview = document.getElementById('profile-sig-image');
+  const banner = document.getElementById('profile-status-banner');
+  const sigToSave = (preview && preview.dataset.tempSig) ? preview.dataset.tempSig : signatureBase64;
+
+  if (!sigToSave) {
+    alert('Please upload a signature before saving.');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const response = await fetch('/api/doctor/profile/signature', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ signature_url: sigToSave })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error || 'Failed to save signature.');
+    }
+
+    // Save success: update global variables and local storage
+    signatureBase64 = sigToSave;
+    localStorage.setItem('chc_doctor_sig', signatureBase64);
+    
+    // Also update prescription layout previews
+    const rxPreview = document.getElementById('sig-image');
+    const rxPrompt = document.getElementById('sig-prompt');
+    if (rxPreview && rxPrompt) {
+      rxPreview.src = signatureBase64;
+      rxPreview.style.display = 'inline-block';
+      rxPrompt.style.display = 'none';
+    }
+
+    showStatusBanner(banner, 'Signature saved to profile successfully.', 'success');
+    
+    // Auto close modal after a short delay
+    setTimeout(() => {
+      closeProfileModal();
+    }, 1500);
+  } catch (error) {
+    console.error(error);
+    showStatusBanner(banner, error.message || 'Error occurred saving signature.', 'error');
+  }
 };
 
 // XSS Sanitizer Helper
