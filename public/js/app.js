@@ -1010,6 +1010,7 @@ window.logoutUser = function(e) {
   localStorage.removeItem('chc_user_role');
   localStorage.removeItem('chc_user_name');
   localStorage.removeItem('chc_user_email');
+  localStorage.removeItem('chc_user_phone');
   localStorage.removeItem('chc_user_id');
   window.location.reload();
 };
@@ -1026,7 +1027,11 @@ function renderPatientHistory() {
 
     const myAppts = appointments.filter(a => {
       if (isFallbackMode) {
-        return String(a.user_id) === String(activeUserId) || a.email === localStorage.getItem('chc_user_email');
+        const userEmail = localStorage.getItem('chc_user_email');
+        const userPhone = localStorage.getItem('chc_user_phone');
+        return String(a.user_id) === String(activeUserId) || 
+               (userEmail && a.email === userEmail) ||
+               (userPhone && a.phone === userPhone);
       }
       return a.patient_name !== 'Reserved Slot';
     });

@@ -127,6 +127,7 @@ window.logoutUser = function(e) {
   localStorage.removeItem('chc_user_role');
   localStorage.removeItem('chc_user_name');
   localStorage.removeItem('chc_user_email');
+  localStorage.removeItem('chc_user_phone');
   localStorage.removeItem('chc_user_id');
   window.location.href = 'index.html';
 };

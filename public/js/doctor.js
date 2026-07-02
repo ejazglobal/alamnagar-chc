@@ -295,7 +295,7 @@ async function selectPatient(appointment) {
   // Load Patient Banner
   document.getElementById('patient-banner-name').textContent = appointment.patient_name;
   document.getElementById('patient-banner-phone').textContent = appointment.phone;
-  document.getElementById('patient-banner-email').textContent = appointment.email;
+  document.getElementById('patient-banner-email').textContent = appointment.email || 'None';
   document.getElementById('patient-banner-date').textContent = `${appointment.appointment_date} at ${appointment.appointment_time}`;
   document.getElementById('patient-banner-notes').textContent = appointment.notes || 'None';
   
@@ -883,6 +883,7 @@ window.logoutUser = function(e) {
   localStorage.removeItem('chc_user_role');
   localStorage.removeItem('chc_user_name');
   localStorage.removeItem('chc_user_email');
+  localStorage.removeItem('chc_user_phone');
   localStorage.removeItem('chc_user_id');
   localStorage.removeItem('chc_user_permissions');
   localStorage.removeItem('chc_doctor_id');

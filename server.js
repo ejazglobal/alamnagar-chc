@@ -186,6 +186,7 @@ app.post('/api/auth/login', async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
+        phone: user.phone,
         permissions: permissions,
         doctor_id: user.doctor_id
       }
@@ -596,9 +597,19 @@ app.get('/api/appointments', optionalAuthenticateToken, async (req, res) => {
       return res.json(allAppts);
     }
     
+    let userPhone = '';
+    if (req.user) {
+      const userRes = await db.pool.query("SELECT phone FROM users WHERE id = $1", [req.user.id]);
+      if (userRes.rows.length > 0) {
+        userPhone = userRes.rows[0].phone;
+      }
+    }
+
     // Patient or Guest: return full details for their own bookings, and sanitized records for others
     const sanitized = allAppts.map(appt => {
-      if (req.user && req.user.role === 'Patient' && appt.user_id === req.user.id) {
+      const isOwner = req.user && req.user.role === 'Patient' && 
+                     (appt.user_id === req.user.id || (userPhone && appt.phone === userPhone));
+      if (isOwner) {
         return appt; // Return full details
       }
       // Mask details for other bookings
@@ -786,7 +797,7 @@ app.delete('/api/admin/staff/:id', authenticateToken, async (req, res) => {
 // --- OTP VERIFICATION ENDPOINTS ---
 app.post('/api/appointments/request-otp', async (req, res) => {
   const { email, phone } = req.body;
-  if (!email || !isValidEmail(email)) {
+  if (email && !isValidEmail(email)) {
     return res.status(400).json({ error: 'A valid email address is required.' });
   }
   if (!phone || !isValidPhone(phone)) {
@@ -796,10 +807,10 @@ app.post('/api/appointments/request-otp', async (req, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   
   try {
-    await db.createOTP(email.trim().toLowerCase(), phone.trim(), otp);
+    await db.createOTP(email ? email.trim().toLowerCase() : '', phone.trim(), otp);
     
     // Delegate to mailer client (supports simulation + real SendGrid/Twilio dispatch)
-    mailer.sendBookingOTP(email.trim().toLowerCase(), phone.trim(), otp);
+    mailer.sendBookingOTP(email ? email.trim().toLowerCase() : '', phone.trim(), otp);
 
     res.json({ success: true, message: 'OTP sent successfully!' });
   } catch (err) {
@@ -815,12 +826,12 @@ app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async 
 
   const { patient_name, email, phone, appointment_date, appointment_time, notes, doctor_id } = appointment;
 
-  if (!patient_name || !email || !phone || !appointment_date || !appointment_time) {
+  if (!patient_name || !phone || !appointment_date || !appointment_time) {
     return res.status(400).json({ error: 'Missing appointment details.' });
   }
 
   try {
-    const verified = (otp === 'bypass') || await db.verifyOTP(email.trim().toLowerCase(), phone.trim(), otp);
+    const verified = (otp === 'bypass') || await db.verifyOTP(email ? email.trim().toLowerCase() : '', phone.trim(), otp);
     if (!verified) {
       return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
     }
@@ -828,7 +839,7 @@ app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async 
     const newAppointment = await db.createAppointment({
       user_id: req.user ? req.user.id : null,
       patient_name: patient_name.trim(),
-      email: email.trim().toLowerCase(),
+      email: email ? email.trim().toLowerCase() : '',
       phone: phone.trim(),
       appointment_date,
       appointment_time,
