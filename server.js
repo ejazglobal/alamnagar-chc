@@ -1176,6 +1176,49 @@ app.get('/api/run-seed', async (req, res) => {
   }
 });
 
+// --- ONE-TIME PRODUCTION CLEANUP ENDPOINT ---
+// IMPORTANT: Remove or disable this route after first use in production.
+app.post('/api/clear-test-data', authenticateToken, async (req, res) => {
+  // Only allow Admin-role users to execute this
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Truncate prescriptions first (has FK to appointments)
+    await client.query('TRUNCATE TABLE prescriptions RESTART IDENTITY CASCADE');
+
+    // 2. Truncate otp_verifications
+    await client.query('TRUNCATE TABLE otp_verifications RESTART IDENTITY CASCADE');
+
+    // 3. Truncate appointments (patients linked here via phone/name)
+    await client.query('TRUNCATE TABLE appointments RESTART IDENTITY CASCADE');
+
+    // 4. Delete only Patient-role users (keep Admin, Staff, Doctor accounts)
+    await client.query("DELETE FROM users WHERE role = 'Patient'");
+
+    // 5. Reset the users sequence to the current max id so new registrations continue cleanly
+    await client.query("SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1))");
+
+    await client.query('COMMIT');
+
+    console.log('[ADMIN] Test data wipe executed successfully.');
+    res.json({
+      success: true,
+      message: 'Test data successfully wiped. Database is clean and ready for production!'
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[ADMIN] Error wiping test data:', err);
+    res.status(500).json({ error: 'Database cleanup failed: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // --- DOCTOR FALLBACK PATH ---
 app.get('/doctor', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'doctor.html'));
