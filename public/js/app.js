@@ -757,7 +757,6 @@ function setupEventListeners() {
   window.resendBookingOtp = async function() {
     if (resendSecondsRemaining > 0) return;
     
-    const patientEmail = document.getElementById('patient-email').value.trim();
     const patientPhone = document.getElementById('patient-phone').value.trim();
     const statusBannerOtp = document.getElementById('otp-status-banner');
     
@@ -769,7 +768,7 @@ function setupEventListeners() {
       const response = await fetch('/api/appointments/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: patientEmail, phone: patientPhone })
+        body: JSON.stringify({ email: '', phone: patientPhone })
       });
 
       if (!response.ok) {
@@ -868,7 +867,6 @@ function setupEventListeners() {
     e.preventDefault();
     
     const patientName = document.getElementById('patient-name').value.trim();
-    const patientEmail = document.getElementById('patient-email').value.trim();
     const patientPhone = document.getElementById('patient-phone').value.trim();
     const bookingNotes = document.getElementById('booking-notes').value.trim();
 
@@ -879,7 +877,7 @@ function setupEventListeners() {
 
     const payload = {
       patient_name: patientName,
-      email: patientEmail,
+      email: '',
       phone: patientPhone,
       appointment_date: selectedDateStr,
       appointment_time: selectedSlotTime,
@@ -993,12 +991,8 @@ function renderAuthNav() {
 
     // Pre-populate patient details if form is loaded
     const nameField = document.getElementById('patient-name');
-    const emailField = document.getElementById('patient-email');
     if (nameField && !nameField.value) {
       nameField.value = name || '';
-    }
-    if (emailField && !emailField.value) {
-      emailField.value = localStorage.getItem('chc_user_email') || '';
     }
   } else {
     navMenu.innerHTML = `
