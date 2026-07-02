@@ -21,50 +21,47 @@ function normalizeBDPhoneNumber(phone) {
   return digits;
 }
 
-// Helper to send real SMS via Shiram System API (POST with form-urlencoded body)
+// Helper to send real SMS via Shiram System API
+// Docs: https://smsapi.shiramsystem.com/user_api/
+// Method: POST | Params: email, password, method, mask, mobile[], message
 function sendSMS(to, message) {
   const normalizedPhone = normalizeBDPhoneNumber(to);
 
-  // Load Shiram SMS gateway credentials from environment variables
-  const smsUrl  = process.env.SMS_URL  || 'https://smsapi.shiramsystem.com/user_api/';
-  const smsUser = process.env.SMS_USER || 'inforcmc@gmail.com';
-  const smsPass = process.env.SMS_PASS || '14142135';
-  const smsMask = process.env.SMS_MASK || ''; // Leave blank for non-masking
+  // Load credentials from Render environment variables
+  const smsUrl      = 'https://smsapi.shiramsystem.com/user_api/';
+  const smsEmail    = process.env.SMS_USER || 'inforcmc@gmail.com';
+  const smsPassword = process.env.SMS_PASS || '14142135';
+  // For non-masking SMS the mask value must be the string 'Non-Masking'
+  const smsMask     = process.env.SMS_MASK || 'Non-Masking';
 
-  // Only skip if credentials are genuinely absent
-  if (!smsUser.trim() || !smsPass.trim()) {
+  if (!smsEmail.trim() || !smsPassword.trim()) {
     console.log(`[SIMULATED SMS] No credentials — Phone: ${normalizedPhone}, Msg: "${message}"`);
     return;
   }
 
-  // Shiram: type=1 for masking, type=0 for non-masking
-  const hasMask = smsMask && smsMask.trim() && smsMask.toUpperCase() !== 'HEALTH CITY';
+  // Build POST body exactly as Shiram docs specify
+  // mobile must be sent as mobile[] (array notation)
+  const postBody = querystring.stringify({
+    email:    smsEmail,
+    password: smsPassword,
+    method:   'send_sms',
+    mask:     smsMask,          // 'Non-Masking' or approved mask name
+    message:  message
+  }) + `&mobile%5B%5D=${encodeURIComponent(normalizedPhone)}`; // mobile[] array
 
-  // Build POST body params
-  const params = {
-    user:   smsUser,
-    pass:   smsPass,
-    mobile: normalizedPhone,
-    msg:    message,
-    type:   hasMask ? '1' : '0'
-  };
-  if (hasMask) {
-    params.mask = smsMask.trim();
-  }
+  console.log(`[SMS DISPATCH] POST → ${smsUrl}`);
+  console.log(`[SMS DISPATCH] To: ${normalizedPhone} | Mask: ${smsMask}`);
+  console.log(`[SMS DISPATCH] Msg: "${message}"`);
 
   try {
-    const postBody   = querystring.stringify(params);
-    const parsedUrl  = new URL(smsUrl);
-    const httpLib    = parsedUrl.protocol === 'http:' ? require('http') : https;
-
-    console.log(`[SMS DISPATCH] POST → ${smsUrl}`);
-    console.log(`[SMS DISPATCH] Phone: ${normalizedPhone} | Type: ${params.type} | Msg: "${message}"`);
+    const parsedUrl = new URL(smsUrl);
+    const httpLib   = parsedUrl.protocol === 'http:' ? require('http') : https;
 
     const options = {
       hostname:           parsedUrl.hostname,
-      port:               parsedUrl.port || (parsedUrl.protocol === 'http:' ? 80 : 443),
+      port:               443,
       path:               parsedUrl.pathname,
-      method:             'POST',                        // ← Shiram requires POST
+      method:             'POST',
       rejectUnauthorized: false,
       headers: {
         'Content-Type':   'application/x-www-form-urlencoded',
@@ -74,20 +71,24 @@ function sendSMS(to, message) {
 
     const req = httpLib.request(options, (res) => {
       let data = '';
-      res.on('data',  (chunk) => { data += chunk; });
-      res.on('end',   () => {
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end',  () => {
         const body = data.trim();
         console.log(`[SMS DISPATCH] Shiram response — HTTP ${res.statusCode}: ${body}`);
-        if (
-          res.statusCode < 200 || res.statusCode >= 300 ||
-          body.toLowerCase().includes('"status":false') ||
-          body.toLowerCase().includes('error') ||
-          body.toLowerCase().includes('fail') ||
-          body.toLowerCase().includes('invalid')
-        ) {
-          console.error(`SMS Gateway Error Details: HTTP ${res.statusCode} — ${body}`);
-        } else {
-          console.log(`[SMS DISPATCH] SMS sent successfully to ${normalizedPhone}`);
+        try {
+          const json = JSON.parse(body);
+          if (json.status === true && json.error_code === 0) {
+            console.log(`[SMS DISPATCH] ✅ SMS sent successfully! Cost: ${json.cost}, Count: ${json.sms_count}`);
+          } else {
+            console.error(`SMS Gateway Error Details: error_code=${json.error_code} — ${json.message}`);
+          }
+        } catch {
+          // Non-JSON body
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[SMS DISPATCH] Gateway response (non-JSON): ${body}`);
+          } else {
+            console.error(`SMS Gateway Error Details: HTTP ${res.statusCode} — ${body}`);
+          }
         }
       });
     });
@@ -96,13 +97,12 @@ function sendSMS(to, message) {
       console.error('SMS Gateway Error Details:', e.message);
     });
 
-    req.write(postBody); // Send body in POST request
+    req.write(postBody);
     req.end();
   } catch (err) {
     console.error('SMS Gateway Error Details:', err.message);
   }
 }
-
 
 // Helper to send real Email via SendGrid API (no npm module required)
 function sendEmail(to, subject, htmlContent) {
