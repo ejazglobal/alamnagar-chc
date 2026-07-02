@@ -889,6 +889,60 @@ app.post('/api/doctor/profile/signature', authenticateToken, async (req, res) =>
   }
 });
 
+// GET search patients (Doctor portal search by name or phone)
+app.get('/api/doctor/search-patients', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Doctor') {
+    return res.status(403).json({ error: 'Access Denied: Doctor only.' });
+  }
+  const searchVal = req.query.q || '';
+  if (!searchVal || searchVal.trim().length === 0) {
+    return res.json([]);
+  }
+  try {
+    const query = `
+      SELECT DISTINCT ON (phone) phone, patient_name, email, address, age, gender, weight
+      FROM appointments
+      WHERE patient_name ILIKE $1 OR phone ILIKE $1
+      ORDER BY phone, appointment_date DESC
+      LIMIT 20
+    `;
+    const term = `%${searchVal.trim()}%`;
+    const resDb = await db.pool.query(query, [term]);
+    res.json(resDb.rows);
+  } catch (err) {
+    console.error('Error searching patients:', err);
+    res.status(500).json({ error: 'Database error searching patients.' });
+  }
+});
+
+// GET patient visit history (Doctor portal history timeline)
+app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Doctor') {
+    return res.status(403).json({ error: 'Access Denied: Doctor only.' });
+  }
+  const phone = req.query.phone || '';
+  if (!phone) {
+    return res.status(400).json({ error: 'Patient phone number is required.' });
+  }
+  try {
+    const query = `
+      SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints,
+             p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
+             d.name_en as doctor_name
+      FROM appointments a
+      LEFT JOIN prescriptions p ON a.id = p.appointment_id
+      LEFT JOIN doctors d ON a.doctor_id = d.id
+      WHERE a.phone = $1 AND a.status = 'completed'
+      ORDER BY a.appointment_date DESC, a.created_at DESC
+    `;
+    const resDb = await db.pool.query(query, [phone]);
+    res.json(resDb.rows);
+  } catch (err) {
+    console.error('Error fetching patient history:', err);
+    res.status(500).json({ error: 'Database error fetching patient history.' });
+  }
+});
+
 app.get('/api/medicines', authenticateToken, async (req, res) => {
   const search = req.query.q || '';
   try {

@@ -82,6 +82,7 @@ async function verifyBackendAndLoad() {
   await loadData();
   renderQueue();
   setupMedicineAutocomplete();
+  setupPatientSearch();
 }
 
 async function loadData() {
@@ -119,11 +120,12 @@ async function loadData() {
   }
 }
 
-function renderQueue() {
+function renderQueue(listToRender) {
   if (!queueList) return;
   queueList.innerHTML = '';
   
-  const activeQueue = appointments.filter(a => a.status !== 'cancelled');
+  const list = listToRender || appointments;
+  const activeQueue = list.filter(a => a.status !== 'cancelled');
   queueCount.textContent = activeQueue.length;
 
   if (activeQueue.length === 0) {
@@ -314,6 +316,16 @@ async function selectPatient(appointment) {
   // Hide empty state & show builder
   emptyState.style.display = 'none';
   activeBuilder.style.display = 'block';
+
+  // Enable save button (which might have been disabled during viewing history of inactive patient)
+  const saveBtn = document.querySelector('button[onclick="savePrescription()"]');
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save & Complete Visit';
+  }
+
+  // Load patient history timeline
+  loadPatientHistory(appointment.phone);
 
   // Load existing prescription if any
   await loadPrescription(appointment.id);
@@ -886,6 +898,426 @@ window.saveProfileSignature = async function() {
     showStatusBanner(banner, error.message || 'Error occurred saving signature.', 'error');
   }
 };
+
+// Patient Search & Database Autocomplete
+function setupPatientSearch() {
+  const searchInput = document.getElementById('patient-search-input');
+  const resultsDiv = document.getElementById('patient-search-results');
+  if (!searchInput || !resultsDiv) return;
+
+  let debounceTimer;
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    const query = e.target.value.trim();
+    if (query.length < 2) {
+      resultsDiv.innerHTML = '';
+      resultsDiv.style.display = 'none';
+      renderQueue(appointments); // Restore full queue
+      return;
+    }
+
+    // Filter queue immediately
+    const matched = appointments.filter(appt => 
+      appt.patient_name.toLowerCase().includes(query.toLowerCase()) || 
+      appt.phone.includes(query)
+    );
+    renderQueue(matched);
+
+    // Fetch database candidates
+    debounceTimer = setTimeout(async () => {
+      try {
+        let results = [];
+        if (isFallbackMode) {
+          results = appointments.filter(a => 
+            a.patient_name.toLowerCase().includes(query.toLowerCase()) || 
+            a.phone.includes(query)
+          );
+        } else {
+          const token = localStorage.getItem('chc_token');
+          const response = await fetch(`/api/doctor/search-patients?q=${encodeURIComponent(query)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            results = await response.json();
+          }
+        }
+
+        resultsDiv.innerHTML = '';
+        if (results.length === 0) {
+          resultsDiv.innerHTML = '<div style="padding: 0.5rem 1rem; color: var(--text-muted); font-size: 0.85rem;">No matching patients found</div>';
+          resultsDiv.style.display = 'block';
+          return;
+        }
+
+        results.forEach(patient => {
+          const div = document.createElement('div');
+          div.style.padding = '0.5rem 1rem';
+          div.style.cursor = 'pointer';
+          div.style.fontSize = '0.85rem';
+          div.style.borderBottom = '1px solid #f1f5f9';
+          div.className = 'autocomplete-suggestion';
+          div.innerHTML = `<strong>${escapeHTML(patient.patient_name)}</strong><span style="display:block; font-size:0.75rem; color:var(--text-muted);">Mob: ${escapeHTML(patient.phone)}</span>`;
+          
+          div.addEventListener('click', () => {
+            searchInput.value = patient.patient_name;
+            resultsDiv.innerHTML = '';
+            resultsDiv.style.display = 'none';
+            selectPatientFromSearch(patient);
+          });
+
+          div.addEventListener('mouseenter', () => {
+            div.style.backgroundColor = 'var(--primary-light)';
+          });
+          div.addEventListener('mouseleave', () => {
+            div.style.backgroundColor = 'transparent';
+          });
+
+          resultsDiv.appendChild(div);
+        });
+
+        resultsDiv.style.display = 'block';
+      } catch (err) {
+        console.error('Error fetching search results:', err);
+      }
+    }, 300);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target !== searchInput && e.target !== resultsDiv && !resultsDiv.contains(e.target)) {
+      resultsDiv.style.display = 'none';
+    }
+  });
+}
+
+function selectPatientFromSearch(patient) {
+  const activeAppt = appointments.find(a => a.phone === patient.phone && a.status !== 'completed' && a.status !== 'cancelled');
+  if (activeAppt) {
+    selectPatient(activeAppt);
+  } else {
+    // Show static history panel details without active visit
+    activeAppointment = null;
+    renderQueue(); // Clear active highlights
+    
+    document.getElementById('patient-banner-name').textContent = patient.patient_name;
+    document.getElementById('patient-banner-phone').textContent = patient.phone;
+    document.getElementById('patient-banner-email').textContent = patient.email || 'None';
+    document.getElementById('patient-banner-date').textContent = 'N/A (No active visit scheduled)';
+    document.getElementById('patient-banner-notes').textContent = 'Viewing Patient Visit History Console';
+    
+    const statusBadge = document.getElementById('patient-banner-status');
+    statusBadge.textContent = 'NO ACTIVE VISIT';
+    statusBadge.className = 'badge pending';
+    
+    document.getElementById('patient-age').value = patient.age || '';
+    document.getElementById('patient-gender').value = patient.gender || 'Male';
+    document.getElementById('patient-weight').value = patient.weight || '';
+    document.getElementById('patient-address').value = patient.address || '';
+    
+    emptyState.style.display = 'none';
+    activeBuilder.style.display = 'block';
+    
+    prescribedMedicines = [];
+    renderMedRows();
+    document.getElementById('obs-input').value = '';
+    document.getElementById('diag-custom').value = '';
+    document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+    
+    const saveBtn = document.querySelector('button[onclick="savePrescription()"]');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Save (No Active Visit)';
+    }
+    
+    loadPatientHistory(patient.phone);
+  }
+}
+
+// Load patient history timeline
+let pastVisits = [];
+let selectedPastVisit = null;
+
+async function loadPatientHistory(phone) {
+  const sidebar = document.getElementById('history-sidebar');
+  const grid = document.querySelector('.doctor-grid');
+  const timelineContainer = document.getElementById('timeline-container');
+  const nameLabel = document.getElementById('history-patient-name');
+  const phoneLabel = document.getElementById('history-patient-phone');
+  
+  if (!sidebar || !timelineContainer) return;
+  
+  nameLabel.textContent = activeAppointment ? activeAppointment.patient_name : document.getElementById('patient-banner-name').textContent;
+  phoneLabel.textContent = `Mob: ${phone}`;
+  
+  try {
+    let history = [];
+    if (isFallbackMode) {
+      const mockPrescriptions = JSON.parse(localStorage.getItem('chc_mock_prescriptions')) || [];
+      const mockAppointments = JSON.parse(localStorage.getItem('chc_appointments')) || [];
+      const completed = mockAppointments.filter(a => a.phone === phone && a.status === 'completed');
+      
+      history = completed.map(appt => {
+        const pres = mockPrescriptions.find(p => p.appointment_id === appt.id) || {};
+        return {
+          appointment_id: appt.id,
+          appointment_date: appt.appointment_date,
+          appointment_time: appt.appointment_time,
+          past_complaints: appt.notes,
+          prescription_id: pres.id || null,
+          observations: pres.observations || '',
+          diagnostics: pres.diagnostics || '',
+          medicines: pres.medicines || [],
+          doctor_name: localStorage.getItem('chc_user_name') || 'Sarah Rahman'
+        };
+      });
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const res = await fetch(`/api/doctor/patient-history?phone=${encodeURIComponent(phone)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        history = await res.json();
+      }
+    }
+
+    pastVisits = history;
+    
+    if (history.length === 0) {
+      grid.classList.remove('has-history');
+      sidebar.style.display = 'none';
+      timelineContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No history found.</div>';
+      return;
+    }
+    
+    grid.classList.add('has-history');
+    sidebar.style.display = 'flex';
+    
+    timelineContainer.innerHTML = '';
+    history.forEach(visit => {
+      const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'timeline-item';
+      
+      const cloneButtonHtml = activeAppointment ? 
+        `<button class="btn-sm approve" onclick="clonePrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem;">Clone to Current</button>` : 
+        '';
+        
+      itemDiv.innerHTML = `
+        <div class="timeline-date">${formattedDate} at ${visit.appointment_time}</div>
+        <div class="timeline-card">
+          <div class="timeline-doc">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
+          ${visit.past_complaints ? `<div style="margin-top:0.25rem;"><strong>Complaints:</strong> <em>${escapeHTML(visit.past_complaints)}</em></div>` : ''}
+          ${visit.observations ? `<div style="margin-top:0.15rem;"><strong>Obs:</strong> ${escapeHTML(visit.observations)}</div>` : ''}
+          <div class="timeline-actions">
+            <button class="btn-sm cancel" onclick="openPastPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white;">View Prescription</button>
+            ${cloneButtonHtml}
+          </div>
+        </div>
+      `;
+      timelineContainer.appendChild(itemDiv);
+    });
+  } catch (err) {
+    console.error('Error loading patient history:', err);
+  }
+}
+
+// Clone logic
+window.clonePrescription = function(appointmentId) {
+  const visit = pastVisits.find(v => v.appointment_id === appointmentId);
+  if (!visit) return;
+  
+  const meds = typeof visit.medicines === 'string' ? JSON.parse(visit.medicines) : visit.medicines;
+  if (meds && Array.isArray(meds)) {
+    prescribedMedicines = JSON.parse(JSON.stringify(meds));
+    renderMedRows();
+  }
+  
+  const obsInput = document.getElementById('obs-input');
+  if (obsInput && !obsInput.value.trim() && visit.observations) {
+    obsInput.value = visit.observations;
+  }
+  
+  if (visit.diagnostics) {
+    const tests = visit.diagnostics.split(', ');
+    const customTests = [];
+    tests.forEach(test => {
+      const cb = document.querySelector(`#diag-checkboxes input[value="${test}"]`);
+      if (cb) {
+        cb.checked = true;
+      } else {
+        customTests.push(test);
+      }
+    });
+    const customDiagInput = document.getElementById('diag-custom');
+    if (customDiagInput && !customDiagInput.value.trim()) {
+      customDiagInput.value = customTests.join(', ');
+    }
+  }
+  
+  alert('Prescription cloned successfully! Verify details before saving.');
+};
+
+// Prescription Viewer
+window.openPastPrescription = function(appointmentId) {
+  const visit = pastVisits.find(v => v.appointment_id === appointmentId);
+  if (!visit) return;
+  
+  selectedPastVisit = visit;
+  
+  const modal = document.getElementById('past-prescription-modal');
+  const body = document.getElementById('past-prescription-modal-body');
+  if (!modal || !body) return;
+  
+  const meds = typeof visit.medicines === 'string' ? JSON.parse(visit.medicines) : visit.medicines;
+  let medsListHtml = '';
+  if (meds && Array.isArray(meds)) {
+    meds.forEach(m => {
+      medsListHtml += `
+        <div style="border-bottom: 1px solid #f1f5f9; padding: 0.5rem 0;">
+          <strong>${escapeHTML(m.name)}</strong> - ${escapeHTML(m.dosage)} (${escapeHTML(m.timing)}) for ${escapeHTML(m.duration)}
+          ${m.advice ? `<div style="font-size: 0.8rem; color: #475569; margin-top: 0.25rem;"><em>Advice: ${escapeHTML(m.advice)}</em></div>` : ''}
+        </div>
+      `;
+    });
+  } else {
+    medsListHtml = '<div>No medicines prescribed.</div>';
+  }
+  
+  const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+  
+  body.innerHTML = `
+    <div style="border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+      <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary-hover);">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
+      <div style="font-size: 0.8rem; color: var(--text-muted);">Consultation date: ${formattedDate} at ${visit.appointment_time}</div>
+    </div>
+    
+    <div><strong>Observations / Symptoms:</strong></div>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem; min-height: 40px; margin-bottom: 0.5rem;">
+      ${escapeHTML(visit.observations || 'None recorded.')}
+    </div>
+    
+    <div><strong>Recommended Diagnostics:</strong></div>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem; min-height: 40px; margin-bottom: 0.5rem;">
+      ${escapeHTML(visit.diagnostics || 'None recommended.')}
+    </div>
+    
+    <div><strong>Rx (Medicines):</strong></div>
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0 0.75rem; margin-bottom: 0.5rem;">
+      ${medsListHtml}
+    </div>
+  `;
+  
+  modal.style.display = 'flex';
+};
+
+window.closePastPrescriptionModal = function(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('past-prescription-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+function printPastPrescription(visit) {
+  const printDocName = document.getElementById('print-doctor-name-display');
+  const printDocSpecialty = document.getElementById('print-doctor-specialty-display');
+  const printDocHours = document.getElementById('print-doctor-hours-display');
+  
+  const printPatientName = document.getElementById('print-patient-name');
+  const printPatientAge = document.getElementById('print-patient-age');
+  const printPatientGender = document.getElementById('print-patient-gender');
+  const printPatientDate = document.getElementById('print-patient-date');
+  const printPatientAddress = document.getElementById('print-patient-address');
+  const printPatientWeight = document.getElementById('print-patient-weight');
+  const printPatientPhone = document.getElementById('print-patient-phone');
+  
+  const printObs = document.getElementById('print-patient-obs');
+  const printDiags = document.getElementById('print-patient-diags');
+  const printMedTbody = document.getElementById('print-med-tbody');
+  const printSigImg = document.getElementById('print-doctor-signature');
+  const printSigName = document.getElementById('print-sig-doc-name');
+  
+  printDocName.textContent = `Dr. ${(visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, '')}`;
+  printDocSpecialty.textContent = doctorProfile ? doctorProfile.specialty_en : 'Clinical Specialist';
+  printDocHours.textContent = doctorProfile ? doctorProfile.visiting_hours_en : 'Regular Hours';
+  
+  printPatientName.textContent = activeAppointment ? activeAppointment.patient_name : (document.getElementById('patient-banner-name').textContent || 'Patient');
+  printPatientAge.textContent = document.getElementById('patient-age').value.trim() || 'N/A';
+  printPatientGender.textContent = document.getElementById('patient-gender').value || 'Male';
+  printPatientDate.textContent = new Date(visit.appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  printPatientAddress.textContent = document.getElementById('patient-address').value.trim() || 'N/A';
+  printPatientWeight.textContent = document.getElementById('patient-weight').value.trim() || 'N/A';
+  printPatientPhone.textContent = visit.phone || (activeAppointment ? activeAppointment.phone : '');
+  
+  printObs.textContent = visit.observations || 'None';
+  
+  printDiags.innerHTML = '';
+  if (visit.diagnostics) {
+    const tests = visit.diagnostics.split(', ');
+    tests.forEach(test => {
+      const li = document.createElement('li');
+      li.textContent = test;
+      printDiags.appendChild(li);
+    });
+  } else {
+    printDiags.innerHTML = '<li>None recommended</li>';
+  }
+  
+  printMedTbody.innerHTML = '';
+  const meds = typeof visit.medicines === 'string' ? JSON.parse(visit.medicines) : visit.medicines;
+  if (meds && Array.isArray(meds)) {
+    meds.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = m.advice ? 'none' : '1px solid #e2e8f0';
+      tr.innerHTML = `
+        <td><strong>${escapeHTML(m.name)}</strong></td>
+        <td>${escapeHTML(m.dosage)}</td>
+        <td>${escapeHTML(m.timing)}</td>
+        <td>${escapeHTML(m.duration)}</td>
+      `;
+      printMedTbody.appendChild(tr);
+      
+      if (m.advice) {
+        const trAdvice = document.createElement('tr');
+        trAdvice.innerHTML = `
+          <td colspan="4" style="padding-top: 0; padding-bottom: 0.5rem; color: #475569; font-size: 0.8rem; border-bottom: 1px solid #e2e8f0;">
+            <span style="font-weight: 600; color: #0d9488;">Advice:</span> <em>${escapeHTML(m.advice)}</em>
+          </td>
+        `;
+        printMedTbody.appendChild(trAdvice);
+      }
+    });
+  } else {
+    printMedTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No medicines prescribed</td></tr>';
+  }
+  
+  if (signatureBase64) {
+    printSigImg.src = signatureBase64;
+    printSigImg.style.display = 'block';
+  } else {
+    printSigImg.style.display = 'none';
+  }
+  printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${(visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, '')}</span>`;
+  
+  window.print();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const printPastBtn = document.getElementById('print-past-pres-btn');
+  if (printPastBtn) {
+    printPastBtn.addEventListener('click', () => {
+      if (!selectedPastVisit) return;
+      printPastPrescription(selectedPastVisit);
+    });
+  }
+});
 
 // XSS Sanitizer Helper
 function escapeHTML(str) {
