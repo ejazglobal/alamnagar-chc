@@ -1207,8 +1207,12 @@ async function loadPatientHistory(phone) {
       const itemDiv = document.createElement('div');
       itemDiv.className = 'timeline-item';
       
-      const cloneButtonHtml = activeAppointment ? 
+      const hasPres = visit.prescription_id;
+      const cloneButtonHtml = (activeAppointment && hasPres) ? 
         `<button class="btn-sm approve" onclick="clonePrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem;">Clone to Current</button>` : 
+        '';
+      const viewButtonHtml = hasPres ? 
+        `<button class="btn-sm cancel" onclick="openPastPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white;">View Prescription</button>` :
         '';
         
       itemDiv.innerHTML = `
@@ -1217,10 +1221,12 @@ async function loadPatientHistory(phone) {
           <div class="timeline-doc">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
           ${visit.past_complaints ? `<div style="margin-top:0.25rem;"><strong>Complaints:</strong> <em>${escapeHTML(visit.past_complaints)}</em></div>` : ''}
           ${visit.observations ? `<div style="margin-top:0.15rem;"><strong>Obs:</strong> ${escapeHTML(visit.observations)}</div>` : ''}
+          ${(viewButtonHtml || cloneButtonHtml) ? `
           <div class="timeline-actions">
-            <button class="btn-sm cancel" onclick="openPastPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white;">View Prescription</button>
+            ${viewButtonHtml}
             ${cloneButtonHtml}
           </div>
+          ` : ''}
         </div>
       `;
       timelineContainer.appendChild(itemDiv);
