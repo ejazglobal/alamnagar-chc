@@ -21,10 +21,10 @@ function normalizeBDPhoneNumber(phone) {
   return digits;
 }
 
-// Helper to send real SMS via Shiram System API (no npm module required)
+// Helper to send real SMS via Shiram System API (POST with form-urlencoded body)
 function sendSMS(to, message) {
   const normalizedPhone = normalizeBDPhoneNumber(to);
-  
+
   // Load Shiram SMS gateway credentials from environment variables
   const smsUrl  = process.env.SMS_URL  || 'https://smsapi.shiramsystem.com/user_api/';
   const smsUser = process.env.SMS_USER || 'inforcmc@gmail.com';
@@ -37,38 +37,39 @@ function sendSMS(to, message) {
     return;
   }
 
-  // Determine masking vs non-masking
   // Shiram: type=1 for masking, type=0 for non-masking
   const hasMask = smsMask && smsMask.trim() && smsMask.toUpperCase() !== 'HEALTH CITY';
 
-  // Build minimal params that Shiram actually uses
+  // Build POST body params
   const params = {
     user:   smsUser,
     pass:   smsPass,
     mobile: normalizedPhone,
     msg:    message,
-    type:   hasMask ? '1' : '0'   // '1' = masking, '0' = non-masking
+    type:   hasMask ? '1' : '0'
   };
-
   if (hasMask) {
     params.mask = smsMask.trim();
   }
 
   try {
-    const queryString = querystring.stringify(params);
-    const fullUrl = `${smsUrl}?${queryString}`;
-    console.log(`[SMS DISPATCH] Calling Shiram API → ${smsUrl}`);
-    console.log(`[SMS DISPATCH] Phone: ${normalizedPhone} | Type: ${params.type} | Msg: "${message}"`);
+    const postBody   = querystring.stringify(params);
+    const parsedUrl  = new URL(smsUrl);
+    const httpLib    = parsedUrl.protocol === 'http:' ? require('http') : https;
 
-    const parsedUrl = new URL(fullUrl);
-    const httpLib   = parsedUrl.protocol === 'http:' ? require('http') : https;
+    console.log(`[SMS DISPATCH] POST → ${smsUrl}`);
+    console.log(`[SMS DISPATCH] Phone: ${normalizedPhone} | Type: ${params.type} | Msg: "${message}"`);
 
     const options = {
       hostname:           parsedUrl.hostname,
       port:               parsedUrl.port || (parsedUrl.protocol === 'http:' ? 80 : 443),
-      path:               parsedUrl.pathname + parsedUrl.search,
-      method:             'GET',
-      rejectUnauthorized: false // Bypass regional SSL cert issues
+      path:               parsedUrl.pathname,
+      method:             'POST',                        // ← Shiram requires POST
+      rejectUnauthorized: false,
+      headers: {
+        'Content-Type':   'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postBody)
+      }
     };
 
     const req = httpLib.request(options, (res) => {
@@ -79,6 +80,7 @@ function sendSMS(to, message) {
         console.log(`[SMS DISPATCH] Shiram response — HTTP ${res.statusCode}: ${body}`);
         if (
           res.statusCode < 200 || res.statusCode >= 300 ||
+          body.toLowerCase().includes('"status":false') ||
           body.toLowerCase().includes('error') ||
           body.toLowerCase().includes('fail') ||
           body.toLowerCase().includes('invalid')
@@ -94,11 +96,13 @@ function sendSMS(to, message) {
       console.error('SMS Gateway Error Details:', e.message);
     });
 
+    req.write(postBody); // Send body in POST request
     req.end();
   } catch (err) {
     console.error('SMS Gateway Error Details:', err.message);
   }
 }
+
 
 // Helper to send real Email via SendGrid API (no npm module required)
 function sendEmail(to, subject, htmlContent) {
