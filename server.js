@@ -958,10 +958,10 @@ app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
       FROM appointments a
       LEFT JOIN prescriptions p ON a.id = p.appointment_id
       LEFT JOIN doctors d ON a.doctor_id = d.id
-      WHERE a.phone = $1 AND a.status = 'completed'
+      WHERE (a.phone = $1 OR RIGHT(REGEXP_REPLACE(a.phone, '\D', '', 'g'), 10) = RIGHT(REGEXP_REPLACE($1, '\D', '', 'g'), 10)) AND a.status = 'completed'
       ORDER BY a.appointment_date DESC, a.created_at DESC
     `;
-    const resDb = await db.pool.query(query, [phone]);
+    const resDb = await db.pool.query(query, [phone.trim()]);
     res.json(resDb.rows);
   } catch (err) {
     console.error('Error fetching patient history:', err);
