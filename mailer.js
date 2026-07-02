@@ -25,90 +25,78 @@ function normalizeBDPhoneNumber(phone) {
 function sendSMS(to, message) {
   const normalizedPhone = normalizeBDPhoneNumber(to);
   
-  // Load Shiram SMS gateway credentials from environment variables or use the user's defaults
-  const smsUrl = process.env.SMS_URL || 'https://smsapi.shiramsystem.com/user_api/';
+  // Load Shiram SMS gateway credentials from environment variables
+  const smsUrl  = process.env.SMS_URL  || 'https://smsapi.shiramsystem.com/user_api/';
   const smsUser = process.env.SMS_USER || 'inforcmc@gmail.com';
   const smsPass = process.env.SMS_PASS || '14142135';
-  const smsMask = process.env.SMS_MASK || 'HEALTH CITY';
-  const smsSenderId = process.env.SMS_SENDER_ID || 'send_sms';
+  const smsMask = process.env.SMS_MASK || ''; // Leave blank for non-masking
 
-  if (!smsUser || !smsPass) {
-    console.log(`[SIMULATED SMS] Phone: ${normalizedPhone}, Msg: "${message}"`);
+  // Only skip if credentials are genuinely absent
+  if (!smsUser.trim() || !smsPass.trim()) {
+    console.log(`[SIMULATED SMS] No credentials — Phone: ${normalizedPhone}, Msg: "${message}"`);
     return;
   }
 
-  // Compile parameters for Bangladeshi SMS Aggregators
+  // Determine masking vs non-masking
+  // Shiram: type=1 for masking, type=0 for non-masking
+  const hasMask = smsMask && smsMask.trim() && smsMask.toUpperCase() !== 'HEALTH CITY';
+
+  // Build minimal params that Shiram actually uses
   const params = {
-    user: smsUser,
-    username: smsUser,
-    pass: smsPass,
-    password: smsPass,
+    user:   smsUser,
+    pass:   smsPass,
     mobile: normalizedPhone,
-    to: normalizedPhone,
-    number: normalizedPhone,
-    msg: message,
-    message: message,
-    text: message,
-    action: 'send_sms'
+    msg:    message,
+    type:   hasMask ? '1' : '0'   // '1' = masking, '0' = non-masking
   };
 
-  // Explicit non-masking fallback check: 
-  // In Bangladesh, strict masking Sender IDs are approved brands. If missing or default unapproved fallback 'HEALTH CITY', use non-masking.
-  const hasMask = smsMask && smsMask.trim() && smsMask !== 'HEALTH CITY';
-
   if (hasMask) {
-    params.mask = smsMask;
-    params.sender = smsMask;
-    params.senderid = smsSenderId || smsMask;
-    params.type = 'masking'; // or '1' depending on gateway
-  } else {
-    // Explicitly supply parameters for non-masking sending endpoints
-    params.mask = '';
-    params.sender = '';
-    params.senderid = '';
-    params.type = 'non-masking'; // or '0'
+    params.mask = smsMask.trim();
   }
 
   try {
     const queryString = querystring.stringify(params);
     const fullUrl = `${smsUrl}?${queryString}`;
+    console.log(`[SMS DISPATCH] Calling Shiram API → ${smsUrl}`);
+    console.log(`[SMS DISPATCH] Phone: ${normalizedPhone} | Type: ${params.type} | Msg: "${message}"`);
+
     const parsedUrl = new URL(fullUrl);
-    
-    // Support both HTTP and HTTPS dynamically
-    const httpLib = parsedUrl.protocol === 'http:' ? require('http') : https;
+    const httpLib   = parsedUrl.protocol === 'http:' ? require('http') : https;
 
     const options = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port || (parsedUrl.protocol === 'http:' ? 80 : 443),
-      path: parsedUrl.pathname + parsedUrl.search,
-      method: 'GET',
-      rejectUnauthorized: false // Bypass regional SSL verification errors
+      hostname:           parsedUrl.hostname,
+      port:               parsedUrl.port || (parsedUrl.protocol === 'http:' ? 80 : 443),
+      path:               parsedUrl.pathname + parsedUrl.search,
+      method:             'GET',
+      rejectUnauthorized: false // Bypass regional SSL cert issues
     };
-
-    console.log(`[SMS DISPATCH] Sending real SMS to ${normalizedPhone} via Shiram System (SSL bypass active)...`);
 
     const req = httpLib.request(options, (res) => {
       let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
+      res.on('data',  (chunk) => { data += chunk; });
+      res.on('end',   () => {
         const body = data.trim();
-        // Check for gateway error indicators (Bangladesh gateways usually return errors in body or status code)
-        if (res.statusCode < 200 || res.statusCode >= 300 || body.toLowerCase().includes('error') || body.toLowerCase().includes('fail')) {
-          const err = new Error(`Status ${res.statusCode}: ${body}`);
-          console.error("SMS Gateway Error Details:", err.message);
+        console.log(`[SMS DISPATCH] Shiram response — HTTP ${res.statusCode}: ${body}`);
+        if (
+          res.statusCode < 200 || res.statusCode >= 300 ||
+          body.toLowerCase().includes('error') ||
+          body.toLowerCase().includes('fail') ||
+          body.toLowerCase().includes('invalid')
+        ) {
+          console.error(`SMS Gateway Error Details: HTTP ${res.statusCode} — ${body}`);
         } else {
-          console.log(`[SMS DISPATCH] Response Status: ${res.statusCode}. Gateway body: ${body}`);
+          console.log(`[SMS DISPATCH] SMS sent successfully to ${normalizedPhone}`);
         }
       });
     });
 
     req.on('error', (e) => {
-      console.error("SMS Gateway Error Details:", e.message);
+      console.error('SMS Gateway Error Details:', e.message);
     });
 
     req.end();
   } catch (err) {
-    console.error("SMS Gateway Error Details:", err.message);
+    console.error('SMS Gateway Error Details:', err.message);
   }
 }
 
@@ -358,7 +346,7 @@ function sendAppointmentConfirmation(appointment) {
   
   // Real delivery
   sendEmail(email, "Appointment Booking Confirmation - Alamnagar CHC", emailHtml);
-  sendSMS(phone, `[Alamnagar CHC] Hello ${patient_name}, your appointment booking has been registered and is pending approval.`);
+  sendSMS(phone, `[আলমনগর সিএইচসি] প্রিয় ${patient_name}, আপনার অ্যাপয়েন্টমেন্ট বুকিং সফলভাবে নিবন্ধিত হয়েছে। অনুমোদনের পর আপনাকে এসএমএস জানানো হবে।`);
   
   return filePath;
 }
