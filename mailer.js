@@ -10,10 +10,13 @@ function normalizeBDPhoneNumber(phone) {
     return digits;
   }
   if (digits.startsWith('0') && digits.length === 11) {
-    return '880' + digits;
+    return '88' + digits;
   }
   if (digits.startsWith('1') && digits.length === 10) {
     return '880' + digits;
+  }
+  if (digits.length === 11 && !digits.startsWith('88')) {
+    return '88' + digits;
   }
   return digits;
 }
@@ -391,7 +394,7 @@ function sendBookingOTP(email, phone, otp) {
 
   // Real delivery
   sendEmail(email, subject, emailHtml);
-  sendSMS(phone, `[Alamnagar CHC] Your OTP for appointment booking is: ${otp}. Valid for 10 minutes.`);
+  sendSMS(phone, `[আলমনগর সিএইচসি] আপনার অ্যাপয়েন্টমেন্ট বুকিংয়ের ওটিপি (OTP) হলো: ${otp}। এটি ১০ মিনিটের জন্য বৈধ।`);
 }
 
 module.exports = {

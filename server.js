@@ -718,7 +718,7 @@ app.patch('/api/appointments/:id', authenticateToken, async (req, res) => {
         if (apptRes.rows.length > 0) {
           const appt = apptRes.rows[0];
           // Call mailer sendSMS
-          mailer.sendSMS(appt.phone, `[Alamnagar CHC] Hello ${appt.patient_name}, your appointment booking on ${appt.appointment_date} at ${appt.appointment_time} has been approved.`);
+          mailer.sendSMS(appt.phone, `[আলমনগর সিএইচসি] প্রিয় ${appt.patient_name}, ${appt.appointment_date} তারিখে ${appt.appointment_time} সময়ে আপনার অ্যাপয়েন্টমেন্টটি অনুমোদিত হয়েছে।`);
         }
       } catch (smsError) {
         console.error("SMS Gateway Error Details:", smsError);

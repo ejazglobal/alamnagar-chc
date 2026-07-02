@@ -525,10 +525,7 @@ window.savePrescription = async function() {
     return;
   }
 
-  if (!signatureBase64) {
-    alert('Please upload your signature before saving the prescription.');
-    return;
-  }
+
 
   // Compile diagnostics check list
   const diagnosticsArray = [];
