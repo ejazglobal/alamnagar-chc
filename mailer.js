@@ -32,7 +32,7 @@ function sendSMS(to, message) {
   const smsEmail    = process.env.SMS_USER || 'inforcmc@gmail.com';
   const smsPassword = process.env.SMS_PASS || '14142135';
   // For non-masking SMS the mask value must be the string 'Non-Masking'
-  const smsMask     = process.env.SMS_MASK || 'Non-Masking';
+  const smsMask     = process.env.SMS_MASK || 'HEALTH CITY';
 
   if (!smsEmail.trim() || !smsPassword.trim()) {
     console.log(`[SIMULATED SMS] No credentials — Phone: ${normalizedPhone}, Msg: "${message}"`);
