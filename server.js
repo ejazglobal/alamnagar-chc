@@ -102,13 +102,10 @@ function isValidTime(timeStr) {
 
 // 1. Patient Registration
 app.post('/api/auth/register', async (req, res) => {
-  const { username, email, password, phone } = req.body;
+  const { username, password, phone } = req.body;
 
   if (!username || typeof username !== 'string' || username.trim().length < 3) {
     return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
-  }
-  if (!email || !isValidEmail(email)) {
-    return res.status(400).json({ error: 'A valid email address is required.' });
   }
   if (!password || typeof password !== 'string' || password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
@@ -122,12 +119,12 @@ app.post('/api/auth/register', async (req, res) => {
     const existingUser = await db.getUserByUsername(username.trim());
     if (existingUser) return res.status(409).json({ error: 'Username is already taken.' });
 
-    const existingEmail = await db.getUserByEmail(email.trim().toLowerCase());
-    if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
+    const existingPhone = await db.getUserByPhone(phone.trim());
+    if (existingPhone) return res.status(409).json({ error: 'Mobile number is already registered.' });
 
     const newUser = await db.createUser({
       username: username.trim(),
-      email: email.trim().toLowerCase(),
+      email: null,
       password,
       role: 'Patient',
       phone: phone.trim()
@@ -145,24 +142,27 @@ app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username/Email and Password are required.' });
+    return res.status(400).json({ error: 'Username/Phone and Password are required.' });
   }
 
   try {
-    // Search by username first, if not found search by email
+    // Search by username, phone or email
     let user = await db.getUserByUsername(username.trim());
-    if (!user && isValidEmail(username)) {
+    if (!user && isValidPhone(username.trim())) {
+      user = await db.getUserByPhone(username.trim());
+    }
+    if (!user && isValidEmail(username.trim())) {
       user = await db.getUserByEmail(username.trim().toLowerCase());
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid username/email or password.' });
+      return res.status(401).json({ error: 'Invalid username, phone number, or password.' });
     }
 
     // Verify password hash
     const loginHash = db.hashPassword(password, user.salt);
     if (loginHash !== user.password_hash) {
-      return res.status(401).json({ error: 'Invalid username/email or password.' });
+      return res.status(401).json({ error: 'Invalid username, phone number, or password.' });
     }
 
     // Generate encrypted token session
@@ -630,7 +630,7 @@ app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
   if (!patient_name || typeof patient_name !== 'string' || patient_name.trim().length === 0) {
     return res.status(400).json({ error: 'Patient name is required' });
   }
-  if (!email || !isValidEmail(email)) {
+  if (email && !isValidEmail(email)) {
     return res.status(400).json({ error: 'A valid email address is required' });
   }
   if (!phone || !isValidPhone(phone)) {
@@ -656,7 +656,7 @@ app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
     const newAppointment = await db.createAppointment({
       user_id: req.user ? req.user.id : null, // Store active patient's ID if logged in
       patient_name: patient_name.trim(),
-      email: email.trim().toLowerCase(),
+      email: email ? email.trim().toLowerCase() : '',
       phone: phone.trim(),
       appointment_date,
       appointment_time,
@@ -699,6 +699,21 @@ app.patch('/api/appointments/:id', authenticateToken, async (req, res) => {
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Appointment not found' });
     }
+
+    // Trigger SMS notification when appointment is approved
+    if (status === 'approved') {
+      try {
+        const apptRes = await db.pool.query("SELECT * FROM appointments WHERE id = $1", [appointmentId]);
+        if (apptRes.rows.length > 0) {
+          const appt = apptRes.rows[0];
+          // Call mailer sendSMS
+          mailer.sendSMS(appt.phone, `[Alamnagar CHC] Hello ${appt.patient_name}, your appointment booking on ${appt.appointment_date} at ${appt.appointment_time} has been approved.`);
+        }
+      } catch (smsError) {
+        console.error("SMS Gateway Error Details:", smsError);
+      }
+    }
+
     res.json({ message: `Appointment status updated to ${status} successfully.` });
   } catch (error) {
     console.error('Error updating appointment:', error);
@@ -992,14 +1007,42 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Doctor') {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
-  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address } = req.body;
+  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone } = req.body;
   if (!appointment_id || !medicines) {
     return res.status(400).json({ error: 'Appointment ID and medicines list are required.' });
   }
   try {
     const doctorId = req.user.doctor_id;
+    let targetApptId;
+
+    if (appointment_id === 'walkin') {
+      if (!patient_name || !phone) {
+        return res.status(400).json({ error: 'Patient name and phone number are required for walk-in prescription.' });
+      }
+      
+      const walkinApptRes = await db.pool.query(
+        `INSERT INTO appointments (patient_name, phone, email, appointment_date, appointment_time, status, doctor_id, age, gender, weight, address, notes)
+         VALUES ($1, $2, $3, $4, $5, 'completed', $6, $7, $8, $9, $10, 'Walk-In Consultation') RETURNING id`,
+        [
+          patient_name.trim(),
+          phone.trim(),
+          '',
+          new Date().toISOString().split('T')[0],
+          new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          doctorId,
+          age || '',
+          gender || 'Male',
+          weight || '',
+          address || ''
+        ]
+      );
+      targetApptId = walkinApptRes.rows[0].id;
+    } else {
+      targetApptId = parseInt(appointment_id, 10);
+    }
+
     const result = await db.createPrescription({
-      appointment_id: parseInt(appointment_id, 10),
+      appointment_id: targetApptId,
       doctor_id: doctorId,
       diagnostics,
       observations,
@@ -1007,19 +1050,21 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       doctor_signature
     });
 
-    // Update appointment demographics (Age, Gender, Weight, and Address)
-    await db.pool.query(
-      "UPDATE appointments SET age = $1, gender = $2, weight = $3, address = $4 WHERE id = $5",
-      [age || '', gender || '', weight || '', address || '', parseInt(appointment_id, 10)]
-    );
+    if (appointment_id !== 'walkin') {
+      // Update appointment demographics (Age, Gender, Weight, and Address)
+      await db.pool.query(
+        "UPDATE appointments SET age = $1, gender = $2, weight = $3, address = $4 WHERE id = $5",
+        [age || '', gender || '', weight || '', address || '', targetApptId]
+      );
 
-    // If this appointment is linked to a registered user, also save address to their profile
-    const apptRes = await db.pool.query("SELECT user_id FROM appointments WHERE id = $1", [parseInt(appointment_id, 10)]);
-    if (apptRes.rows.length > 0 && apptRes.rows[0].user_id && address) {
-      await db.pool.query("UPDATE users SET address = $1 WHERE id = $2", [address, apptRes.rows[0].user_id]);
+      // If this appointment is linked to a registered user, also save address to their profile
+      const apptRes = await db.pool.query("SELECT user_id FROM appointments WHERE id = $1", [targetApptId]);
+      if (apptRes.rows.length > 0 && apptRes.rows[0].user_id && address) {
+        await db.pool.query("UPDATE users SET address = $1 WHERE id = $2", [address, apptRes.rows[0].user_id]);
+      }
     }
 
-    res.status(201).json(result);
+    res.status(201).json({ ...result, appointment_id: targetApptId });
   } catch (err) {
     console.error('Error saving prescription:', err);
     res.status(500).json({ error: 'Failed to save prescription.' });

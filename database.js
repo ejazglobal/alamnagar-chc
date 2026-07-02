@@ -49,11 +49,11 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255),
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
         role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor')),
-        phone VARCHAR(50),
+        phone VARCHAR(50) UNIQUE,
         doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -191,6 +191,24 @@ async function initializeDatabase() {
       await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS gender VARCHAR(50)");
       await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS weight VARCHAR(50)");
       await pool.query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS signature_url TEXT");
+
+      // Registration Refactor constraints
+      try {
+        await pool.query("ALTER TABLE users ALTER COLUMN email DROP NOT NULL");
+        await pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key");
+      } catch (e) {
+        console.warn("Could not alter email constraints:", e.message);
+      }
+      try {
+        await pool.query("ALTER TABLE appointments ALTER COLUMN email DROP NOT NULL");
+      } catch (e) {
+        console.warn("Could not alter appointments email constraint:", e.message);
+      }
+      try {
+        await pool.query("ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone)");
+      } catch (e) {
+        console.warn("Could not add phone unique constraint:", e.message);
+      }
 
       // Handle brand_name transition safely
       await pool.query("UPDATE medicines SET brand_name = name WHERE brand_name IS NULL AND name IS NOT NULL");
@@ -403,13 +421,18 @@ module.exports = {
     return res.rows[0] || null;
   },
 
+  getUserByPhone: async (phone) => {
+    const res = await pool.query("SELECT * FROM users WHERE phone = $1", [phone]);
+    return res.rows[0] || null;
+  },
+
   createUser: async (user) => {
     const { username, email, password, role, phone } = user;
     const salt = generateSalt();
     const hash = hashPassword(password, salt);
     const query = `INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
-    const res = await pool.query(query, [username, email, hash, salt, role, phone || null]);
-    return { id: res.rows[0].id, username, email, role, phone };
+    const res = await pool.query(query, [username, email || null, hash, salt, role, phone || null]);
+    return { id: res.rows[0].id, username, email: email || null, role, phone };
   },
 
   getAllAppointments: async () => {

@@ -487,6 +487,14 @@
         <div id="patient-search-results" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 220px; overflow-y: auto; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: var(--shadow-md); z-index: 1001; padding: 0.25rem 0;"></div>
       </div>
 
+      <!-- On-Spot / Walk-In Prescription Button -->
+      <button type="button" class="btn" onclick="startWalkInPrescription()" style="background-color: var(--primary-color); margin-bottom: 1.25rem; width: 100%; font-weight: 600; padding: 0.6rem; font-size: 0.9rem; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+        <svg style="width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        On-Spot / Walk-In Prescription
+      </button>
+
       <div class="queue-header">
         <span>Patient Queue</span>
         <span class="queue-badge" id="queue-count">0</span>
@@ -511,7 +519,7 @@
         
         <!-- Patient Banner -->
         <div class="patient-summary-card">
-          <div class="patient-details">
+          <div class="patient-details" id="patient-details-static">
             <h3 id="patient-banner-name">Patient Name</h3>
             <div style="font-size: 0.85rem; color: #475569; display: flex; gap: 1.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
               <span><strong>Phone:</strong> <span id="patient-banner-phone">...</span></span>
@@ -522,6 +530,21 @@
               <strong>Notes:</strong> <em id="patient-banner-notes">...</em>
             </div>
           </div>
+
+          <div class="patient-details" id="patient-details-edit" style="display: none; width: 100%;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--primary-color); margin-bottom: 0.75rem;">Walk-In / On-Spot Patient Setup</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; width: 100%;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Patient Full Name *</label>
+                <input type="text" id="walkin-patient-name" class="form-control" placeholder="Enter patient name" style="background: white;" required>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Mobile Number *</label>
+                <input type="tel" id="walkin-patient-phone" class="form-control" placeholder="Enter mobile number" style="background: white;" required>
+              </div>
+            </div>
+          </div>
+
           <div>
             <span class="badge" id="patient-banner-status" style="font-size: 0.85rem; padding: 0.4rem 1rem;">Status</span>
           </div>

@@ -34,7 +34,7 @@ function sendSMS(to, message) {
     return;
   }
 
-  // Compile all standard parameter variations for Bangladeshi SMS Aggregators
+  // Compile parameters for Bangladeshi SMS Aggregators
   const params = {
     user: smsUser,
     username: smsUser,
@@ -46,11 +46,25 @@ function sendSMS(to, message) {
     msg: message,
     message: message,
     text: message,
-    mask: smsMask,
-    sender: smsMask,
-    senderid: smsSenderId,
     action: 'send_sms'
   };
+
+  // Explicit non-masking fallback check: 
+  // In Bangladesh, strict masking Sender IDs are approved brands. If missing or default unapproved fallback 'HEALTH CITY', use non-masking.
+  const hasMask = smsMask && smsMask.trim() && smsMask !== 'HEALTH CITY';
+
+  if (hasMask) {
+    params.mask = smsMask;
+    params.sender = smsMask;
+    params.senderid = smsSenderId || smsMask;
+    params.type = 'masking'; // or '1' depending on gateway
+  } else {
+    // Explicitly supply parameters for non-masking sending endpoints
+    params.mask = '';
+    params.sender = '';
+    params.senderid = '';
+    params.type = 'non-masking'; // or '0'
+  }
 
   try {
     const queryString = querystring.stringify(params);
@@ -74,17 +88,24 @@ function sendSMS(to, message) {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
-        console.log(`[SMS DISPATCH] Response Status: ${res.statusCode}. Gateway body: ${data.trim()}`);
+        const body = data.trim();
+        // Check for gateway error indicators (Bangladesh gateways usually return errors in body or status code)
+        if (res.statusCode < 200 || res.statusCode >= 300 || body.toLowerCase().includes('error') || body.toLowerCase().includes('fail')) {
+          const err = new Error(`Status ${res.statusCode}: ${body}`);
+          console.error("SMS Gateway Error Details:", err.message);
+        } else {
+          console.log(`[SMS DISPATCH] Response Status: ${res.statusCode}. Gateway body: ${body}`);
+        }
       });
     });
 
     req.on('error', (e) => {
-      console.error(`[SMS DISPATCH] Gateway connection failed: ${e.message}`);
+      console.error("SMS Gateway Error Details:", e.message);
     });
 
     req.end();
   } catch (err) {
-    console.error(`[SMS DISPATCH] Error preparing request: ${err.message}`);
+    console.error("SMS Gateway Error Details:", err.message);
   }
 }
 
@@ -375,5 +396,6 @@ function sendBookingOTP(email, phone, otp) {
 
 module.exports = {
   sendAppointmentConfirmation,
-  sendBookingOTP
+  sendBookingOTP,
+  sendSMS
 };

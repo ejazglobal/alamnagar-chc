@@ -112,8 +112,8 @@
       <!-- Login Form -->
       <form id="login-form">
         <div class="form-group">
-          <label class="form-label" for="login-username">Username or Email *</label>
-          <input type="text" id="login-username" class="form-control" placeholder="Enter username or email" required autocomplete="username">
+          <label class="form-label" for="login-username">Username or Mobile Number *</label>
+          <input type="text" id="login-username" class="form-control" placeholder="Enter username or mobile number" required autocomplete="username">
         </div>
         <div class="form-group">
           <label class="form-label" for="login-password">Password *</label>
@@ -127,10 +127,6 @@
         <div class="form-group">
           <label class="form-label" for="reg-username">Username *</label>
           <input type="text" id="reg-username" class="form-control" placeholder="Choose a username" required autocomplete="username">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="reg-email">Email Address *</label>
-          <input type="email" id="reg-email" class="form-control" placeholder="yourname@example.com" required autocomplete="email">
         </div>
         <div class="form-group">
           <label class="form-label" for="reg-phone">Mobile Number *</label>
@@ -203,18 +199,18 @@
           localStorage.setItem('chc_users', JSON.stringify(users));
         }
 
-        const user = users.find(u => (u.username === username || u.email === username) && u.password === password);
+        const user = users.find(u => (u.username === username || u.phone === username) && u.password === password);
         if (user) {
           localStorage.setItem('chc_token', `mock_token_${user.id}_${user.role}`);
           localStorage.setItem('chc_user_role', user.role);
           localStorage.setItem('chc_user_name', user.username);
-          localStorage.setItem('chc_user_email', user.email);
+          localStorage.setItem('chc_user_email', user.email || '');
           localStorage.setItem('chc_user_id', user.id);
 
           showStatus('Login successful! Redirecting...', 'success');
           setTimeout(() => redirect(user.role), 1500);
         } else {
-          showStatus('Invalid username/email or password (Demo Mode).', 'error');
+          showStatus('Invalid username, phone, or password (Demo Mode).', 'error');
         }
       } else {
         // Backend API submission
@@ -260,7 +256,6 @@
     document.getElementById('register-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const username = document.getElementById('reg-username').value.trim();
-      const email = document.getElementById('reg-email').value.trim().toLowerCase();
       const phone = document.getElementById('reg-phone').value.trim();
       const password = document.getElementById('reg-password').value;
 
@@ -272,12 +267,12 @@
           { id: 3, username: 'patient', role: 'Patient', password: 'patientpass', email: 'patient@example.com' }
         ];
 
-        if (users.some(u => u.username === username || u.email === email)) {
-          showStatus('Username or Email already exists in Demo mode.', 'error');
+        if (users.some(u => u.username === username || u.phone === phone)) {
+          showStatus('Username or Mobile Number already exists in Demo mode.', 'error');
           return;
         }
 
-        const newUser = { id: Date.now(), username, email, phone, password, role: 'Patient' };
+        const newUser = { id: Date.now(), username, email: null, phone, password, role: 'Patient' };
         users.push(newUser);
         localStorage.setItem('chc_users', JSON.stringify(users));
 
@@ -289,7 +284,7 @@
           const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, password, phone })
+            body: JSON.stringify({ username, password, phone })
           });
 
           if (!res.ok) {

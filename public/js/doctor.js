@@ -288,6 +288,10 @@ async function selectPatient(appointment) {
   activeAppointment = appointment;
   renderQueue(); // update active styling
 
+  // Switch details UI back to static display
+  document.getElementById('patient-details-static').style.display = 'block';
+  document.getElementById('patient-details-edit').style.display = 'none';
+
   // Load Patient Banner
   document.getElementById('patient-banner-name').textContent = appointment.patient_name;
   document.getElementById('patient-banner-phone').textContent = appointment.phone;
@@ -552,6 +556,22 @@ window.savePrescription = async function() {
     return;
   }
 
+  let patient_name = '';
+  let phone = '';
+
+  if (activeAppointment.id === 'walkin') {
+    patient_name = document.getElementById('walkin-patient-name').value.trim();
+    phone = document.getElementById('walkin-patient-phone').value.trim();
+    if (!patient_name) {
+      alert('Please enter patient name.');
+      return;
+    }
+    if (!phone || !/^\+?[0-9\s\-]{8,15}$/.test(phone)) {
+      alert('Please enter a valid mobile number.');
+      return;
+    }
+  }
+
   const payload = {
     appointment_id: activeAppointment.id,
     diagnostics,
@@ -561,16 +581,56 @@ window.savePrescription = async function() {
     age,
     gender,
     weight,
-    address
+    address,
+    patient_name,
+    phone
   };
 
   try {
     if (isFallbackMode) {
+      let targetId = activeAppointment.id;
+      if (activeAppointment.id === 'walkin') {
+        targetId = Date.now();
+        const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
+        const newApptObj = {
+          id: targetId,
+          patient_name,
+          phone,
+          email: '',
+          appointment_date: new Date().toISOString().split('T')[0],
+          appointment_time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          status: 'completed',
+          age,
+          gender,
+          weight,
+          address,
+          notes: 'Walk-In Consultation'
+        };
+        localAppts.push(newApptObj);
+        localStorage.setItem('chc_appointments', JSON.stringify(localAppts));
+        appointments.push(newApptObj);
+        
+        activeAppointment = newApptObj;
+        
+        // Reset inputs view
+        document.getElementById('patient-details-static').style.display = 'block';
+        document.getElementById('patient-details-edit').style.display = 'none';
+        
+        document.getElementById('patient-banner-name').textContent = patient_name;
+        document.getElementById('patient-banner-phone').textContent = phone;
+        document.getElementById('patient-banner-email').textContent = 'None';
+        document.getElementById('patient-banner-date').textContent = `${activeAppointment.appointment_date} at ${activeAppointment.appointment_time}`;
+        document.getElementById('patient-banner-notes').textContent = 'Walk-In Consultation';
+        const statusBadge = document.getElementById('patient-banner-status');
+        statusBadge.textContent = 'COMPLETED';
+        statusBadge.className = 'badge completed';
+      }
+
       // Offline fallback saving
       const localPres = JSON.parse(localStorage.getItem('chc_mock_prescriptions')) || [];
-      const idx = localPres.findIndex(p => p.appointment_id === activeAppointment.id);
+      const idx = localPres.findIndex(p => p.appointment_id === targetId);
       
-      const savedPres = { id: Date.now(), ...payload };
+      const savedPres = { id: Date.now(), ...payload, appointment_id: targetId };
       if (idx !== -1) {
         localPres[idx] = savedPres;
       } else {
@@ -579,11 +639,13 @@ window.savePrescription = async function() {
       localStorage.setItem('chc_mock_prescriptions', JSON.stringify(localPres));
 
       // Mark appointment completed locally
-      const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
-      const apptIdx = localAppts.findIndex(a => a.id === activeAppointment.id);
-      if (apptIdx !== -1) {
-        localAppts[apptIdx].status = 'completed';
-        localStorage.setItem('chc_appointments', JSON.stringify(localAppts));
+      if (activeAppointment.id !== 'walkin') {
+        const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
+        const apptIdx = localAppts.findIndex(a => a.id === activeAppointment.id);
+        if (apptIdx !== -1) {
+          localAppts[apptIdx].status = 'completed';
+          localStorage.setItem('chc_appointments', JSON.stringify(localAppts));
+        }
       }
 
       showStatusBanner(banner, 'Prescription saved successfully (Offline fallback). Visit marked COMPLETED.', 'success');
@@ -631,8 +693,39 @@ window.savePrescription = async function() {
         }
       }
 
+      if (activeAppointment.id === 'walkin') {
+        const resultData = await response.json();
+        activeAppointment = {
+          id: resultData.appointment_id,
+          patient_name: patient_name,
+          phone: phone,
+          email: '',
+          appointment_date: new Date().toISOString().split('T')[0],
+          appointment_time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          status: 'completed',
+          age: age,
+          gender: gender,
+          weight: weight,
+          address: address
+        };
+        
+        // Reset details view to static
+        document.getElementById('patient-details-static').style.display = 'block';
+        document.getElementById('patient-details-edit').style.display = 'none';
+        
+        document.getElementById('patient-banner-name').textContent = patient_name;
+        document.getElementById('patient-banner-phone').textContent = phone;
+        document.getElementById('patient-banner-email').textContent = 'None';
+        document.getElementById('patient-banner-date').textContent = `${activeAppointment.appointment_date} at ${activeAppointment.appointment_time}`;
+        document.getElementById('patient-banner-notes').textContent = 'Walk-In Consultation';
+        const statusBadge = document.getElementById('patient-banner-status');
+        statusBadge.textContent = 'COMPLETED';
+        statusBadge.className = 'badge completed';
+      } else {
+        activeAppointment.status = 'completed';
+      }
+
       // Update status and reload lists
-      activeAppointment.status = 'completed';
       await loadData();
       renderQueue();
       selectPatient(activeAppointment);
@@ -1039,11 +1132,25 @@ let selectedPastVisit = null;
 async function loadPatientHistory(phone) {
   const sidebar = document.getElementById('history-sidebar');
   const grid = document.querySelector('.doctor-grid');
-  const timelineContainer = document.getElementById('timeline-container');
+  const timelineContainer = document.getElementById('history-timeline');
+  if (!sidebar || !timelineContainer || !grid) return;
+  
+  if (!phone) {
+    if (activeAppointment && activeAppointment.id === 'walkin') {
+      grid.classList.add('has-history');
+      sidebar.style.display = 'flex';
+      timelineContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0; font-size: 0.85rem;">Type a valid mobile number in the form to load patient history timeline...</div>';
+    } else {
+      grid.classList.remove('has-history');
+      sidebar.style.display = 'none';
+      timelineContainer.innerHTML = '';
+    }
+    pastVisits = [];
+    return;
+  }
+  
   const nameLabel = document.getElementById('history-patient-name');
   const phoneLabel = document.getElementById('history-patient-phone');
-  
-  if (!sidebar || !timelineContainer) return;
   
   nameLabel.textContent = activeAppointment ? activeAppointment.patient_name : document.getElementById('patient-banner-name').textContent;
   phoneLabel.textContent = `Mob: ${phone}`;
@@ -1328,4 +1435,73 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// --- WALK-IN PATIENT SYSTEM HANDLERS ---
+window.startWalkInPrescription = function() {
+  activeAppointment = {
+    id: 'walkin',
+    patient_name: '',
+    phone: '',
+    email: '',
+    appointment_date: new Date().toISOString().split('T')[0],
+    appointment_time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+    status: 'walkin',
+    age: '',
+    gender: 'Male',
+    weight: '',
+    address: '',
+    notes: 'Walk-In Consultation'
+  };
+
+  renderQueue(); // update active styling to deselect queued patient
+
+  // Switch details UI to editable form
+  document.getElementById('patient-details-static').style.display = 'none';
+  document.getElementById('patient-details-edit').style.display = 'block';
+
+  // Clear inputs
+  document.getElementById('walkin-patient-name').value = '';
+  const walkinPhoneInput = document.getElementById('walkin-patient-phone');
+  walkinPhoneInput.value = '';
+
+  // Clear clinical/metrics inputs
+  document.getElementById('obs-input').value = '';
+  document.getElementById('diag-custom').value = '';
+  document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.getElementById('patient-age').value = '';
+  document.getElementById('patient-gender').value = 'Male';
+  document.getElementById('patient-weight').value = '';
+  document.getElementById('patient-address').value = '';
+
+  prescribedMedicines = [];
+  renderMedRows();
+
+  // Hide empty state & show builder
+  emptyState.style.display = 'none';
+  activeBuilder.style.display = 'block';
+
+  // Enable save button
+  const saveBtn = document.querySelector('button[onclick="savePrescription()"]');
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save & Complete Visit';
+  }
+
+  // Clear/load history based on empty phone
+  loadPatientHistory('');
+  
+  // Attach keyup/input handler for loading history on the fly
+  walkinPhoneInput.removeEventListener('input', onWalkInPhoneInput);
+  walkinPhoneInput.addEventListener('input', onWalkInPhoneInput);
+};
+
+function onWalkInPhoneInput(e) {
+  const val = e.target.value.trim();
+  if (/^\+?[0-9\s\-]{8,15}$/.test(val)) {
+    loadPatientHistory(val);
+  } else {
+    const timeline = document.getElementById('history-timeline');
+    if (timeline) timeline.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0; font-size: 0.85rem;">Type a valid mobile number in the form to load patient history timeline...</div>';
+  }
 }
