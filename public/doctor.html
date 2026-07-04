@@ -481,8 +481,8 @@
       padding: 0.75rem;
     }
     .vitals-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 0.5rem;
     }
     .vital-field {
@@ -500,19 +500,20 @@
     .vital-input-row {
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 5px;
     }
     .vital-input {
       flex: 1;
       border: 1px solid #d1fae5;
       border-radius: 5px;
-      padding: 0.3rem 0.4rem;
+      padding: 0.3rem 0.5rem;
       font-size: 0.82rem;
       font-weight: 600;
       color: #0f172a;
       background: #ffffff;
-      width: 0;
       min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
       transition: border-color 0.2s;
     }
     .vital-input:focus {
@@ -530,10 +531,11 @@
       font-size: 0.9rem;
     }
     .vital-unit {
-      font-size: 0.68rem;
+      font-size: 0.7rem;
       color: #64748b;
       white-space: nowrap;
       font-weight: 600;
+      min-width: 28px;
     }
   </style>
 </head>
@@ -677,7 +679,7 @@
                 <div class="vital-field">
                   <label class="vital-label">B.P.</label>
                   <div class="vital-input-row">
-                    <input type="text" id="vital-bp-sys" class="vital-input" placeholder="e.g. 120/80" style="flex:1; width:auto;">
+                    <input type="text" id="vital-bp-sys" class="vital-input" placeholder="e.g. 120/80">
                     <span class="vital-unit">mmHg</span>
                   </div>
                 </div>
@@ -688,10 +690,10 @@
                     <span class="vital-unit">°F</span>
                   </div>
                 </div>
-                <div class="vital-field" style="grid-column: span 2;">
+                <div class="vital-field">
                   <label class="vital-label">Pulse Rate</label>
                   <div class="vital-input-row">
-                    <input type="text" id="vital-pulse" class="vital-input" placeholder="e.g. 88" style="max-width: 120px;">
+                    <input type="text" id="vital-pulse" class="vital-input" placeholder="e.g. 88">
                     <span class="vital-unit">bpm</span>
                   </div>
                 </div>

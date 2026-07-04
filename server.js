@@ -975,19 +975,24 @@ app.get('/api/medicines', authenticateToken, async (req, res) => {
     let list;
     if (search) {
       const query = `
-        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer 
-        FROM medicines 
-        WHERE brand_name ILIKE $1 OR generic ILIKE $1 
-        ORDER BY brand_name ASC 
-        LIMIT 50
+        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer,
+          CASE
+            WHEN brand_name ILIKE $2 THEN 1
+            WHEN brand_name ILIKE $1 THEN 2
+            ELSE 3
+          END AS rank
+        FROM medicines
+        WHERE brand_name ILIKE $1 OR generic ILIKE $1
+        ORDER BY rank ASC, brand_name ASC
+        LIMIT 60
       `;
-      const resDb = await db.pool.query(query, [`%${search}%`]);
-      list = resDb.rows;
+      const resDb = await db.pool.query(query, [`%${search}%`, `${search}%`]);
+      list = resDb.rows.map(({ rank, ...rest }) => rest);
     } else {
       const query = `
-        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer 
-        FROM medicines 
-        ORDER BY brand_name ASC 
+        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer
+        FROM medicines
+        ORDER BY brand_name ASC
         LIMIT 100
       `;
       const resDb = await db.pool.query(query);
@@ -1176,7 +1181,19 @@ app.get('/api/run-seed', async (req, res) => {
   }
 });
 
-// --- ONE-TIME PRODUCTION CLEANUP ENDPOINT ---
+// --- TEMPORARY: SMS DIAGNOSTIC ENDPOINT ---
+// Usage: /api/test-sms?phone=01XXXXXXXXX
+// Remove after confirming SMS works in production.
+app.get('/api/test-sms', async (req, res) => {
+  const phone = req.query.phone;
+  if (!phone) return res.status(400).send('Pass ?phone=01XXXXXXXXX in the URL');
+
+  console.log('[SMS TEST] Firing test SMS to:', phone);
+  mailer.sendSMS(phone, '[আলমনগর সিএইচসি] এটি একটি পরীক্ষামূলক বার্তা। এসএমএস সফলভাবে পাঠানো হয়েছে।');
+  res.send(`Test SMS dispatched to ${phone}. Check your server logs (Render → Logs) for the Shiram gateway response.`);
+});
+
+
 // IMPORTANT: Delete this route entirely after running it once.
 // Usage: visit  /api/clear-test-data?secret=alamnagar-wipe-2026  in your browser.
 const WIPE_SECRET = 'alamnagar-wipe-2026';

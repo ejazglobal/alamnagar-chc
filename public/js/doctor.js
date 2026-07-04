@@ -212,10 +212,23 @@ function setupMedicineAutocomplete() {
       try {
         let results = [];
         if (isFallbackMode) {
-          // In fallback mock mode, search local medicines array
-          results = medicines.filter(m => 
-            m.name.toLowerCase().includes(query.toLowerCase())
-          );
+          const q = query.toLowerCase();
+          const ranked = medicines
+            .filter(m =>
+              m.name.toLowerCase().includes(q) ||
+              (m.generic && m.generic.toLowerCase().includes(q))
+            )
+            .map(m => {
+              const nameLower = m.name.toLowerCase();
+              let rank;
+              if (nameLower.startsWith(q))           rank = 1; // brand starts with
+              else if (nameLower.includes(q))         rank = 2; // brand contains
+              else                                    rank = 3; // generic matches
+              return { ...m, rank };
+            })
+            .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name))
+            .slice(0, 60);
+          results = ranked.map(({ rank, ...rest }) => rest);
         } else {
           const token = localStorage.getItem('chc_token');
           const response = await fetch(`/api/medicines?q=${encodeURIComponent(query)}`, {
