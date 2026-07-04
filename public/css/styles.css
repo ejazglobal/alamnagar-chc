@@ -69,12 +69,11 @@ header {
   color: var(--primary-color);
 }
 
-.logo svg {
-  width: 32px;
-  height: 32px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.5;
+.logo-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  display: block;
 }
 
 .nav-links {
