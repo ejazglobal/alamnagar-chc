@@ -308,7 +308,7 @@ async function selectPatient(appointment) {
   document.getElementById('diag-custom').value = '';
   document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
   // Clear vitals
-  ['vital-bp-sys','vital-bp-dia','vital-temp','vital-pulse','vital-weight'].forEach(id => {
+  ['vital-bp-sys','vital-temp','vital-pulse'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   
@@ -779,16 +779,13 @@ window.printPrescription = function() {
   document.getElementById('print-patient-obs').textContent = document.getElementById('obs-input').value.trim() || 'None';
 
   // 3b. Vitals block
-  const bpSys = document.getElementById('vital-bp-sys').value.trim();
-  const bpDia = document.getElementById('vital-bp-dia').value.trim();
-  const temp  = document.getElementById('vital-temp').value.trim();
-  const pulse = document.getElementById('vital-pulse').value.trim();
-  const vWt   = document.getElementById('vital-weight').value.trim();
+  const bpVal  = document.getElementById('vital-bp-sys').value.trim();
+  const temp   = document.getElementById('vital-temp').value.trim();
+  const pulse  = document.getElementById('vital-pulse').value.trim();
   const vitalsRows = [];
-  if (bpSys || bpDia) vitalsRows.push({ label: 'Blood Pressure', value: `${bpSys || '--'}/${bpDia || '--'} mmHg` });
-  if (temp)  vitalsRows.push({ label: 'Temperature',    value: `${temp} °F` });
-  if (pulse) vitalsRows.push({ label: 'Pulse Rate',     value: `${pulse} bpm` });
-  if (vWt)   vitalsRows.push({ label: 'Body Weight',    value: `${vWt} kg` });
+  if (bpVal)  vitalsRows.push({ label: 'Blood Pressure', value: `${bpVal} mmHg` });
+  if (temp)   vitalsRows.push({ label: 'Temperature',    value: `${temp} °F` });
+  if (pulse)  vitalsRows.push({ label: 'Pulse Rate',     value: `${pulse} bpm` });
   const vitalsBlock = document.getElementById('print-vitals-block');
   const vitalsTable = document.getElementById('print-vitals-table');
   if (vitalsRows.length > 0) {
@@ -1508,7 +1505,7 @@ window.startWalkInPrescription = function() {
   document.getElementById('patient-weight').value = '';
   document.getElementById('patient-address').value = '';
   // Clear vitals
-  ['vital-bp-sys','vital-bp-dia','vital-temp','vital-pulse','vital-weight'].forEach(id => {
+  ['vital-bp-sys','vital-temp','vital-pulse'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
 
