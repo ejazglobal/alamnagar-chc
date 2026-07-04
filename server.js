@@ -954,6 +954,7 @@ app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
     const query = `
       SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints,
              p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
+             p.bp, p.temperature, p.pulse,
              d.name_en as doctor_name
       FROM appointments a
       LEFT JOIN prescriptions p ON a.id = p.appointment_id
@@ -1023,7 +1024,7 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Doctor') {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
-  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone } = req.body;
+  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone, bp, temperature, pulse } = req.body;
   if (!appointment_id || !medicines) {
     return res.status(400).json({ error: 'Appointment ID and medicines list are required.' });
   }
@@ -1063,7 +1064,10 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       diagnostics,
       observations,
       medicines,
-      doctor_signature
+      doctor_signature,
+      bp,
+      temperature,
+      pulse
     });
 
     if (appointment_id !== 'walkin') {

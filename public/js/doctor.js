@@ -374,6 +374,9 @@ async function loadPrescription(appointmentId) {
 
   if (prescription) {
     document.getElementById('obs-input').value = prescription.observations || '';
+    document.getElementById('vital-bp-sys').value = prescription.bp || '';
+    document.getElementById('vital-temp').value = prescription.temperature || '';
+    document.getElementById('vital-pulse').value = prescription.pulse || '';
     
     // Parse diagnostics
     if (prescription.diagnostics) {
@@ -586,6 +589,10 @@ window.savePrescription = async function() {
     }
   }
 
+  const bpVal  = document.getElementById('vital-bp-sys').value.trim();
+  const temp   = document.getElementById('vital-temp').value.trim();
+  const pulse  = document.getElementById('vital-pulse').value.trim();
+
   const payload = {
     appointment_id: activeAppointment.id,
     diagnostics,
@@ -597,7 +604,10 @@ window.savePrescription = async function() {
     weight,
     address,
     patient_name,
-    phone
+    phone,
+    bp: bpVal || null,
+    temperature: temp || null,
+    pulse: pulse || null
   };
 
   try {
@@ -789,22 +799,31 @@ window.printPrescription = function() {
   document.getElementById('print-patient-phone').textContent = activeAppointment.phone;
 
   // 3. Observations and Diagnostics
-  document.getElementById('print-patient-obs').textContent = document.getElementById('obs-input').value.trim() || 'None';
+  const obsText = document.getElementById('obs-input').value.trim();
+  document.getElementById('print-patient-obs').textContent = obsText || 'None';
 
-  // 3b. Vitals block
+  // 3b. Vitals block — read from dedicated fields directly
   const bpVal  = document.getElementById('vital-bp-sys').value.trim();
   const temp   = document.getElementById('vital-temp').value.trim();
   const pulse  = document.getElementById('vital-pulse').value.trim();
-  const vitalsRows = [];
-  if (bpVal)  vitalsRows.push({ label: 'Blood Pressure', value: `${bpVal} mmHg` });
-  if (temp)   vitalsRows.push({ label: 'Temperature',    value: `${temp} °F` });
-  if (pulse)  vitalsRows.push({ label: 'Pulse Rate',     value: `${pulse} bpm` });
+
   const vitalsBlock = document.getElementById('print-vitals-block');
-  const vitalsTable = document.getElementById('print-vitals-table');
-  if (vitalsRows.length > 0) {
-    vitalsTable.innerHTML = vitalsRows.map(r =>
-      `<tr><td>${r.label}</td><td>${r.value}</td></tr>`
-    ).join('');
+  const vitalsList = document.getElementById('print-vitals-list');
+  if (bpVal || temp || pulse) {
+    let items = [];
+    if (bpVal) {
+      const bpFormatted = bpVal.toLowerCase().includes('mmhg') ? bpVal : `${bpVal} mmHg`;
+      items.push(`<div><strong>B.P:</strong> ${escapeHTML(bpFormatted)}</div>`);
+    }
+    if (temp) {
+      const tempFormatted = temp.toLowerCase().includes('°') || temp.toLowerCase().includes('f') ? temp : `${temp} °F`;
+      items.push(`<div><strong>Temperature:</strong> ${escapeHTML(tempFormatted)}</div>`);
+    }
+    if (pulse) {
+      const pulseFormatted = pulse.toLowerCase().includes('bpm') ? pulse : `${pulse} bpm`;
+      items.push(`<div><strong>Pulse:</strong> ${escapeHTML(pulseFormatted)}</div>`);
+    }
+    vitalsList.innerHTML = items.join('');
     vitalsBlock.style.display = 'block';
   } else {
     vitalsBlock.style.display = 'none';
@@ -1291,6 +1310,9 @@ window.clonePrescription = function(appointmentId) {
   if (obsInput && !obsInput.value.trim() && visit.observations) {
     obsInput.value = visit.observations;
   }
+  if (visit.bp) document.getElementById('vital-bp-sys').value = visit.bp;
+  if (visit.temperature) document.getElementById('vital-temp').value = visit.temperature;
+  if (visit.pulse) document.getElementById('vital-pulse').value = visit.pulse;
   
   if (visit.diagnostics) {
     const tests = visit.diagnostics.split(', ');
@@ -1345,6 +1367,18 @@ window.openPastPrescription = function(appointmentId) {
     year: 'numeric'
   });
   
+  let vitalsHtml = '';
+  if (visit.bp || visit.temperature || visit.pulse) {
+    vitalsHtml = `
+      <div><strong>Physical Observations / Vitals:</strong></div>
+      <div style="background: #f0fdfa; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.5rem; margin-bottom: 0.5rem; font-size: 0.85rem; color: #0f766e;">
+        ${visit.bp ? `<div><strong>B.P:</strong> ${escapeHTML(visit.bp)}</div>` : ''}
+        ${visit.temperature ? `<div><strong>Temperature:</strong> ${escapeHTML(visit.temperature)}</div>` : ''}
+        ${visit.pulse ? `<div><strong>Pulse:</strong> ${escapeHTML(visit.pulse)}</div>` : ''}
+      </div>
+    `;
+  }
+
   body.innerHTML = `
     <div style="border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
       <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary-hover);">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
@@ -1355,6 +1389,8 @@ window.openPastPrescription = function(appointmentId) {
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem; min-height: 40px; margin-bottom: 0.5rem;">
       ${escapeHTML(visit.observations || 'None recorded.')}
     </div>
+    
+    ${vitalsHtml}
     
     <div><strong>Recommended Diagnostics:</strong></div>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem; min-height: 40px; margin-bottom: 0.5rem;">
@@ -1408,6 +1444,33 @@ function printPastPrescription(visit) {
   printPatientPhone.textContent = visit.phone || (activeAppointment ? activeAppointment.phone : '');
   
   printObs.textContent = visit.observations || 'None';
+  
+  // Vitals block for past prescription printing
+  const bpVal = visit.bp || '';
+  const temp = visit.temperature || '';
+  const pulse = visit.pulse || '';
+
+  const vitalsBlock = document.getElementById('print-vitals-block');
+  const vitalsList = document.getElementById('print-vitals-list');
+  if (bpVal || temp || pulse) {
+    let items = [];
+    if (bpVal) {
+      const bpFormatted = bpVal.toLowerCase().includes('mmhg') ? bpVal : `${bpVal} mmHg`;
+      items.push(`<div><strong>B.P:</strong> ${escapeHTML(bpFormatted)}</div>`);
+    }
+    if (temp) {
+      const tempFormatted = temp.toLowerCase().includes('°') || temp.toLowerCase().includes('f') ? temp : `${temp} °F`;
+      items.push(`<div><strong>Temperature:</strong> ${escapeHTML(tempFormatted)}</div>`);
+    }
+    if (pulse) {
+      const pulseFormatted = pulse.toLowerCase().includes('bpm') ? pulse : `${pulse} bpm`;
+      items.push(`<div><strong>Pulse:</strong> ${escapeHTML(pulseFormatted)}</div>`);
+    }
+    vitalsList.innerHTML = items.join('');
+    vitalsBlock.style.display = 'block';
+  } else {
+    vitalsBlock.style.display = 'none';
+  }
   
   printDiags.innerHTML = '';
   if (visit.diagnostics) {

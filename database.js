@@ -148,6 +148,9 @@ async function initializeDatabase() {
         observations TEXT,
         medicines JSONB NOT NULL,
         doctor_signature TEXT,
+        bp VARCHAR(100),
+        temperature VARCHAR(100),
+        pulse VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -191,6 +194,11 @@ async function initializeDatabase() {
       await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS gender VARCHAR(50)");
       await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS weight VARCHAR(50)");
       await pool.query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS signature_url TEXT");
+      
+      // Prescriptions table columns migrations
+      await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS bp VARCHAR(100)");
+      await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS temperature VARCHAR(100)");
+      await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS pulse VARCHAR(100)");
 
       // Registration Refactor constraints
       try {
@@ -657,20 +665,23 @@ module.exports = {
   },
 
   createPrescription: async (prescription) => {
-    const { appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature } = prescription;
+    const { appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse } = prescription;
     
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       
       const query = `
-        INSERT INTO prescriptions (appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO prescriptions (appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (appointment_id) DO UPDATE 
         SET diagnostics = EXCLUDED.diagnostics,
             observations = EXCLUDED.observations,
             medicines = EXCLUDED.medicines,
-            doctor_signature = EXCLUDED.doctor_signature
+            doctor_signature = EXCLUDED.doctor_signature,
+            bp = EXCLUDED.bp,
+            temperature = EXCLUDED.temperature,
+            pulse = EXCLUDED.pulse
         RETURNING id
       `;
       const res = await client.query(query, [
@@ -679,7 +690,10 @@ module.exports = {
         diagnostics,
         observations,
         JSON.stringify(medicines),
-        doctor_signature
+        doctor_signature,
+        bp || null,
+        temperature || null,
+        pulse || null
       ]);
 
       // Set appointment status to completed
