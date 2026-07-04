@@ -70,10 +70,12 @@ header {
 }
 
 .logo-img {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   object-fit: contain;
   display: block;
+  border-radius: 50%;
+  mix-blend-mode: multiply;
 }
 
 .nav-links {
