@@ -1257,8 +1257,9 @@ async function loadPatientHistory(phone) {
     }
 
       // Fetch reports
+      const currentToken = localStorage.getItem('chc_token');
       const repRes = await fetch(`/api/reports/${encodeURIComponent(phone)}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${currentToken}` }
       });
       let reports = [];
       if (repRes.ok) {
