@@ -1409,8 +1409,12 @@ window.modifyPrescription = function(appointmentId) {
     document.getElementById('diag-custom').value = customTests.join(', ');
   }
   
-  // Show builder
-  document.getElementById('prescription-empty-state').style.display = 'none';
+  // Reset builder state
+  const prescStatus = document.getElementById('prescription-status');
+  if (prescStatus) prescStatus.style.display = 'none';
+  
+  const bannerStatus = document.getElementById('patient-banner-status');
+  if (bannerStatus) bannerStatus.className = 'badge';
   document.getElementById('prescription-active-builder').style.display = 'block';
   
   const saveBtn = document.querySelector('button[onclick="savePrescription()"]');
