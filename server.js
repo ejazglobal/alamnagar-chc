@@ -928,8 +928,9 @@ app.post('/api/patient/verify-otp', async (req, res) => {
 
 // --- PATIENT REPORTS ENDPOINTS ---
 app.post('/api/reports', optionalAuthenticateToken, upload.single('report_file'), async (req, res) => {
-  // Can be uploaded by logged-in doctor or patient via portal
-  if (!req.user || (req.user.role !== 'Doctor' && req.user.role !== 'Patient')) {
+  // Can be uploaded by logged-in doctor/staff/admin or patient via portal
+  const validUploadRoles = ['doctor', 'admin', 'staff', 'patient'];
+  if (!req.user || !validUploadRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -1038,11 +1039,15 @@ app.post('/api/share/prescription/:id/verify', async (req, res) => {
 
 // --- DOCTOR PORTAL CLINICAL ENDPOINTS ---
 app.get('/api/doctor/appointments', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Doctor') {
+  const validRoles = ['doctor', 'admin', 'staff'];
+  if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Access Denied: Doctor portal only.' });
   }
   try {
     const doctorId = req.user.doctor_id;
+    if (!doctorId) {
+      return res.json([]);
+    }
     const query = `
       SELECT appointments.*, users.address as user_profile_address 
       FROM appointments 
@@ -1060,7 +1065,8 @@ app.get('/api/doctor/appointments', authenticateToken, async (req, res) => {
 
 // GET doctor profile (including signature)
 app.get('/api/doctor/profile', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Doctor') {
+  const validRoles = ['doctor', 'admin', 'staff'];
+  if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
   try {
@@ -1075,7 +1081,8 @@ app.get('/api/doctor/profile', authenticateToken, async (req, res) => {
 
 // POST update doctor signature
 app.post('/api/doctor/profile/signature', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Doctor') {
+  const validRoles = ['doctor', 'admin', 'staff'];
+  if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
   const { signature_url } = req.body;
@@ -1093,7 +1100,8 @@ app.post('/api/doctor/profile/signature', authenticateToken, async (req, res) =>
 
 // GET search patients (Doctor portal search by name or phone)
 app.get('/api/doctor/search-patients', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Doctor') {
+  const validRoles = ['doctor', 'admin', 'staff'];
+  if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
   const searchVal = req.query.q || '';
@@ -1119,7 +1127,8 @@ app.get('/api/doctor/search-patients', authenticateToken, async (req, res) => {
 
 // GET patient visit history (Doctor portal history timeline)
 app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Doctor') {
+  const validRoles = ['doctor', 'admin', 'staff'];
+  if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
   const phone = req.query.phone || '';
@@ -1197,7 +1206,8 @@ app.get('/api/prescriptions/:appointmentId', authenticateToken, async (req, res)
 });
 
 app.post('/api/prescriptions', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Doctor') {
+  const validRoles = ['doctor', 'admin', 'staff'];
+  if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
   const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone, bp, temperature, pulse, rich_state } = req.body;

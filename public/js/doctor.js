@@ -22,7 +22,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const token = localStorage.getItem('chc_token');
   const name = localStorage.getItem('chc_user_name');
 
-  if (!token || role !== 'Doctor') {
+  const validRoles = ['doctor', 'admin', 'staff'];
+  if (!token || !role || !validRoles.includes(role.toLowerCase())) {
     // Unauthorized
     window.location.href = 'login.html';
     return;
