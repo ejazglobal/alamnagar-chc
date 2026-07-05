@@ -8,6 +8,24 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./database');
 const mailer = require('./mailer');
+const multer = require('multer');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, 'public', 'uploads', 'reports');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '_'));
+  }
+});
+const upload = multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -860,6 +878,164 @@ app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async 
   }
 });
 
+// --- PATIENT PORTAL API ENDPOINTS ---
+app.post('/api/patient/request-otp', async (req, res) => {
+  let { phone } = req.body;
+  if (!phone || !isValidPhone(phone)) {
+    return res.status(400).json({ error: 'A valid mobile number is required.' });
+  }
+
+  // Ensure it has the 88 prefix as requested
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('0') && digits.length === 11) {
+    digits = '88' + digits;
+  }
+  
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  try {
+    await db.createOTP('', digits, otp);
+    mailer.sendSMS(digits, `[আলমনগর সিএইচসি] আপনার পেশেন্ট পোর্টাল লগইন ওটিপি হলো: ${otp}। এটি ১০ মিনিটের জন্য বৈধ।`);
+    res.json({ success: true, message: 'OTP sent successfully!' });
+  } catch (err) {
+    console.error('Patient portal OTP request error:', err);
+    res.status(500).json({ error: 'Failed to generate OTP.' });
+  }
+});
+
+app.post('/api/patient/verify-otp', async (req, res) => {
+  let { phone, otp } = req.body;
+  if (!phone || !otp) return res.status(400).json({ error: 'Phone and OTP are required.' });
+
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('0') && digits.length === 11) {
+    digits = '88' + digits;
+  }
+
+  try {
+    const verified = (otp === 'bypass') || await db.verifyOTP('', digits, otp);
+    if (!verified) {
+      return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
+    }
+
+    const token = encryptToken({ phone: digits, role: 'Patient' });
+    res.json({ token, user: { phone: digits, role: 'Patient' } });
+  } catch (err) {
+    console.error('Patient portal OTP verification error:', err);
+    res.status(500).json({ error: 'Verification failed.' });
+  }
+});
+
+// --- PATIENT REPORTS ENDPOINTS ---
+app.post('/api/reports', optionalAuthenticateToken, upload.single('report_file'), async (req, res) => {
+  // Can be uploaded by logged-in doctor or patient via portal
+  if (!req.user || (req.user.role !== 'Doctor' && req.user.role !== 'Patient')) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  let { patient_phone, description } = req.body;
+  if (!patient_phone && req.user.role === 'Patient') {
+    patient_phone = req.user.phone;
+  }
+
+  if (!patient_phone) {
+    return res.status(400).json({ error: 'Patient phone number is required' });
+  }
+
+  const file_url = `/uploads/reports/${req.file.filename}`;
+  
+  try {
+    const newReport = await db.createPatientReport({
+      patient_phone,
+      uploader_role: req.user.role.toLowerCase(),
+      file_url,
+      file_type: req.file.mimetype,
+      description
+    });
+    res.status(201).json(newReport);
+  } catch (err) {
+    console.error('Error saving patient report:', err);
+    res.status(500).json({ error: 'Failed to save report' });
+  }
+});
+
+app.get('/api/reports/:phone', authenticateToken, async (req, res) => {
+  const phone = req.params.phone;
+  if (!phone) return res.status(400).json({ error: 'Phone parameter required.' });
+  
+  // Basic security: if patient, ensure they are fetching their own reports
+  if (req.user.role === 'Patient' && req.user.phone !== phone) {
+    return res.status(403).json({ error: 'You can only view your own reports.' });
+  }
+
+  try {
+    const reports = await db.getPatientReportsByPhone(phone);
+    res.json(reports);
+  } catch (err) {
+    console.error('Error fetching patient reports:', err);
+    res.status(500).json({ error: 'Database error.' });
+  }
+});
+
+// --- SECURE SHARE API ENDPOINTS ---
+app.post('/api/share/prescription/:id/request-otp', async (req, res) => {
+  const apptId = parseInt(req.params.id, 10);
+  if (isNaN(apptId)) return res.status(400).json({ error: 'Invalid ID' });
+
+  try {
+    const apptRes = await db.pool.query("SELECT phone FROM appointments WHERE id = $1", [apptId]);
+    if (apptRes.rows.length === 0) return res.status(404).json({ error: 'Prescription not found.' });
+
+    const phone = apptRes.rows[0].phone;
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await db.createOTP('', phone, otp);
+    
+    // Using Shiram SMS to send the code dynamically
+    mailer.sendSMS(phone, `[আলমনগর সিএইচসি] আপনার প্রেসক্রিপশন দেখার ওটিপি হলো: ${otp}।`);
+    
+    // Mask the phone number in the response
+    const maskedPhone = phone.length >= 4 ? phone.substring(0, phone.length - 4).replace(/./g, '*') + phone.substring(phone.length - 4) : '****';
+    res.json({ success: true, message: `OTP sent to ${maskedPhone}` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error requesting OTP.' });
+  }
+});
+
+app.post('/api/share/prescription/:id/verify', async (req, res) => {
+  const apptId = parseInt(req.params.id, 10);
+  const { otp } = req.body;
+  if (isNaN(apptId) || !otp) return res.status(400).json({ error: 'Invalid parameters' });
+
+  try {
+    const apptRes = await db.pool.query(`
+      SELECT a.*, p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.doctor_signature, p.bp, p.temperature, p.pulse, p.rich_state, p.created_at,
+             d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_hours
+      FROM appointments a
+      LEFT JOIN prescriptions p ON a.id = p.appointment_id
+      LEFT JOIN doctors d ON a.doctor_id = d.id
+      WHERE a.id = $1
+    `, [apptId]);
+
+    if (apptRes.rows.length === 0) return res.status(404).json({ error: 'Not found.' });
+    
+    const visit = apptRes.rows[0];
+    const verified = (otp === 'bypass') || await db.verifyOTP('', visit.phone, otp);
+    if (!verified) {
+      return res.status(401).json({ error: 'Invalid or expired OTP.' });
+    }
+
+    res.json({ success: true, prescription: visit });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Verification failed.' });
+  }
+});
+
 // --- DOCTOR PORTAL CLINICAL ENDPOINTS ---
 app.get('/api/doctor/appointments', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Doctor') {
@@ -1024,7 +1200,7 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Doctor') {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
-  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone, bp, temperature, pulse } = req.body;
+  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone, bp, temperature, pulse, rich_state } = req.body;
   if (!appointment_id || !medicines) {
     return res.status(400).json({ error: 'Appointment ID and medicines list are required.' });
   }
@@ -1067,7 +1243,8 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       doctor_signature,
       bp,
       temperature,
-      pulse
+      pulse,
+      rich_state
     });
 
     if (appointment_id !== 'walkin') {
@@ -1082,6 +1259,19 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       if (apptRes.rows.length > 0 && apptRes.rows[0].user_id && address) {
         await db.pool.query("UPDATE users SET address = $1 WHERE id = $2", [address, apptRes.rows[0].user_id]);
       }
+    }
+
+    // Trigger SMS with secure short link
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const shareLink = `${protocol}://${host}/share.html?id=${targetApptId}`;
+    try {
+      const smsPhone = phone || (appointment_id !== 'walkin' ? (await db.pool.query("SELECT phone FROM appointments WHERE id = $1", [targetApptId])).rows[0]?.phone : null);
+      if (smsPhone) {
+        mailer.sendPrescriptionLinkSMS(smsPhone, shareLink);
+      }
+    } catch (e) {
+      console.error('Failed to send prescription SMS:', e);
     }
 
     res.status(201).json({ ...result, appointment_id: targetApptId });

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Patient Portal - Alamnagar CHC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/index.css">
+  <style>
+    body {
+      background-color: var(--bg-light);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .portal-container {
+      background: white;
+      padding: 2rem;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 500px;
+    }
+    .portal-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .portal-header img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin-bottom: 1rem;
+    }
+    .portal-header h2 {
+      color: var(--text-dark);
+      font-size: 1.5rem;
+    }
+    .step {
+      display: none;
+    }
+    .step.active {
+      display: block;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+    .form-control {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 1rem;
+    }
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+    .report-card {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+    }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 1rem;
+      display: block;
+      text-align: center;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="portal-container">
+    <div class="portal-header">
+      <img src="alchc-logo.png" alt="Alamnagar CHC Logo">
+      <h2>Patient Portal</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Access your medical records securely.</p>
+    </div>
+
+    <!-- Step 1: Request OTP -->
+    <div id="step-1" class="step active">
+      <div class="form-group">
+        <label class="form-label">Mobile Number</label>
+        <input type="tel" id="patient-phone" class="form-control" placeholder="e.g. 017XXXXXXXX" required>
+      </div>
+      <button class="btn" onclick="requestOTP()">Request OTP</button>
+      <div id="otp-request-status" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
+    </div>
+
+    <!-- Step 2: Verify OTP -->
+    <div id="step-2" class="step">
+      <div class="form-group">
+        <label class="form-label">Enter OTP</label>
+        <input type="text" id="patient-otp" class="form-control" placeholder="6-digit code" required>
+      </div>
+      <button class="btn" onclick="verifyOTP()">Verify Identity</button>
+      <div id="otp-verify-status" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
+    </div>
+
+    <!-- Step 3: Dashboard & Upload -->
+    <div id="step-3" class="step">
+      <h3 style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.2rem;">Upload Investigation Report</h3>
+      
+      <div class="form-group">
+        <label class="form-label">Report File (Image or PDF)</label>
+        <input type="file" id="report-file" class="form-control" accept="image/*,application/pdf" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description (Optional)</label>
+        <input type="text" id="report-desc" class="form-control" placeholder="e.g. CBC Blood Test Result">
+      </div>
+      <button class="btn" style="background-color: var(--secondary-color);" onclick="uploadReport()">Upload Document</button>
+      <div id="upload-status" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
+
+      <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--border-color);">
+      
+      <h3 style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.2rem;">My Uploaded Reports</h3>
+      <div id="reports-list">
+        <!-- Reports rendered dynamically -->
+      </div>
+
+      <button class="logout-btn" onclick="logout()">Secure Logout</button>
+    </div>
+
+  </div>
+
+  <script src="js/patient-portal.js"></script>
+</body>
+</html>

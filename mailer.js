@@ -389,8 +389,13 @@ function sendBookingOTP(email, phone, otp) {
   sendSMS(phone, `[আলমনগর সিএইচসি] আপনার অ্যাপয়েন্টমেন্ট বুকিংয়ের ওটিপি (OTP) হলো: ${otp}। এটি ১০ মিনিটের জন্য বৈধ।`);
 }
 
+function sendPrescriptionLinkSMS(phone, link) {
+  sendSMS(phone, `[আলমনগর সিএইচসি] আপনার ডিজিটাল প্রেসক্রিপশন প্রস্তুত হয়েছে। দেখতে এখানে ক্লিক করুন: ${link}`);
+}
+
 module.exports = {
   sendAppointmentConfirmation,
   sendBookingOTP,
-  sendSMS
+  sendSMS,
+  sendPrescriptionLinkSMS
 };

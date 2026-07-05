@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Secure Medical Records - Alamnagar CHC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/index.css">
+  <style>
+    body {
+      background-color: #f1f5f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+    .auth-container {
+      background: white;
+      padding: 2.5rem 2rem;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 450px;
+      text-align: center;
+    }
+    .auth-container img {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      margin-bottom: 1.5rem;
+    }
+    .auth-title {
+      font-size: 1.25rem;
+      color: var(--text-dark);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .auth-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+    .form-group {
+      text-align: left;
+      margin-bottom: 1.5rem;
+    }
+    .form-control {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    .btn {
+      width: 100%;
+      padding: 0.8rem;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+    
+    /* Prescription view container */
+    #prescription-view {
+      display: none;
+      width: 100%;
+      max-width: 900px;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      margin: 2rem auto;
+      text-align: left;
+    }
+    @media print {
+      body { background: white; margin: 0; padding: 0; display: block; }
+      .no-print { display: none !important; }
+      #prescription-view { box-shadow: none; padding: 0; margin: 0; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Authentication Wall -->
+  <div class="auth-container" id="auth-wall">
+    <img src="alchc-logo.png" alt="Alamnagar CHC Logo">
+    <h2 class="auth-title">Verify Identity to Access Medical Records</h2>
+    <p class="auth-subtitle">A verification code will be sent to the registered mobile number for this prescription.</p>
+    
+    <div id="step-request">
+      <button class="btn" onclick="requestPrescriptionOTP()">Send Secure OTP</button>
+      <div id="req-status" style="margin-top: 1rem; font-size: 0.9rem;"></div>
+    </div>
+    
+    <div id="step-verify" style="display: none;">
+      <div class="form-group">
+        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-dark);">Enter 6-digit OTP</label>
+        <input type="text" id="verify-otp-input" class="form-control" placeholder="XXXXXX">
+      </div>
+      <button class="btn" onclick="verifyPrescriptionOTP()">Verify & View</button>
+      <div id="ver-status" style="margin-top: 1rem; font-size: 0.9rem;"></div>
+    </div>
+  </div>
+
+  <!-- Prescription Viewer -->
+  <div id="prescription-view">
+    <div class="no-print" style="margin-bottom: 1.5rem; text-align: right;">
+      <button class="btn" style="width: auto; padding: 0.5rem 1rem; background-color: var(--secondary-color);" onclick="window.print()">Print Prescription</button>
+    </div>
+    
+    <!-- Rendered dynamically matching the print layout -->
+    <div id="print-prescription-template">
+      <!-- Layout will be injected by share.js based on rich_state -->
+    </div>
+  </div>
+
+  <script src="js/share.js"></script>
+</body>
+</html>

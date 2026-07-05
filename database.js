@@ -155,6 +155,19 @@ async function initializeDatabase() {
       )
     `);
 
+    // 10. Create patient_reports table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS patient_reports (
+        id SERIAL PRIMARY KEY,
+        patient_phone VARCHAR(50) NOT NULL,
+        uploader_role VARCHAR(50) NOT NULL CHECK(uploader_role IN ('patient', 'doctor')),
+        file_url TEXT NOT NULL,
+        file_type VARCHAR(50),
+        description TEXT,
+        upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log("PostgreSQL database tables verified/created.");
 
     // Safe column migrations for existing old tables
@@ -163,6 +176,9 @@ async function initializeDatabase() {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL");
       await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL");
       await pool.query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS visiting_days VARCHAR(255) DEFAULT '1,2,3,4,5'");
+      
+      // Prescriptions rich_state migration
+      await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS rich_state JSONB");
       
       // Medicines table column updates
       await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS brand_id INTEGER");
@@ -665,15 +681,15 @@ module.exports = {
   },
 
   createPrescription: async (prescription) => {
-    const { appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse } = prescription;
+    const { appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse, rich_state } = prescription;
     
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       
       const query = `
-        INSERT INTO prescriptions (appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO prescriptions (appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse, rich_state)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (appointment_id) DO UPDATE 
         SET diagnostics = EXCLUDED.diagnostics,
             observations = EXCLUDED.observations,
@@ -681,7 +697,8 @@ module.exports = {
             doctor_signature = EXCLUDED.doctor_signature,
             bp = EXCLUDED.bp,
             temperature = EXCLUDED.temperature,
-            pulse = EXCLUDED.pulse
+            pulse = EXCLUDED.pulse,
+            rich_state = EXCLUDED.rich_state
         RETURNING id
       `;
       const res = await client.query(query, [
@@ -693,7 +710,8 @@ module.exports = {
         doctor_signature,
         bp || null,
         temperature || null,
-        pulse || null
+        pulse || null,
+        rich_state ? JSON.stringify(rich_state) : null
       ]);
 
       // Set appointment status to completed
@@ -707,5 +725,18 @@ module.exports = {
     } finally {
       client.release();
     }
+  },
+
+  // --- PATIENT REPORTS HELPERS ---
+  createPatientReport: async (report) => {
+    const { patient_phone, uploader_role, file_url, file_type, description } = report;
+    const query = `INSERT INTO patient_reports (patient_phone, uploader_role, file_url, file_type, description) VALUES ($1, $2, $3, $4, $5) RETURNING id, upload_date`;
+    const res = await pool.query(query, [patient_phone, uploader_role, file_url, file_type || null, description || '']);
+    return { id: res.rows[0].id, upload_date: res.rows[0].upload_date, ...report };
+  },
+
+  getPatientReportsByPhone: async (phone) => {
+    const res = await pool.query("SELECT * FROM patient_reports WHERE patient_phone = $1 ORDER BY upload_date DESC", [phone]);
+    return res.rows;
   }
 };

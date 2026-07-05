@@ -607,7 +607,19 @@ window.savePrescription = async function() {
     phone,
     bp: bpVal || null,
     temperature: temp || null,
-    pulse: pulse || null
+    pulse: pulse || null,
+    rich_state: {
+      diagnostics,
+      observations,
+      medicines: prescribedMedicines,
+      bp: bpVal || null,
+      temperature: temp || null,
+      pulse: pulse || null,
+      age,
+      gender,
+      weight,
+      address
+    }
   };
 
   try {
@@ -1243,57 +1255,215 @@ async function loadPatientHistory(phone) {
       }
     }
 
-    pastVisits = history;
-    
-    if (history.length === 0) {
-      grid.classList.remove('has-history');
-      sidebar.style.display = 'none';
-      timelineContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No history found.</div>';
-      return;
-    }
-    
-    grid.classList.add('has-history');
-    sidebar.style.display = 'flex';
-    
-    timelineContainer.innerHTML = '';
-    history.forEach(visit => {
-      const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
+      // Fetch reports
+      const repRes = await fetch(`/api/reports/${encodeURIComponent(phone)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+      let reports = [];
+      if (repRes.ok) {
+        reports = await repRes.json();
+      }
+
+      // Merge and sort by date descending
+      let combined = [
+        ...history.map(v => ({ type: 'visit', date: new Date(v.appointment_date + 'T' + v.appointment_time), data: v })),
+        ...reports.map(r => ({ type: 'report', date: new Date(r.upload_date), data: r }))
+      ];
+      combined.sort((a, b) => b.date - a.date);
       
-      const itemDiv = document.createElement('div');
-      itemDiv.className = 'timeline-item';
+      if (combined.length === 0) {
+        grid.classList.remove('has-history');
+        sidebar.style.display = 'none';
+        timelineContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No history found.</div>';
+        return;
+      }
       
-      const hasPres = visit.prescription_id;
-      const cloneButtonHtml = (activeAppointment && hasPres) ? 
-        `<button class="btn-sm approve" onclick="clonePrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem;">Clone to Current</button>` : 
-        '';
-      const viewButtonHtml = hasPres ? 
-        `<button class="btn-sm cancel" onclick="openPastPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white;">View Prescription</button>` :
-        '';
-        
-      itemDiv.innerHTML = `
-        <div class="timeline-date">${formattedDate} at ${visit.appointment_time}</div>
-        <div class="timeline-card">
-          <div class="timeline-doc">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
-          ${visit.past_complaints ? `<div style="margin-top:0.25rem;"><strong>Complaints:</strong> <em>${escapeHTML(visit.past_complaints)}</em></div>` : ''}
-          ${visit.observations ? `<div style="margin-top:0.15rem;"><strong>Obs:</strong> ${escapeHTML(visit.observations)}</div>` : ''}
-          ${(viewButtonHtml || cloneButtonHtml) ? `
-          <div class="timeline-actions">
-            ${viewButtonHtml}
-            ${cloneButtonHtml}
-          </div>
-          ` : ''}
-        </div>
-      `;
-      timelineContainer.appendChild(itemDiv);
-    });
+      grid.classList.add('has-history');
+      sidebar.style.display = 'flex';
+      
+      timelineContainer.innerHTML = '';
+      combined.forEach(item => {
+        if (item.type === 'visit') {
+          const visit = item.data;
+          const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+          
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'timeline-item';
+          
+          const hasPres = visit.prescription_id;
+          const modifyButtonHtml = hasPres ? 
+            `<button class="btn-sm" onclick="modifyPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--secondary-color);">Modify / Suggest</button>` : 
+            '';
+          const cloneButtonHtml = (activeAppointment && hasPres) ? 
+            `<button class="btn-sm approve" onclick="clonePrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem;">Clone</button>` : 
+            '';
+          const viewButtonHtml = hasPres ? 
+            `<button class="btn-sm cancel" onclick="openPastPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white;">View</button>` :
+            '';
+            
+          itemDiv.innerHTML = `
+            <div class="timeline-date">${formattedDate} at ${visit.appointment_time}</div>
+            <div class="timeline-card">
+              <div class="timeline-doc">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
+              ${visit.past_complaints ? `<div style="margin-top:0.25rem;"><strong>Complaints:</strong> <em>${escapeHTML(visit.past_complaints)}</em></div>` : ''}
+              ${visit.observations ? `<div style="margin-top:0.15rem;"><strong>Obs:</strong> ${escapeHTML(visit.observations)}</div>` : ''}
+              ${(viewButtonHtml || cloneButtonHtml || modifyButtonHtml) ? `
+              <div class="timeline-actions" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:0.5rem;">
+                ${viewButtonHtml}
+                ${modifyButtonHtml}
+                ${cloneButtonHtml}
+              </div>
+              ` : ''}
+            </div>
+          `;
+          timelineContainer.appendChild(itemDiv);
+        } else {
+          // Report type
+          const report = item.data;
+          const formattedDate = new Date(report.upload_date).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+          });
+          
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'timeline-item';
+          itemDiv.innerHTML = `
+            <div class="timeline-date">${formattedDate}</div>
+            <div class="timeline-card" style="border-left: 3px solid var(--secondary-color);">
+              <div class="timeline-doc">Uploaded by ${escapeHTML(report.uploader_role === 'doctor' ? 'Doctor' : 'Patient')}</div>
+              <div style="margin-top:0.25rem;"><strong>Investigation Report</strong></div>
+              ${report.description ? `<div style="margin-top:0.15rem; font-size:0.8rem;">${escapeHTML(report.description)}</div>` : ''}
+              <div class="timeline-actions" style="margin-top:0.5rem;">
+                <a href="${report.file_url}" target="_blank" class="btn-sm approve" style="text-decoration:none; text-align:center; flex:1;">View Document</a>
+              </div>
+            </div>
+          `;
+          timelineContainer.appendChild(itemDiv);
+        }
+      });
+    }
   } catch (err) {
     console.error('Error loading patient history:', err);
   }
 }
+
+// Modify logic
+window.modifyPrescription = function(appointmentId) {
+  const visit = pastVisits.find(v => v.appointment_id === appointmentId);
+  if (!visit) return;
+  
+  // Set active appointment to the past visit
+  activeAppointment = {
+    id: visit.appointment_id,
+    patient_name: document.getElementById('history-patient-name').textContent,
+    phone: document.getElementById('history-patient-phone').textContent.replace('Mob: ', ''),
+    status: 'completed',
+    appointment_date: visit.appointment_date,
+    appointment_time: visit.appointment_time
+  };
+
+  // Populate rich state if available
+  let state = visit.rich_state;
+  if (typeof state === 'string') state = JSON.parse(state);
+  
+  if (state) {
+    if (state.age) document.getElementById('patient-age').value = state.age;
+    if (state.gender) document.getElementById('patient-gender').value = state.gender;
+    if (state.weight) document.getElementById('patient-weight').value = state.weight;
+    if (state.address) document.getElementById('patient-address').value = state.address;
+  }
+  
+  const meds = state?.medicines || (typeof visit.medicines === 'string' ? JSON.parse(visit.medicines) : visit.medicines);
+  if (meds && Array.isArray(meds)) {
+    prescribedMedicines = JSON.parse(JSON.stringify(meds));
+    renderMedRows();
+  } else {
+    prescribedMedicines = [];
+    renderMedRows();
+  }
+  
+  const obs = state?.observations || visit.observations || '';
+  document.getElementById('obs-input').value = obs;
+  
+  document.getElementById('vital-bp-sys').value = state?.bp || visit.bp || '';
+  document.getElementById('vital-temp').value = state?.temperature || visit.temperature || '';
+  document.getElementById('vital-pulse').value = state?.pulse || visit.pulse || '';
+  
+  const diags = state?.diagnostics || visit.diagnostics || '';
+  if (diags) {
+    const tests = diags.split(', ');
+    const customTests = [];
+    document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+    tests.forEach(test => {
+      const cb = document.querySelector(`#diag-checkboxes input[value="${test}"]`);
+      if (cb) {
+        cb.checked = true;
+      } else {
+        customTests.push(test);
+      }
+    });
+    document.getElementById('diag-custom').value = customTests.join(', ');
+  }
+  
+  // Show builder
+  document.getElementById('prescription-empty-state').style.display = 'none';
+  document.getElementById('prescription-active-builder').style.display = 'block';
+  
+  const saveBtn = document.querySelector('button[onclick="savePrescription()"]');
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Amendment';
+  }
+  
+  alert('Loaded past prescription for modification. Click "Save Amendment" to overwrite.');
+};
+
+window.handleReportUpload = async function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const token = localStorage.getItem('chc_token');
+  const patientPhone = activeAppointment ? activeAppointment.phone : document.getElementById('history-patient-phone').textContent.replace('Mob: ', '');
+  
+  if (!patientPhone || patientPhone === '...') {
+    alert('No patient selected or phone number unavailable.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('report_file', file);
+  formData.append('patient_phone', patientPhone);
+  formData.append('description', 'Doctor uploaded investigation report');
+  
+  const statusSpan = document.getElementById('report-upload-status');
+  statusSpan.textContent = 'Uploading...';
+  
+  try {
+    const res = await fetch('/api/reports', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    
+    if (res.ok) {
+      statusSpan.textContent = 'Upload complete!';
+      statusSpan.style.color = 'green';
+      setTimeout(() => statusSpan.textContent = '', 3000);
+      loadPatientHistory(patientPhone);
+    } else {
+      const err = await res.json();
+      statusSpan.textContent = 'Error: ' + (err.error || 'Failed');
+      statusSpan.style.color = 'red';
+    }
+  } catch (err) {
+    statusSpan.textContent = 'Upload failed.';
+    statusSpan.style.color = 'red';
+    console.error(err);
+  }
+};
 
 // Clone logic
 window.clonePrescription = function(appointmentId) {
