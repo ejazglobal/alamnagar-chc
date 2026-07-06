@@ -1394,6 +1394,7 @@ function parseCSVLine(line) {
   return result;
 }
 
+/* Commented out for security after execution
 app.get('/api/run-seed', async (req, res) => {
   console.log("Web route seeding triggered...");
   const filePath = path.join(__dirname, 'medicines.csv');
@@ -1466,6 +1467,7 @@ app.get('/api/run-seed', async (req, res) => {
     client.release();
   }
 });
+*/
 
 // --- TEMPORARY: SMS DIAGNOSTIC ENDPOINT ---
 // Usage: /api/test-sms?phone=01XXXXXXXXX
@@ -1480,6 +1482,7 @@ app.get('/api/test-sms', async (req, res) => {
 });
 
 
+/* Commented out for security after execution
 // IMPORTANT: Delete this route entirely after running it once.
 // Usage: visit  /api/clear-test-data?secret=alamnagar-wipe-2026  in your browser.
 const WIPE_SECRET = 'alamnagar-wipe-2026';
@@ -1521,6 +1524,7 @@ app.get('/api/clear-test-data', async (req, res) => {
     client.release();
   }
 });
+*/
 
 // --- DOCTOR FALLBACK PATH ---
 app.get('/doctor', (req, res) => {
