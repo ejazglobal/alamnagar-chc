@@ -10,21 +10,52 @@ const db = require('./database');
 const mailer = require('./mailer');
 const multer = require('multer');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, 'public', 'uploads', 'reports');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '_'));
+// ── Supabase Storage Configuration ─────────────────────────────────────────
+// Files are uploaded to Supabase Storage (persistent cloud) instead of the
+// local disk (which is ephemeral on Render and deleted on every restart).
+const SUPABASE_URL = process.env.SUPABASE_URL;           // e.g. https://xxxx.supabase.co
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY; // service_role key
+const SUPABASE_BUCKET = 'patient-reports';
+
+/**
+ * Uploads a file buffer to Supabase Storage and returns the permanent public URL.
+ * @param {Buffer} buffer - File data
+ * @param {string} filename - Unique filename to store
+ * @param {string} mimeType - MIME type of the file
+ * @returns {Promise<string>} Public URL of the uploaded file
+ */
+async function uploadToSupabase(buffer, filename, mimeType) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables are not set.');
   }
+
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${filename}`;
+
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+      'Content-Type': mimeType,
+      'x-upsert': 'true' // overwrite if same filename exists
+    },
+    body: buffer
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Supabase Storage upload failed (${response.status}): ${errText}`);
+  }
+
+  // Return the permanent public URL
+  return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${filename}`;
+}
+
+// Use memory storage — files go into req.file.buffer (not saved to disk)
+// This works because Render's disk is ephemeral; we immediately forward to Supabase
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
-const upload = multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
 
 const app = express();
@@ -947,9 +978,15 @@ app.post('/api/reports', optionalAuthenticateToken, upload.single('report_file')
     return res.status(400).json({ error: 'Patient phone number is required' });
   }
 
-  const file_url = `/uploads/reports/${req.file.filename}`;
-  
   try {
+    // Generate a unique filename for Supabase Storage
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const safeOriginalName = req.file.originalname.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+    const filename = `${uniqueSuffix}-${safeOriginalName}`;
+
+    // Upload to Supabase Storage (permanent cloud — survives server restarts)
+    const file_url = await uploadToSupabase(req.file.buffer, filename, req.file.mimetype);
+
     const newReport = await db.createPatientReport({
       patient_phone,
       uploader_role: req.user.role.toLowerCase(),
@@ -960,7 +997,11 @@ app.post('/api/reports', optionalAuthenticateToken, upload.single('report_file')
     res.status(201).json(newReport);
   } catch (err) {
     console.error('Error saving patient report:', err);
-    res.status(500).json({ error: 'Failed to save report' });
+    // Provide a clear message if Supabase env vars are missing
+    if (err.message && err.message.includes('environment variables')) {
+      return res.status(500).json({ error: 'Storage not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY on the server.' });
+    }
+    res.status(500).json({ error: 'Failed to upload report. Please try again.' });
   }
 });
 
