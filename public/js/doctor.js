@@ -1017,15 +1017,9 @@ window.openPdfViewer = async function(fileUrl, description) {
         showViewerError(viewerBody, fileUrl, 'Image could not be displayed.');
       };
     } else {
-      // PDF or other — use embed tag which renders PDF natively in browser
-      const embedEl = document.createElement('embed');
-      embedEl.src = fileUrl;
-      embedEl.type = 'application/pdf';
-      embedEl.style.cssText = 'width:100%; height:100%; border:none;';
-      // Clear any old embed
-      const oldEmbed = viewerBody.querySelector('embed');
-      if (oldEmbed) oldEmbed.remove();
-      viewerBody.appendChild(embedEl);
+      // PDF or other — use standard iframe (very stable for rendering PDFs inline)
+      iframe.src = fileUrl;
+      iframe.style.display = 'block';
     }
   } catch (err) {
     if (loadingEl.parentElement) loadingEl.remove();
