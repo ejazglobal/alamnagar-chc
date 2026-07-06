@@ -1519,7 +1519,6 @@ async function loadPatientHistory(phone) {
         `;
         timelineContainer.appendChild(itemDiv);
       }
-      }
     });
 
   } catch (err) {
