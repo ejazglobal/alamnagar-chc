@@ -745,7 +745,13 @@ module.exports = {
   },
 
   getPatientReportsByPhone: async (phone) => {
-    const res = await pool.query("SELECT * FROM patient_reports WHERE patient_phone = $1 ORDER BY upload_date DESC", [phone]);
+    // Normalizes matching by ignoring any leading '88' country code format differences
+    const query = `
+      SELECT * FROM patient_reports 
+      WHERE REGEXP_REPLACE(patient_phone, '^88', '') = REGEXP_REPLACE($1, '^88', '') 
+      ORDER BY upload_date DESC
+    `;
+    const res = await pool.query(query, [phone]);
     return res.rows;
   }
 };

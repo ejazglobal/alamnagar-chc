@@ -1048,7 +1048,10 @@ app.get('/api/reports/:phone', authenticateToken, async (req, res) => {
   if (!phone) return res.status(400).json({ error: 'Phone parameter required.' });
   
   // Basic security: if patient, ensure they are fetching their own reports
-  if (req.user.role === 'Patient' && req.user.phone !== phone) {
+  // Normalize comparison by removing any leading '88' prefix
+  const normUserPhone = (req.user.phone || '').replace(/^88/, '');
+  const normParamPhone = phone.replace(/^88/, '');
+  if (req.user.role === 'Patient' && normUserPhone !== normParamPhone) {
     return res.status(403).json({ error: 'You can only view your own reports.' });
   }
 
