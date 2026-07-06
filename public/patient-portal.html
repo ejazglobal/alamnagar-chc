@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="css/styles.css">
   <style>
     body {
-      background-color: var(--bg-light);
+      background-color: var(--bg-main);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -16,7 +16,7 @@
     .portal-container {
       background: white;
       padding: 2rem;
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       box-shadow: var(--shadow-lg);
       width: 100%;
       max-width: 500px;
@@ -136,7 +136,7 @@
         <label class="form-label">Description (Optional)</label>
         <input type="text" id="report-desc" class="form-control" placeholder="e.g. CBC Blood Test Result">
       </div>
-      <button class="btn" style="background-color: var(--secondary-color);" onclick="uploadReport()">Upload Document</button>
+      <button class="btn" style="background-color: var(--primary-color);" onclick="uploadReport()">Upload Document</button>
       <div id="upload-status" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
 
       <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--border-color);">
