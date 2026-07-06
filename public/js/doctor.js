@@ -932,6 +932,14 @@ window.openShareModal = function() {
   // Email client link
   email.href = `mailto:${activeAppointment.email}?subject=Your%20Digital%20Prescription%20-%20Alamnagar%20CHC&body=${encodeURIComponent(messageText)}`;
 
+  // Populate secure OTP share link
+  const apptId = activeAppointment.id;
+  if (apptId && apptId !== 'walkin') {
+    const shareUrl = `${window.location.origin}/share.html?id=${apptId}`;
+    const linkInput = document.getElementById('share-link-input');
+    if (linkInput) linkInput.value = shareUrl;
+  }
+
   modal.style.display = 'flex';
 };
 
@@ -939,6 +947,63 @@ window.closeShareModal = function(e) {
   if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
   const modal = document.getElementById('share-modal');
   if (modal) modal.style.display = 'none';
+};
+
+// Copy secure share link to clipboard
+window.copyShareLink = function() {
+  const input = document.getElementById('share-link-input');
+  if (!input || !input.value) return;
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = input.nextElementSibling;
+    if (btn) {
+      btn.textContent = '✓ Copied!';
+      btn.style.background = '#15803d';
+      setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = '#16a34a'; }, 2000);
+    }
+  }).catch(() => {
+    input.select();
+    document.execCommand('copy');
+  });
+};
+
+// Open PDF or image in browser viewer modal (no download needed)
+window.openPdfViewer = function(fileUrl, description) {
+  const modal = document.getElementById('pdf-viewer-modal');
+  const iframe = document.getElementById('pdf-viewer-frame');
+  const img = document.getElementById('img-viewer-frame');
+  const title = document.getElementById('pdf-viewer-title');
+  const dlBtn = document.getElementById('pdf-download-btn');
+  if (!modal || !iframe || !img) return;
+
+  // Determine if it's an image or PDF
+  const isImage = /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(fileUrl);
+  
+  title.textContent = description || 'Document Viewer';
+  dlBtn.href = fileUrl;
+
+  if (isImage) {
+    img.src = fileUrl;
+    img.style.display = 'block';
+    iframe.style.display = 'none';
+    iframe.src = '';
+  } else {
+    // PDF — use iframe; browsers render PDFs natively
+    iframe.src = fileUrl;
+    iframe.style.display = 'block';
+    img.style.display = 'none';
+    img.src = '';
+  }
+
+  modal.style.display = 'flex';
+};
+
+window.closePdfViewer = function() {
+  const modal = document.getElementById('pdf-viewer-modal');
+  const iframe = document.getElementById('pdf-viewer-frame');
+  const img = document.getElementById('img-viewer-frame');
+  if (modal) modal.style.display = 'none';
+  if (iframe) iframe.src = '';
+  if (img) img.src = '';
 };
 
 // General logout handler
@@ -1344,7 +1409,7 @@ async function loadPatientHistory(phone) {
             <div style="margin-top:0.25rem;"><strong>Investigation Report</strong></div>
             ${report.description ? `<div style="margin-top:0.15rem; font-size:0.8rem;">${escapeHTML(report.description)}</div>` : ''}
             <div class="timeline-actions" style="margin-top:0.5rem;">
-              <a href="${report.file_url}" target="_blank" class="btn-sm approve" style="text-decoration:none; text-align:center; flex:1;">View Document</a>
+              <button onclick="openPdfViewer('${report.file_url}', '${escapeHTML(report.description || 'Investigation Report')}')" class="btn-sm approve" style="border:none; cursor:pointer; text-align:center; flex:1;">👁 View Document</button>
             </div>
           </div>
         `;

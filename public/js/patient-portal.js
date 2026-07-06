@@ -123,15 +123,20 @@ async function loadMyReports() {
         return;
       }
       
-      container.innerHTML = reports.map(r => `
+      container.innerHTML = reports.map(r => {
+        const isPdf = r.file_url && /\.pdf$/i.test(r.file_url);
+        const isImage = r.file_url && /\.(png|jpg|jpeg|gif|webp)$/i.test(r.file_url);
+        const viewLabel = isPdf ? '📄 View PDF' : isImage ? '🖼 View Image' : '👁 View Document';
+        return `
         <div class="report-card">
           <div>
             <div style="font-weight: 600; color: var(--text-dark);">${r.description || 'Investigation Report'}</div>
             <div style="font-size: 0.8rem; color: var(--text-muted);">Uploaded: ${new Date(r.upload_date).toLocaleDateString()}</div>
           </div>
-          <a href="${r.file_url}" target="_blank" class="btn" style="width: auto; padding: 0.5rem 1rem; text-decoration: none;">View</a>
-        </div>
-      `).join('');
+          <a href="${r.file_url}" target="_blank" class="btn" style="width: auto; padding: 0.5rem 1rem; text-decoration: none; font-size:0.875rem;">${viewLabel}</a>
+        </div>`;
+      }).join('');
+
     }
   } catch (err) {
     console.error('Failed to load reports', err);
