@@ -1324,6 +1324,7 @@ function selectPatientFromSearch(patient) {
 
 // Load patient history timeline
 let pastVisits = [];
+let loadedReports = [];
 let selectedPastVisit = null;
 
 async function loadPatientHistory(phone) {
@@ -1397,6 +1398,7 @@ async function loadPatientHistory(phone) {
 
     // Populate pastVisits so View/Modify/Clone buttons can look up visit data
     pastVisits = history;
+    loadedReports = reports;
 
     // Merge and sort by date descending
     let combined = [
@@ -1976,8 +1978,8 @@ function onWalkInPhoneInput(e) {
 let activeFindingsReportId = null;
 
 window.openFindingsModal = function(reportId) {
-  // Find report in pastVisits loaded context
-  const reportObj = pastVisits.find(r => r.id === reportId);
+  // Find report in loadedReports context
+  const reportObj = loadedReports.find(r => r.id === reportId);
   if (!reportObj) return alert('Report details not found.');
 
   activeFindingsReportId = reportId;
@@ -2093,7 +2095,7 @@ window.saveReportFindings = async function() {
 };
 
 window.importFindingsToPrescription = function(reportId) {
-  const reportObj = pastVisits.find(r => r.id === reportId);
+  const reportObj = loadedReports.find(r => r.id === reportId);
   if (!reportObj) return;
 
   let findings = [];
