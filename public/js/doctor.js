@@ -319,6 +319,7 @@ async function selectPatient(appointment) {
 
   // Load form details
   document.getElementById('obs-input').value = '';
+  document.getElementById('findings-input').value = '';
   document.getElementById('diag-custom').value = '';
   document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
   // Clear vitals
@@ -375,6 +376,11 @@ async function loadPrescription(appointmentId) {
 
   if (prescription) {
     document.getElementById('obs-input').value = prescription.observations || '';
+    
+    // Load findings from rich_state
+    const rich = prescription.rich_state || {};
+    document.getElementById('findings-input').value = rich.findings || '';
+
     document.getElementById('vital-bp-sys').value = prescription.bp || '';
     document.getElementById('vital-temp').value = prescription.temperature || '';
     document.getElementById('vital-pulse').value = prescription.pulse || '';
@@ -560,6 +566,7 @@ window.savePrescription = async function() {
   }
 
   const observations = document.getElementById('obs-input').value.trim();
+  const findingsText = document.getElementById('findings-input').value.trim();
   const diagnostics = diagnosticsArray.join(', ');
 
   const banner = document.getElementById('prescription-status');
@@ -612,6 +619,7 @@ window.savePrescription = async function() {
     rich_state: {
       diagnostics,
       observations,
+      findings: findingsText,
       medicines: prescribedMedicines,
       bp: bpVal || null,
       temperature: temp || null,
@@ -814,6 +822,19 @@ window.printPrescription = function() {
   // 3. Observations and Diagnostics
   const obsText = document.getElementById('obs-input').value.trim();
   document.getElementById('print-patient-obs').textContent = obsText || 'None';
+
+  // 3a. Findings block
+  const findingsText = document.getElementById('findings-input').value.trim();
+  const findingsBlock = document.getElementById('print-findings-block');
+  const printFindingsText = document.getElementById('print-patient-findings');
+  if (findingsText) {
+    printFindingsText.textContent = findingsText;
+    findingsBlock.style.display = 'block';
+  } else {
+    printFindingsText.textContent = '';
+    findingsBlock.style.display = 'none';
+  }
+
 
   // 3b. Vitals block — read from dedicated fields directly
   const bpVal  = document.getElementById('vital-bp-sys').value.trim();
@@ -1305,6 +1326,7 @@ function selectPatientFromSearch(patient) {
     prescribedMedicines = [];
     renderMedRows();
     document.getElementById('obs-input').value = '';
+    document.getElementById('findings-input').value = '';
     document.getElementById('diag-custom').value = '';
     document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
     // Clear vitals
@@ -1931,6 +1953,7 @@ window.startWalkInPrescription = function() {
 
   // Clear clinical/metrics inputs
   document.getElementById('obs-input').value = '';
+  document.getElementById('findings-input').value = '';
   document.getElementById('diag-custom').value = '';
   document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
   document.getElementById('patient-age').value = '';
@@ -2109,24 +2132,24 @@ window.importFindingsToPrescription = function(reportId) {
 
   if (!findings || findings.length === 0) return alert('No findings to import.');
 
-  const obsInput = document.getElementById('obs-input');
-  if (!obsInput) return;
+  const findingsInput = document.getElementById('findings-input');
+  if (!findingsInput) return;
 
-  // Format observations text from findings
-  let findingsText = 'Report Findings:\n';
+  // Format findings text
+  let findingsText = '';
   findings.forEach(f => {
     findingsText += `- ${f.parameter}: ${f.value} (${f.range || 'No ref range'}) [${f.status}]\n`;
   });
 
-  // Append to existing observations text
-  if (obsInput.value.trim()) {
-    obsInput.value = obsInput.value.trim() + '\n\n' + findingsText;
+  // Append or set findings input value
+  if (findingsInput.value.trim()) {
+    findingsInput.value = findingsInput.value.trim() + '\n' + findingsText;
   } else {
-    obsInput.value = findingsText;
+    findingsInput.value = findingsText;
   }
 
-  // Focus and trigger UI resize if any auto-grow listener is attached
-  obsInput.focus();
-  alert('Report findings successfully imported into observations!');
+  // Focus the input
+  findingsInput.focus();
+  alert('Report findings successfully imported into the Findings section!');
 };
 
