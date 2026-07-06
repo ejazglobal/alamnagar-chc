@@ -988,12 +988,22 @@ app.post('/api/reports', optionalAuthenticateToken, upload.single('report_file')
     // Upload to Supabase Storage (permanent cloud — survives server restarts)
     const file_url = await uploadToSupabase(req.file.buffer, filename, req.file.mimetype);
 
+    let findingsData = null;
+    if (req.body.findings) {
+      try {
+        findingsData = typeof req.body.findings === 'string' ? JSON.parse(req.body.findings) : req.body.findings;
+      } catch (pe) {
+        console.warn('Invalid findings JSON passed:', req.body.findings);
+      }
+    }
+
     const newReport = await db.createPatientReport({
       patient_phone,
       uploader_role: req.user.role.toLowerCase(),
       file_url,
       file_type: req.file.mimetype,
-      description
+      description,
+      findings: findingsData
     });
     res.status(201).json(newReport);
   } catch (err) {
@@ -1003,6 +1013,33 @@ app.post('/api/reports', optionalAuthenticateToken, upload.single('report_file')
       return res.status(500).json({ error: 'Storage not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY on the server.' });
     }
     res.status(500).json({ error: `Upload failed: ${err.message}` });
+  }
+});
+
+// Update findings for a specific report
+app.put('/api/reports/:id/findings', authenticateToken, async (req, res) => {
+  const allowedRoles = ['doctor', 'admin', 'staff'];
+  if (!req.user || !allowedRoles.includes((req.user.role || '').toLowerCase())) {
+    return res.status(403).json({ error: 'Unauthorized. Only clinical users can update report findings.' });
+  }
+
+  const reportId = req.params.id;
+  const { findings } = req.body;
+
+  try {
+    let findingsData = findings;
+    if (typeof findings === 'string') {
+      findingsData = JSON.parse(findings);
+    }
+    
+    const updated = await db.updatePatientReportFindings(reportId, findingsData);
+    if (!updated) {
+      return res.status(404).json({ error: 'Report not found.' });
+    }
+    res.json(updated);
+  } catch (err) {
+    console.error('Error updating report findings:', err);
+    res.status(500).json({ error: 'Failed to update findings.' });
   }
 });
 

@@ -1462,6 +1462,41 @@ async function loadPatientHistory(phone) {
           month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
         });
 
+        // Parse findings if any
+        let findingsList = [];
+        if (report.findings) {
+          try {
+            findingsList = typeof report.findings === 'string' ? JSON.parse(report.findings) : report.findings;
+          } catch (e) {
+            console.warn('Failed to parse findings:', report.findings);
+          }
+        }
+
+        let findingsHtml = '';
+        if (findingsList && findingsList.length > 0) {
+          findingsHtml = `
+            <div style="margin-top: 0.5rem; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 0.4rem 0.6rem;">
+              <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-dark); text-transform: uppercase; margin-bottom: 0.25rem;">📋 Lab Findings:</div>
+              <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                ${findingsList.map(f => {
+                  const statusClass = f.status === 'High' ? 'background:#fee2e2; color:#ef4444; border:1px solid #fecaca;' :
+                                      f.status === 'Low' ? 'background:#eff6ff; color:#3b82f6; border:1px solid #bfdbfe;' :
+                                      'background:#f0fdf4; color:#22c55e; border:1px solid #bbf7d0;';
+                  return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; border-bottom:1px solid #f1f5f9; padding-bottom:0.15rem;">
+                      <span><strong>${escapeHTML(f.parameter)}</strong>: ${escapeHTML(f.value)} <span style="font-size:0.7rem; color:#64748b;">(${escapeHTML(f.range || 'N/A')})</span></span>
+                      <span style="font-size:0.7rem; font-weight:700; padding:0.1rem 0.4rem; border-radius:4px; ${statusClass}">${escapeHTML(f.status || 'Normal')}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        const importBtnHtml = (findingsList && findingsList.length > 0) ?
+          `<button onclick="importFindingsToPrescription(${report.id})" class="btn-sm" style="border:none; cursor:pointer; text-align:center; flex:1; background-color: var(--primary-color); font-weight: 600;">📥 Import to Prescription</button>` : '';
+
         const itemDiv = document.createElement('div');
         itemDiv.className = 'timeline-item';
         itemDiv.innerHTML = `
@@ -1470,12 +1505,20 @@ async function loadPatientHistory(phone) {
             <div class="timeline-doc">Uploaded by ${escapeHTML(report.uploader_role === 'doctor' ? 'Doctor' : 'Patient')}</div>
             <div style="margin-top:0.25rem;"><strong>Investigation Report</strong></div>
             ${report.description ? `<div style="margin-top:0.15rem; font-size:0.8rem;">${escapeHTML(report.description)}</div>` : ''}
-            <div class="timeline-actions" style="margin-top:0.5rem;">
-              <button onclick="openPdfViewer('${report.file_url}', '${escapeHTML(report.description || 'Investigation Report')}')" class="btn-sm approve" style="border:none; cursor:pointer; text-align:center; flex:1;">👁 View Document</button>
+            
+            ${findingsHtml}
+
+            <div class="timeline-actions" style="margin-top:0.5rem; display:flex; flex-direction:column; gap:4px;">
+              <div style="display:flex; gap:4px;">
+                <button onclick="openPdfViewer('${report.file_url}', '${escapeHTML(report.description || 'Investigation Report')}')" class="btn-sm approve" style="border:none; cursor:pointer; text-align:center; flex:1;">👁 View Document</button>
+                <button onclick="openFindingsModal(${report.id})" class="btn-sm" style="border:none; cursor:pointer; text-align:center; flex:1; background:#0284c7; color:white;">✏️ Flag Findings</button>
+              </div>
+              ${importBtnHtml}
             </div>
           </div>
         `;
         timelineContainer.appendChild(itemDiv);
+      }
       }
     });
 
@@ -1929,3 +1972,160 @@ function onWalkInPhoneInput(e) {
     if (timeline) timeline.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0; font-size: 0.85rem;">Type a valid mobile number in the form to load patient history timeline...</div>';
   }
 }
+
+// ── Report Findings Management ──────────────────────────────────────────
+let activeFindingsReportId = null;
+
+window.openFindingsModal = function(reportId) {
+  // Find report in pastVisits loaded context
+  const reportObj = pastVisits.find(r => r.id === reportId);
+  if (!reportObj) return alert('Report details not found.');
+
+  activeFindingsReportId = reportId;
+  const tbody = document.getElementById('findings-table-body');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  let findings = [];
+  if (reportObj.findings) {
+    try {
+      findings = typeof reportObj.findings === 'string' ? JSON.parse(reportObj.findings) : reportObj.findings;
+    } catch (e) {
+      console.warn('Invalid findings data', reportObj.findings);
+    }
+  }
+
+  if (findings && findings.length > 0) {
+    findings.forEach(f => {
+      addFindingsRow(f.parameter, f.value, f.range, f.status);
+    });
+  } else {
+    // Add one empty row to start
+    addFindingsRow();
+  }
+
+  document.getElementById('report-findings-modal').style.display = 'flex';
+};
+
+window.closeFindingsModal = function(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('report-findings-modal');
+  if (modal) modal.style.display = 'none';
+  activeFindingsReportId = null;
+};
+
+window.addFindingsRow = function(param = '', val = '', range = '', status = 'Normal') {
+  const tbody = document.getElementById('findings-table-body');
+  if (!tbody) return;
+
+  const tr = document.createElement('tr');
+  tr.style.borderBottom = '1px solid #f1f5f9';
+  tr.className = 'finding-row';
+  tr.innerHTML = `
+    <td style="padding:0.4rem 0.25rem;">
+      <input type="text" class="form-control finding-param" value="${escapeHTML(param)}" placeholder="e.g. Hemoglobin" style="font-size:0.8rem; padding:0.3rem;" required>
+    </td>
+    <td style="padding:0.4rem 0.25rem;">
+      <input type="text" class="form-control finding-val" value="${escapeHTML(val)}" placeholder="e.g. 10.5" style="font-size:0.8rem; padding:0.3rem;" required>
+    </td>
+    <td style="padding:0.4rem 0.25rem;">
+      <input type="text" class="form-control finding-range" value="${escapeHTML(range)}" placeholder="e.g. 12-16" style="font-size:0.8rem; padding:0.3rem;">
+    </td>
+    <td style="padding:0.4rem 0.25rem;">
+      <select class="form-control finding-status" style="font-size:0.8rem; padding:0.3rem;">
+        <option value="Normal" ${status === 'Normal' ? 'selected' : ''}>Normal</option>
+        <option value="High" ${status === 'High' ? 'selected' : ''}>High 🔴</option>
+        <option value="Low" ${status === 'Low' ? 'selected' : ''}>Low 🔵</option>
+      </select>
+    </td>
+    <td style="padding:0.4rem 0.25rem; text-align:center;">
+      <button type="button" onclick="this.closest('tr').remove()" style="background:none; border:none; color:var(--danger); font-size:1.1rem; cursor:pointer;">&times;</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+};
+
+window.saveReportFindings = async function() {
+  if (!activeFindingsReportId) return;
+
+  const rows = document.querySelectorAll('.finding-row');
+  const findings = [];
+
+  for (let row of rows) {
+    const parameter = row.querySelector('.finding-param').value.trim();
+    const value = row.querySelector('.finding-val').value.trim();
+    const range = row.querySelector('.finding-range').value.trim();
+    const status = row.querySelector('.finding-status').value;
+
+    if (parameter && value) {
+      findings.push({ parameter, value, range, status });
+    }
+  }
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch(`/api/reports/${activeFindingsReportId}/findings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ findings })
+    });
+
+    if (res.ok) {
+      alert('Findings updated successfully!');
+      closeFindingsModal();
+      
+      // Reload history to show updated findings
+      const phone = document.getElementById('patient-banner-phone') ? document.getElementById('patient-banner-phone').textContent : '';
+      if (phone && phone !== '...') {
+        loadPatientHistory(phone);
+      }
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Failed to save findings.');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Network error while saving findings.');
+  }
+};
+
+window.importFindingsToPrescription = function(reportId) {
+  const reportObj = pastVisits.find(r => r.id === reportId);
+  if (!reportObj) return;
+
+  let findings = [];
+  if (reportObj.findings) {
+    try {
+      findings = typeof reportObj.findings === 'string' ? JSON.parse(reportObj.findings) : reportObj.findings;
+    } catch (e) {
+      console.warn('Invalid findings data', reportObj.findings);
+    }
+  }
+
+  if (!findings || findings.length === 0) return alert('No findings to import.');
+
+  const obsInput = document.getElementById('obs-input');
+  if (!obsInput) return;
+
+  // Format observations text from findings
+  let findingsText = 'Report Findings:\n';
+  findings.forEach(f => {
+    findingsText += `- ${f.parameter}: ${f.value} (${f.range || 'No ref range'}) [${f.status}]\n`;
+  });
+
+  // Append to existing observations text
+  if (obsInput.value.trim()) {
+    obsInput.value = obsInput.value.trim() + '\n\n' + findingsText;
+  } else {
+    obsInput.value = findingsText;
+  }
+
+  // Focus and trigger UI resize if any auto-grow listener is attached
+  obsInput.focus();
+  alert('Report findings successfully imported into observations!');
+};
+

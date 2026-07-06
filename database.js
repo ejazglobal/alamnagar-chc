@@ -192,6 +192,9 @@ async function initializeDatabase() {
       await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS package_container TEXT");
       await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS package_size TEXT");
       await pool.query("ALTER TABLE medicines ADD COLUMN IF NOT EXISTS image_url TEXT");
+      
+      // Patient Reports findings migration
+      await pool.query("ALTER TABLE patient_reports ADD COLUMN IF NOT EXISTS findings JSONB");
 
       // Gallery table column updates
       await pool.query("ALTER TABLE gallery ADD COLUMN IF NOT EXISTS title_en VARCHAR(255)");
@@ -729,10 +732,16 @@ module.exports = {
 
   // --- PATIENT REPORTS HELPERS ---
   createPatientReport: async (report) => {
-    const { patient_phone, uploader_role, file_url, file_type, description } = report;
-    const query = `INSERT INTO patient_reports (patient_phone, uploader_role, file_url, file_type, description) VALUES ($1, $2, $3, $4, $5) RETURNING id, upload_date`;
-    const res = await pool.query(query, [patient_phone, uploader_role, file_url, file_type || null, description || '']);
+    const { patient_phone, uploader_role, file_url, file_type, description, findings } = report;
+    const query = `INSERT INTO patient_reports (patient_phone, uploader_role, file_url, file_type, description, findings) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, upload_date`;
+    const res = await pool.query(query, [patient_phone, uploader_role, file_url, file_type || null, description || '', findings ? JSON.stringify(findings) : null]);
     return { id: res.rows[0].id, upload_date: res.rows[0].upload_date, ...report };
+  },
+
+  updatePatientReportFindings: async (id, findings) => {
+    const query = `UPDATE patient_reports SET findings = $1 WHERE id = $2 RETURNING *`;
+    const res = await pool.query(query, [findings ? JSON.stringify(findings) : null, id]);
+    return res.rows[0];
   },
 
   getPatientReportsByPhone: async (phone) => {
