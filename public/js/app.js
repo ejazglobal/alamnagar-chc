@@ -986,6 +986,7 @@ function renderAuthNav() {
     navMenu.innerHTML = `
       <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
       <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
+      <a href="patient-portal.html" class="nav-link" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
       <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">${TRANSLATIONS[currentLanguage]["nav-news"]}</a>
       ${portalLink}
       <a href="#" class="nav-link" id="link-logout" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);" data-i18n="nav-logout">${TRANSLATIONS[currentLanguage]["nav-logout"]}</a>
@@ -1000,6 +1001,7 @@ function renderAuthNav() {
     navMenu.innerHTML = `
       <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
       <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
+      <a href="patient-portal.html" class="nav-link" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
       <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">${TRANSLATIONS[currentLanguage]["nav-news"]}</a>
       <a href="login.html" class="nav-link btn-admin" id="link-auth-btn" data-i18n="nav-login">${TRANSLATIONS[currentLanguage]["nav-login"]}</a>
     `;
