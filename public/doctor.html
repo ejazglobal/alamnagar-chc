@@ -635,14 +635,15 @@
           </div>
 
           <!-- Report Upload Section -->
-          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; display: flex; gap: 1rem; align-items: center;">
+          <div style="margin-top: 0.5rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; display: flex; gap: 1rem; align-items: center; flex-basis: 100%; width: 100%;">
             <input type="file" id="report-upload-file" accept="image/*,application/pdf" style="display: none;" onchange="handleReportUpload(event)">
             <button class="btn" style="background-color: var(--secondary-color); font-size: 0.85rem; padding: 0.5rem 1rem;" onclick="document.getElementById('report-upload-file').click()">
-              + Upload Investigation Report
+              📎 Upload Investigation Report
             </button>
             <span id="report-upload-status" style="font-size: 0.85rem; color: var(--text-muted);"></span>
           </div>
         </div>
+
 
         <!-- Patient Demographics and Clinical Metrics Form -->
         <div class="patient-metrics-form" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; background: #f8fafc; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-top: 1rem;">

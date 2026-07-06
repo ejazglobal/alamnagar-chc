@@ -1268,6 +1268,9 @@ async function loadPatientHistory(phone) {
       }
     }
 
+    // Populate pastVisits so View/Modify/Clone buttons can look up visit data
+    pastVisits = history;
+
     // Merge and sort by date descending
     let combined = [
       ...history.map(v => ({ type: 'visit', date: new Date(v.appointment_date + 'T' + v.appointment_time), data: v })),
