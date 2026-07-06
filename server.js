@@ -1001,7 +1001,7 @@ app.post('/api/reports', optionalAuthenticateToken, upload.single('report_file')
     if (err.message && err.message.includes('environment variables')) {
       return res.status(500).json({ error: 'Storage not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY on the server.' });
     }
-    res.status(500).json({ error: 'Failed to upload report. Please try again.' });
+    res.status(500).json({ error: `Upload failed: ${err.message}` });
   }
 });
 
