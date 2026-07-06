@@ -968,6 +968,15 @@ window.copyShareLink = function() {
 
 // Open PDF or image in browser viewer modal (no download needed)
 window.openPdfViewer = async function(fileUrl, description) {
+  const isImage = /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(fileUrl);
+
+  if (!isImage) {
+    // Standard PDFs open beautifully in a full-screen new tab using the browser's native PDF reader
+    // This bypasses iframe security sandboxes and cross-origin framing restrictions.
+    window.open(fileUrl, '_blank');
+    return;
+  }
+
   const modal = document.getElementById('pdf-viewer-modal');
   const iframe = document.getElementById('pdf-viewer-frame');
   const img = document.getElementById('img-viewer-frame');
