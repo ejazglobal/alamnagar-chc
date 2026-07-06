@@ -34,6 +34,7 @@ async function uploadToSupabase(buffer, filename, mimeType) {
   const response = await fetch(uploadUrl, {
     method: 'POST',
     headers: {
+      'apikey': SUPABASE_SERVICE_KEY,
       'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
       'Content-Type': mimeType,
       'x-upsert': 'true' // overwrite if same filename exists
