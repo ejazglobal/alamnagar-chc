@@ -967,7 +967,7 @@ window.copyShareLink = function() {
 };
 
 // Open PDF or image in browser viewer modal (no download needed)
-window.openPdfViewer = function(fileUrl, description) {
+window.openPdfViewer = async function(fileUrl, description) {
   const modal = document.getElementById('pdf-viewer-modal');
   const iframe = document.getElementById('pdf-viewer-frame');
   const img = document.getElementById('img-viewer-frame');
@@ -975,35 +975,94 @@ window.openPdfViewer = function(fileUrl, description) {
   const dlBtn = document.getElementById('pdf-download-btn');
   if (!modal || !iframe || !img) return;
 
-  // Determine if it's an image or PDF
-  const isImage = /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(fileUrl);
-  
   title.textContent = description || 'Document Viewer';
   dlBtn.href = fileUrl;
 
-  if (isImage) {
-    img.src = fileUrl;
-    img.style.display = 'block';
-    iframe.style.display = 'none';
-    iframe.src = '';
-  } else {
-    // PDF — use iframe; browsers render PDFs natively
-    iframe.src = fileUrl;
-    iframe.style.display = 'block';
-    img.style.display = 'none';
-    img.src = '';
-  }
-
+  // Hide both viewers and show modal with loading state
+  iframe.style.display = 'none';
+  img.style.display = 'none';
+  iframe.src = '';
+  img.src = '';
   modal.style.display = 'flex';
+
+  // Show a loading indicator
+  const viewerBody = iframe.parentElement;
+  const loadingEl = document.createElement('div');
+  loadingEl.id = 'pdf-loading-msg';
+  loadingEl.style.cssText = 'display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#94a3b8; gap:1rem; font-size:1rem;';
+  loadingEl.innerHTML = '<svg style="width:40px;height:40px;animation:spin 1s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"/></svg><span>Loading document...</span>';
+  const existingMsg = document.getElementById('pdf-loading-msg');
+  if (existingMsg) existingMsg.remove();
+  viewerBody.appendChild(loadingEl);
+
+  // Verify file actually exists with a HEAD request
+  try {
+    const token = localStorage.getItem('chc_token');
+    const check = await fetch(fileUrl, { method: 'HEAD', headers: { 'Authorization': `Bearer ${token}` } });
+    loadingEl.remove();
+
+    if (!check.ok) {
+      // File not found - show friendly error
+      showViewerError(viewerBody, fileUrl, 'File not found on server. It may have been removed.');
+      return;
+    }
+
+    const isImage = /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(fileUrl);
+
+    if (isImage) {
+      img.src = fileUrl;
+      img.style.display = 'block';
+      img.onerror = () => {
+        img.style.display = 'none';
+        showViewerError(viewerBody, fileUrl, 'Image could not be displayed.');
+      };
+    } else {
+      // PDF or other — use embed tag which renders PDF natively in browser
+      const embedEl = document.createElement('embed');
+      embedEl.src = fileUrl;
+      embedEl.type = 'application/pdf';
+      embedEl.style.cssText = 'width:100%; height:100%; border:none;';
+      // Clear any old embed
+      const oldEmbed = viewerBody.querySelector('embed');
+      if (oldEmbed) oldEmbed.remove();
+      viewerBody.appendChild(embedEl);
+    }
+  } catch (err) {
+    if (loadingEl.parentElement) loadingEl.remove();
+    showViewerError(viewerBody, fileUrl, 'Network error. Please check your connection.');
+  }
 };
+
+function showViewerError(container, fileUrl, message) {
+  const errEl = document.createElement('div');
+  errEl.style.cssText = 'display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#fca5a5; gap:1rem; text-align:center; padding:2rem;';
+  errEl.innerHTML = `
+    <svg style="width:48px;height:48px" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+    <span style="font-size:1rem; font-weight:600;">${message}</span>
+    <a href="${fileUrl}" download style="background:#3b82f6; color:white; padding:0.5rem 1.25rem; border-radius:6px; text-decoration:none; font-weight:600; font-size:0.9rem;">⬇ Try Download Instead</a>
+  `;
+  container.appendChild(errEl);
+}
 
 window.closePdfViewer = function() {
   const modal = document.getElementById('pdf-viewer-modal');
   const iframe = document.getElementById('pdf-viewer-frame');
   const img = document.getElementById('img-viewer-frame');
-  if (modal) modal.style.display = 'none';
-  if (iframe) iframe.src = '';
-  if (img) img.src = '';
+  if (modal) {
+    modal.style.display = 'none';
+    // Clean up dynamic elements
+    const viewerBody = iframe ? iframe.parentElement : null;
+    if (viewerBody) {
+      const oldEmbed = viewerBody.querySelector('embed');
+      if (oldEmbed) oldEmbed.remove();
+      const oldMsg = document.getElementById('pdf-loading-msg');
+      if (oldMsg) oldMsg.remove();
+      const errEl = viewerBody.querySelector('div[style*="fca5a5"]');
+      if (errEl) errEl.remove();
+    }
+  }
+  if (iframe) { iframe.src = ''; iframe.style.display = 'none'; }
+  if (img) { img.src = ''; img.style.display = 'none'; }
 };
 
 // General logout handler

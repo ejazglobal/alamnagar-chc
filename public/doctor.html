@@ -539,8 +539,13 @@
       font-weight: 600;
       min-width: 28px;
     }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
+
 <body>
 
   <!-- Navigation -->
@@ -637,13 +642,14 @@
           <!-- Report Upload Section -->
           <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 2px dashed #94a3b8; display: flex; gap: 1rem; align-items: center; flex-basis: 100%; width: 100%; flex-wrap: wrap;">
             <input type="file" id="report-upload-file" accept="image/*,application/pdf" style="display: none;" onchange="handleReportUpload(event)">
-            <button class="btn" style="background: linear-gradient(135deg, var(--secondary-color), #0891b2); font-size: 0.9rem; font-weight: 700; padding: 0.6rem 1.25rem; border-radius: 8px; letter-spacing: 0.3px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; gap:0.5rem; width:auto;" onclick="document.getElementById('report-upload-file').click()">
-              <svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-              Upload Investigation Report
+            <button onclick="document.getElementById('report-upload-file').click()" style="background: linear-gradient(135deg, #0e7490, #0369a1); color: #ffffff !important; font-size: 0.9rem; font-weight: 700; padding: 0.6rem 1.25rem; border-radius: 8px; border: none; cursor: pointer; letter-spacing: 0.3px; box-shadow: 0 2px 8px rgba(14,116,144,0.4); display:flex; align-items:center; gap:0.5rem;">
+              <svg style="width:18px;height:18px;fill:none;stroke:#ffffff;stroke-width:2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              <span style="color:#ffffff;">Upload Investigation Report</span>
             </button>
             <span id="report-upload-status" style="font-size: 0.85rem; font-weight: 600;"></span>
           </div>
         </div>
+
 
 
         <!-- Patient Demographics and Clinical Metrics Form -->

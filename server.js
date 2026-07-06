@@ -1446,6 +1446,17 @@ app.get('/doctor', (req, res) => {
 });
 
 // Serve frontend SPA routing fallback
+// IMPORTANT: Explicitly serve uploads directory BEFORE the catch-all
+// so uploaded files are found and served, not intercepted by the SPA route
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads'), {
+  fallthrough: false // return 404 instead of passing to next handler
+}));
+
+// Handle 404 for missing upload files specifically (do NOT serve index.html for these)
+app.use('/uploads', (err, req, res, next) => {
+  res.status(404).json({ error: 'File not found.' });
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
