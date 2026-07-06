@@ -1227,6 +1227,8 @@ async function loadPatientHistory(phone) {
   
   try {
     let history = [];
+    let reports = [];
+
     if (isFallbackMode) {
       const mockPrescriptions = JSON.parse(localStorage.getItem('chc_mock_prescriptions')) || [];
       const mockAppointments = JSON.parse(localStorage.getItem('chc_appointments')) || [];
@@ -1248,107 +1250,112 @@ async function loadPatientHistory(phone) {
       });
     } else {
       const token = localStorage.getItem('chc_token');
+
+      // Fetch visit history
       const res = await fetch(`/api/doctor/patient-history?phone=${encodeURIComponent(phone)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         history = await res.json();
       }
-    }
 
-      // Fetch reports
-      const currentToken = localStorage.getItem('chc_token');
+      // Fetch investigation reports
       const repRes = await fetch(`/api/reports/${encodeURIComponent(phone)}`, {
-        headers: { 'Authorization': `Bearer ${currentToken}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      let reports = [];
       if (repRes.ok) {
         reports = await repRes.json();
       }
-
-      // Merge and sort by date descending
-      let combined = [
-        ...history.map(v => ({ type: 'visit', date: new Date(v.appointment_date + 'T' + v.appointment_time), data: v })),
-        ...reports.map(r => ({ type: 'report', date: new Date(r.upload_date), data: r }))
-      ];
-      combined.sort((a, b) => b.date - a.date);
-      
-      if (combined.length === 0) {
-        grid.classList.remove('has-history');
-        sidebar.style.display = 'none';
-        timelineContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No history found.</div>';
-        return;
-      }
-      
-      grid.classList.add('has-history');
-      sidebar.style.display = 'flex';
-      
-      timelineContainer.innerHTML = '';
-      combined.forEach(item => {
-        if (item.type === 'visit') {
-          const visit = item.data;
-          const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-          });
-          
-          const itemDiv = document.createElement('div');
-          itemDiv.className = 'timeline-item';
-          
-          const hasPres = visit.prescription_id;
-          const modifyButtonHtml = hasPres ? 
-            `<button class="btn-sm" onclick="modifyPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--secondary-color);">Modify / Suggest</button>` : 
-            '';
-          const cloneButtonHtml = (activeAppointment && hasPres) ? 
-            `<button class="btn-sm approve" onclick="clonePrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem;">Clone</button>` : 
-            '';
-          const viewButtonHtml = hasPres ? 
-            `<button class="btn-sm cancel" onclick="openPastPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white;">View</button>` :
-            '';
-            
-          itemDiv.innerHTML = `
-            <div class="timeline-date">${formattedDate} at ${visit.appointment_time}</div>
-            <div class="timeline-card">
-              <div class="timeline-doc">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
-              ${visit.past_complaints ? `<div style="margin-top:0.25rem;"><strong>Complaints:</strong> <em>${escapeHTML(visit.past_complaints)}</em></div>` : ''}
-              ${visit.observations ? `<div style="margin-top:0.15rem;"><strong>Obs:</strong> ${escapeHTML(visit.observations)}</div>` : ''}
-              ${(viewButtonHtml || cloneButtonHtml || modifyButtonHtml) ? `
-              <div class="timeline-actions" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:0.5rem;">
-                ${viewButtonHtml}
-                ${modifyButtonHtml}
-                ${cloneButtonHtml}
-              </div>
-              ` : ''}
-            </div>
-          `;
-          timelineContainer.appendChild(itemDiv);
-        } else {
-          // Report type
-          const report = item.data;
-          const formattedDate = new Date(report.upload_date).toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
-          });
-          
-          const itemDiv = document.createElement('div');
-          itemDiv.className = 'timeline-item';
-          itemDiv.innerHTML = `
-            <div class="timeline-date">${formattedDate}</div>
-            <div class="timeline-card" style="border-left: 3px solid var(--secondary-color);">
-              <div class="timeline-doc">Uploaded by ${escapeHTML(report.uploader_role === 'doctor' ? 'Doctor' : 'Patient')}</div>
-              <div style="margin-top:0.25rem;"><strong>Investigation Report</strong></div>
-              ${report.description ? `<div style="margin-top:0.15rem; font-size:0.8rem;">${escapeHTML(report.description)}</div>` : ''}
-              <div class="timeline-actions" style="margin-top:0.5rem;">
-                <a href="${report.file_url}" target="_blank" class="btn-sm approve" style="text-decoration:none; text-align:center; flex:1;">View Document</a>
-              </div>
-            </div>
-          `;
-          timelineContainer.appendChild(itemDiv);
-        }
-      });
     }
+
+    // Merge and sort by date descending
+    let combined = [
+      ...history.map(v => ({ type: 'visit', date: new Date(v.appointment_date + 'T' + v.appointment_time), data: v })),
+      ...reports.map(r => ({ type: 'report', date: new Date(r.upload_date), data: r }))
+    ];
+    combined.sort((a, b) => b.date - a.date);
+
+    if (combined.length === 0) {
+      grid.classList.remove('has-history');
+      sidebar.style.display = 'none';
+      timelineContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No history found.</div>';
+      return;
+    }
+
+    grid.classList.add('has-history');
+    sidebar.style.display = 'flex';
+
+    timelineContainer.innerHTML = '';
+    combined.forEach(item => {
+      if (item.type === 'visit') {
+        const visit = item.data;
+        const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'timeline-item';
+
+        const hasPres = visit.prescription_id;
+        const modifyButtonHtml = hasPres ?
+          `<button class="btn-sm" onclick="modifyPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--secondary-color);">Modify / Suggest</button>` :
+          '';
+        const cloneButtonHtml = (activeAppointment && hasPres) ?
+          `<button class="btn-sm approve" onclick="clonePrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem;">Clone</button>` :
+          '';
+        const viewButtonHtml = hasPres ?
+          `<button class="btn-sm cancel" onclick="openPastPrescription(${visit.appointment_id})" style="flex: 1; text-align: center; justify-content: center; font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-color); color: white;">View</button>` :
+          '';
+
+        itemDiv.innerHTML = `
+          <div class="timeline-date">${formattedDate} at ${visit.appointment_time}</div>
+          <div class="timeline-card">
+            <div class="timeline-doc">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
+            ${visit.past_complaints ? `<div style="margin-top:0.25rem;"><strong>Complaints:</strong> <em>${escapeHTML(visit.past_complaints)}</em></div>` : ''}
+            ${visit.observations ? `<div style="margin-top:0.15rem;"><strong>Obs:</strong> ${escapeHTML(visit.observations)}</div>` : ''}
+            ${(viewButtonHtml || cloneButtonHtml || modifyButtonHtml) ? `
+            <div class="timeline-actions" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:0.5rem;">
+              ${viewButtonHtml}
+              ${modifyButtonHtml}
+              ${cloneButtonHtml}
+            </div>
+            ` : ''}
+          </div>
+        `;
+        timelineContainer.appendChild(itemDiv);
+      } else {
+        // Report type
+        const report = item.data;
+        const formattedDate = new Date(report.upload_date).toLocaleDateString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'timeline-item';
+        itemDiv.innerHTML = `
+          <div class="timeline-date">${formattedDate}</div>
+          <div class="timeline-card" style="border-left: 3px solid var(--secondary-color);">
+            <div class="timeline-doc">Uploaded by ${escapeHTML(report.uploader_role === 'doctor' ? 'Doctor' : 'Patient')}</div>
+            <div style="margin-top:0.25rem;"><strong>Investigation Report</strong></div>
+            ${report.description ? `<div style="margin-top:0.15rem; font-size:0.8rem;">${escapeHTML(report.description)}</div>` : ''}
+            <div class="timeline-actions" style="margin-top:0.5rem;">
+              <a href="${report.file_url}" target="_blank" class="btn-sm approve" style="text-decoration:none; text-align:center; flex:1;">View Document</a>
+            </div>
+          </div>
+        `;
+        timelineContainer.appendChild(itemDiv);
+      }
+    });
+
   } catch (err) {
     console.error('Error loading patient history:', err);
+    // On error, gracefully hide the panel instead of leaving it in a broken state
+    const grid = document.querySelector('.doctor-grid');
+    const sidebar = document.getElementById('history-sidebar');
+    if (grid) grid.classList.remove('has-history');
+    if (sidebar) sidebar.style.display = 'none';
   }
 }
 
