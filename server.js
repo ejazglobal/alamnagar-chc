@@ -1482,7 +1482,6 @@ app.get('/api/test-sms', async (req, res) => {
 });
 
 
-/* Commented out for security after execution
 // IMPORTANT: Delete this route entirely after running it once.
 // Usage: visit  /api/clear-test-data?secret=alamnagar-wipe-2026  in your browser.
 const WIPE_SECRET = 'alamnagar-wipe-2026';
@@ -1500,16 +1499,19 @@ app.get('/api/clear-test-data', async (req, res) => {
     // 1. Truncate prescriptions first (FK references appointments)
     await client.query('TRUNCATE TABLE prescriptions RESTART IDENTITY CASCADE');
 
-    // 2. Truncate otp_verifications
+    // 2. Truncate patient_reports
+    await client.query('TRUNCATE TABLE patient_reports RESTART IDENTITY CASCADE');
+
+    // 3. Truncate otp_verifications
     await client.query('TRUNCATE TABLE otp_verifications RESTART IDENTITY CASCADE');
 
-    // 3. Truncate appointments
+    // 4. Truncate appointments
     await client.query('TRUNCATE TABLE appointments RESTART IDENTITY CASCADE');
 
-    // 4. Remove only Patient-role accounts (keep Admin, Staff, Doctor users)
+    // 5. Remove only Patient-role accounts (keep Admin, Staff, Doctor users)
     await client.query("DELETE FROM users WHERE role = 'Patient'");
 
-    // 5. Reset users sequence to current max so new registrations start cleanly
+    // 6. Reset users sequence to current max so new registrations start cleanly
     await client.query("SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1))");
 
     await client.query('COMMIT');
@@ -1524,7 +1526,6 @@ app.get('/api/clear-test-data', async (req, res) => {
     client.release();
   }
 });
-*/
 
 // --- DOCTOR FALLBACK PATH ---
 app.get('/doctor', (req, res) => {
