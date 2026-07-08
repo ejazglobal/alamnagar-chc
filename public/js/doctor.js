@@ -193,6 +193,114 @@ function formatMedicineName(med) {
   return `${prefix ? prefix + ' ' : ''}${brand}${strength}`.trim();
 }
 
+function getUnitPrice(pkg) {
+  if (!pkg) return 0;
+  const m = pkg.match(/Unit\s+Price:\s*৳?\s*([0-9.]+)/i);
+  return m ? parseFloat(m[1]) : 0;
+}
+
+function calculateQuantity(dosage, durationStr) {
+  const durationNum = parseInt(durationStr.replace(/\D/g, ''), 10) || 0;
+  let multiplier = 1;
+  const lowerDuration = durationStr.toLowerCase();
+  if (lowerDuration.includes('week')) multiplier = 7;
+  else if (lowerDuration.includes('month')) multiplier = 30;
+  const totalDays = durationNum * multiplier;
+
+  let dosesPerDay = 1;
+  if (dosage.includes('-')) {
+    const parts = dosage.split('-');
+    dosesPerDay = parts.reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+  } else if (dosage.toLowerCase() === 'as needed') {
+    dosesPerDay = 1;
+  }
+
+  return Math.ceil(totalDays * dosesPerDay);
+}
+
+async function fetchAndShowAlternatives(med) {
+  const wrapper = document.getElementById('alternatives-wrapper');
+  const list = document.getElementById('alternatives-list');
+  if (!wrapper || !list) return;
+
+  wrapper.style.display = 'none';
+  list.innerHTML = '';
+
+  if (!med || !med.id) return;
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const response = await fetch(`/api/medicines/${med.id}/alternatives`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) return;
+
+    const alts = await response.json();
+    if (alts.length === 0) return;
+
+    const currentPrice = getUnitPrice(med.package_container);
+    if (!currentPrice) return;
+
+    alts.forEach(alt => {
+      const altPrice = getUnitPrice(alt.package_container);
+      if (!altPrice || altPrice >= currentPrice) return;
+
+      const savingsPct = Math.round(((currentPrice - altPrice) / currentPrice) * 100);
+      if (savingsPct <= 0) return;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.style.background = 'white';
+      btn.style.border = '1px solid #bbf7d0';
+      btn.style.borderRadius = '6px';
+      btn.style.padding = '0.35rem 0.6rem';
+      btn.style.fontSize = '0.75rem';
+      btn.style.cursor = 'pointer';
+      btn.style.color = '#15803d';
+      btn.style.display = 'inline-flex';
+      btn.style.alignItems = 'center';
+      btn.style.gap = '0.25rem';
+      btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+      btn.style.transition = 'all 0.15s ease';
+
+      btn.innerHTML = `<strong>${escapeHTML(alt.name || alt.brand_name || '')}</strong> (৳${altPrice.toFixed(2)}) <span style="background:#dcfce7; padding:1px 4px; border-radius:4px; font-weight:bold; font-size:0.7rem; color:#15803d;">Save ${savingsPct}%</span>`;
+
+      btn.addEventListener('mouseenter', () => {
+        btn.style.borderColor = '#86efac';
+        btn.style.background = '#f0fdf4';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.borderColor = '#bbf7d0';
+        btn.style.background = 'white';
+      });
+
+      btn.addEventListener('click', () => {
+        const searchInput = document.getElementById('med-search-input');
+        const formattedAltName = formatMedicineName(alt);
+        if (searchInput) searchInput.value = formattedAltName;
+        selectedMedicine = {
+          id: alt.id,
+          name: formattedAltName,
+          dosage_form: alt.dosage_form,
+          strength: alt.strength,
+          generic: alt.generic,
+          package_container: alt.package_container,
+          package_size: alt.package_size
+        };
+        fetchAndShowAlternatives(alt);
+      });
+
+      list.appendChild(btn);
+    });
+
+    if (list.children.length > 0) {
+      wrapper.style.display = 'block';
+    }
+  } catch (err) {
+    console.error('Error loading alternatives:', err);
+  }
+}
+
 function setupMedicineAutocomplete() {
   const searchInput = document.getElementById('med-search-input');
   const resultsDiv = document.getElementById('med-search-results');
@@ -206,6 +314,8 @@ function setupMedicineAutocomplete() {
       resultsDiv.innerHTML = '';
       resultsDiv.style.display = 'none';
       selectedMedicine = null;
+      const wrapper = document.getElementById('alternatives-wrapper');
+      if (wrapper) wrapper.style.display = 'none';
       return;
     }
 
@@ -222,9 +332,9 @@ function setupMedicineAutocomplete() {
             .map(m => {
               const nameLower = m.name.toLowerCase();
               let rank;
-              if (nameLower.startsWith(q))           rank = 1; // brand starts with
-              else if (nameLower.includes(q))         rank = 2; // brand contains
-              else                                    rank = 3; // generic matches
+              if (nameLower.startsWith(q))           rank = 1;
+              else if (nameLower.includes(q))         rank = 2;
+              else                                    rank = 3;
               return { ...m, rank };
             })
             .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name))
@@ -258,7 +368,17 @@ function setupMedicineAutocomplete() {
           const formattedName = formatMedicineName(med);
           const genericText = med.generic ? ` (${med.generic})` : '';
           const mfgText = med.manufacturer ? ` [${med.manufacturer}]` : '';
-          div.innerHTML = `<strong>${escapeHTML(formattedName)}</strong>${escapeHTML(genericText)}<span style="display:block; font-size:0.75rem; color:var(--text-muted);">${escapeHTML(med.dosage_form || '')} - ${escapeHTML(mfgText)}</span>`;
+
+          const pricePart = med.package_container ? med.package_container.split(',')[0].replace('Unit Price: ৳', '').trim() : '';
+          const priceDisplay = pricePart ? ` <span style="float: right; font-weight: bold; color: #16a34a; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">৳ ${pricePart}</span>` : '';
+
+          div.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <strong>${escapeHTML(formattedName)}</strong>${escapeHTML(genericText)}
+              <span style="display:block; font-size:0.75rem; color:var(--text-muted);">${escapeHTML(med.dosage_form || '')} - ${escapeHTML(mfgText)}</span>
+            </div>
+            ${priceDisplay}
+          </div>`;
           
           div.addEventListener('click', () => {
             searchInput.value = formattedName;
@@ -267,10 +387,13 @@ function setupMedicineAutocomplete() {
               name: formattedName,
               dosage_form: med.dosage_form,
               strength: med.strength,
-              generic: med.generic
+              generic: med.generic,
+              package_container: med.package_container,
+              package_size: med.package_size
             };
             resultsDiv.innerHTML = '';
             resultsDiv.style.display = 'none';
+            fetchAndShowAlternatives(med);
           });
 
           div.addEventListener('mouseenter', () => {
@@ -287,10 +410,9 @@ function setupMedicineAutocomplete() {
       } catch (err) {
         console.error('Error auto-completing medicine:', err);
       }
-    }, 250); // 250ms debounce
+    }, 250);
   });
 
-  // Hide suggestions when clicking outside
   document.addEventListener('click', (e) => {
     if (e.target !== searchInput && e.target !== resultsDiv && !resultsDiv.contains(e.target)) {
       resultsDiv.style.display = 'none';
@@ -451,7 +573,9 @@ window.addMedicineRow = function() {
     name: selectedMedicine.name,
     dosage,
     timing,
-    duration
+    duration,
+    package_container: selectedMedicine.package_container || null,
+    package_size: selectedMedicine.package_size || null
   };
 
   prescribedMedicines.push(rowData);
@@ -459,6 +583,10 @@ window.addMedicineRow = function() {
 
   if (searchInput) searchInput.value = '';
   selectedMedicine = null;
+
+  // Hide alternatives panel
+  const wrapper = document.getElementById('alternatives-wrapper');
+  if (wrapper) wrapper.style.display = 'none';
 };
 
 function renderMedRows() {
@@ -467,20 +595,38 @@ function renderMedRows() {
 
   tbody.innerHTML = '';
   
+  let totalCost = 0;
+
   if (prescribedMedicines.length === 0) {
     tbody.innerHTML = `
       <tr id="med-empty-row">
         <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No medicines prescribed yet.</td>
       </tr>
     `;
+    const totalValSpan = document.getElementById('total-price-val');
+    if (totalValSpan) totalValSpan.textContent = '0.00';
     return;
   }
 
   prescribedMedicines.forEach((med, idx) => {
+    const unitPrice = getUnitPrice(med.package_container);
+    const qty = calculateQuantity(med.dosage, med.duration);
+    const itemCost = unitPrice * qty;
+    totalCost += itemCost;
+
     const row1 = document.createElement('tr');
     row1.style.borderBottom = 'none';
+    
+    let priceSubtext = '';
+    if (unitPrice > 0) {
+      priceSubtext = `<div style="font-size:0.75rem; color:#16a34a; margin-top:0.15rem;">৳${unitPrice.toFixed(2)}/unit × ${qty} units = <strong>৳${itemCost.toFixed(2)}</strong></div>`;
+    }
+
     row1.innerHTML = `
-      <td><strong>${escapeHTML(med.name)}</strong></td>
+      <td>
+        <strong>${escapeHTML(med.name)}</strong>
+        ${priceSubtext}
+      </td>
       <td>${escapeHTML(med.dosage)}</td>
       <td>${escapeHTML(med.timing)}</td>
       <td>${escapeHTML(med.duration)}</td>
@@ -502,6 +648,11 @@ function renderMedRows() {
     `;
     tbody.appendChild(row2);
   });
+
+  const totalValSpan = document.getElementById('total-price-val');
+  if (totalValSpan) {
+    totalValSpan.textContent = totalCost.toFixed(2);
+  }
 }
 
 window.removeMedicineRow = function(idx) {

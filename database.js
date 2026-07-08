@@ -170,6 +170,29 @@ async function initializeDatabase() {
 
     console.log("PostgreSQL database tables verified/created.");
 
+    // Enable Row Level Security (RLS) on all public tables to resolve Supabase linter warnings
+    const tablesToEnableRLS = [
+      'doctors',
+      'users',
+      'appointments',
+      'news',
+      'gallery',
+      'staff_permissions',
+      'otp_verifications',
+      'medicines',
+      'prescriptions',
+      'patient_reports'
+    ];
+
+    for (const table of tablesToEnableRLS) {
+      try {
+        await pool.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
+        console.log(`Row Level Security (RLS) enabled on table: ${table}`);
+      } catch (rlsErr) {
+        console.warn(`Could not enable RLS on table ${table}: ${rlsErr.message}`);
+      }
+    }
+
     // Safe column migrations for existing old tables
     try {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");

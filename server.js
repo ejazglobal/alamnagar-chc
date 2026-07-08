@@ -1243,7 +1243,7 @@ app.get('/api/medicines', authenticateToken, async (req, res) => {
     let list;
     if (search) {
       const query = `
-        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer,
+        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer, package_container, package_size,
           CASE
             WHEN brand_name ILIKE $2 THEN 1
             WHEN brand_name ILIKE $1 THEN 2
@@ -1258,7 +1258,7 @@ app.get('/api/medicines', authenticateToken, async (req, res) => {
       list = resDb.rows.map(({ rank, ...rest }) => rest);
     } else {
       const query = `
-        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer
+        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer, package_container, package_size
         FROM medicines
         ORDER BY brand_name ASC
         LIMIT 100
@@ -1272,6 +1272,44 @@ app.get('/api/medicines', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Database error fetching medicines.' });
   }
 });
+
+app.get('/api/medicines/:id/alternatives', authenticateToken, async (req, res) => {
+  const medId = parseInt(req.params.id, 10);
+  if (isNaN(medId)) return res.status(400).json({ error: 'Invalid ID' });
+  try {
+    const medRes = await db.pool.query("SELECT generic, strength, dosage_form FROM medicines WHERE id = $1", [medId]);
+    if (medRes.rows.length === 0) return res.status(404).json({ error: 'Medicine not found' });
+    const { generic, strength, dosage_form } = medRes.rows[0];
+
+    if (!generic) return res.json([]);
+
+    const altRes = await db.pool.query(`
+      SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer, package_container, package_size
+      FROM medicines
+      WHERE generic = $1 AND strength = $2 AND dosage_form = $3 AND id != $4
+      ORDER BY brand_name ASC
+    `, [generic, strength, dosage_form, medId]);
+
+    const getPrice = (container) => {
+      if (!container) return Infinity;
+      const m = container.match(/Unit\s+Price:\s*৳?\s*([0-9.]+)/i);
+      return m ? parseFloat(m[1]) : Infinity;
+    };
+
+    const alternatives = altRes.rows.map(row => ({
+      ...row,
+      price: getPrice(row.package_container)
+    })).filter(row => row.price !== Infinity)
+      .sort((a, b) => a.price - b.price)
+      .slice(0, 5);
+
+    res.json(alternatives);
+  } catch (err) {
+    console.error('Error fetching alternatives:', err);
+    res.status(500).json({ error: 'Database error fetching alternatives.' });
+  }
+});
+
 
 app.get('/api/prescriptions/:appointmentId', authenticateToken, async (req, res) => {
   const apptId = parseInt(req.params.appointmentId, 10);
