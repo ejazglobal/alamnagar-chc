@@ -195,8 +195,39 @@ function formatMedicineName(med) {
 
 function getUnitPrice(pkg) {
   if (!pkg) return 0;
-  const m = pkg.match(/Unit\s+Price:\s*৳?\s*([0-9.]+)/i);
-  return m ? parseFloat(m[1]) : 0;
+  // Try matching Unit Price first (handles commas, e.g. 1,200.00)
+  const mUnit = pkg.match(/Unit\s+Price:\s*৳?\s*([0-9.,]+)/i);
+  if (mUnit) {
+    return parseFloat(mUnit[1].replace(/,/g, ''));
+  }
+  // Try matching generic price pattern (e.g. 50 ml bottle: ৳ 45.00)
+  const mGeneric = pkg.match(/৳\s*([0-9.,]+)/);
+  if (mGeneric) {
+    return parseFloat(mGeneric[1].replace(/,/g, ''));
+  }
+  return 0;
+}
+
+function isMultiDose(med) {
+  if (!med) return false;
+  const name = (med.name || '').toLowerCase();
+  const dosageForm = (med.dosage_form || '').toLowerCase();
+  const pkg = (med.package_container || '').toLowerCase();
+  
+  const multiDoseKeywords = [
+    'syrup', 'syp.', 'suspension', 'susp.', 'oral solution',
+    'ointment', 'oint.', 'cream', 'gel', 'drop', 'spray',
+    'inhaler', 'lotion', 'elixir', 'emulsion', 'liniment', 'paste'
+  ];
+  
+  const hasKeyword = multiDoseKeywords.some(keyword => 
+    name.includes(keyword) || dosageForm.includes(keyword)
+  );
+  
+  // Package container does not contain "unit price", indicating it's priced per container/pack
+  const isPackPriced = pkg && !pkg.includes('unit price');
+  
+  return !!(hasKeyword || isPackPriced);
 }
 
 function calculateQuantity(dosage, durationStr) {
@@ -575,8 +606,55 @@ window.addMedicineRow = function() {
     timing,
     duration,
     package_container: selectedMedicine.package_container || null,
-    package_size: selectedMedicine.package_size || null
+    package_size: selectedMedicine.package_size || null,
+    dosage_form: selectedMedicine.dosage_form || null,
+    generic: selectedMedicine.generic || null
   };
+
+  // Check for duplicates (same brand name or same generic composition)
+  let duplicateIndex = -1;
+  let dupReason = '';
+  let dupName = '';
+
+  for (let i = 0; i < prescribedMedicines.length; i++) {
+    const med = prescribedMedicines[i];
+    
+    // Check exact brand name match
+    if (med.name && rowData.name && med.name.trim().toLowerCase() === rowData.name.trim().toLowerCase()) {
+      duplicateIndex = i;
+      dupReason = `same brand name (${med.name})`;
+      dupName = med.name;
+      break;
+    }
+    
+    // Check same generic composition match (if both have generic specified)
+    const medGen = med.generic ? med.generic.trim().toLowerCase() : '';
+    const rowGen = rowData.generic ? rowData.generic.trim().toLowerCase() : '';
+    if (medGen && rowGen && medGen === rowGen) {
+      duplicateIndex = i;
+      dupReason = `same generic composition (${med.generic})`;
+      dupName = med.name;
+      break;
+    }
+  }
+
+  if (duplicateIndex !== -1) {
+    const confirmReplace = confirm(
+      `Medicine "${rowData.name}" has the ${dupReason} as the already prescribed medicine "${dupName}".\n\n` +
+      `Would you like to replace the existing prescription of "${dupName}" with "${rowData.name}"?`
+    );
+    
+    if (confirmReplace) {
+      prescribedMedicines[duplicateIndex] = rowData;
+      renderMedRows();
+      
+      if (searchInput) searchInput.value = '';
+      selectedMedicine = null;
+      const wrapper = document.getElementById('alternatives-wrapper');
+      if (wrapper) wrapper.style.display = 'none';
+    }
+    return;
+  }
 
   prescribedMedicines.push(rowData);
   renderMedRows();
@@ -610,7 +688,8 @@ function renderMedRows() {
 
   prescribedMedicines.forEach((med, idx) => {
     const unitPrice = getUnitPrice(med.package_container);
-    const qty = calculateQuantity(med.dosage, med.duration);
+    const isMulti = isMultiDose(med);
+    const qty = isMulti ? 1 : calculateQuantity(med.dosage, med.duration);
     const itemCost = unitPrice * qty;
     totalCost += itemCost;
 
@@ -619,7 +698,11 @@ function renderMedRows() {
     
     let priceSubtext = '';
     if (unitPrice > 0) {
-      priceSubtext = `<div style="font-size:0.75rem; color:#16a34a; margin-top:0.15rem;">৳${unitPrice.toFixed(2)}/unit × ${qty} units = <strong>৳${itemCost.toFixed(2)}</strong></div>`;
+      if (isMulti) {
+        priceSubtext = `<div style="font-size:0.75rem; color:#16a34a; margin-top:0.15rem;">৳${unitPrice.toFixed(2)}/pack × 1 pack = <strong>৳${itemCost.toFixed(2)}</strong></div>`;
+      } else {
+        priceSubtext = `<div style="font-size:0.75rem; color:#16a34a; margin-top:0.15rem;">৳${unitPrice.toFixed(2)}/unit × ${qty} units = <strong>৳${itemCost.toFixed(2)}</strong></div>`;
+      }
     }
 
     row1.innerHTML = `

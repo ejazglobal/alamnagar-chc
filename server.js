@@ -1292,8 +1292,15 @@ app.get('/api/medicines/:id/alternatives', authenticateToken, async (req, res) =
 
     const getPrice = (container) => {
       if (!container) return Infinity;
-      const m = container.match(/Unit\s+Price:\s*৳?\s*([0-9.]+)/i);
-      return m ? parseFloat(m[1]) : Infinity;
+      const mUnit = container.match(/Unit\s+Price:\s*৳?\s*([0-9.,]+)/i);
+      if (mUnit) {
+        return parseFloat(mUnit[1].replace(/,/g, ''));
+      }
+      const mGeneric = container.match(/৳\s*([0-9.,]+)/);
+      if (mGeneric) {
+        return parseFloat(mGeneric[1].replace(/,/g, ''));
+      }
+      return Infinity;
     };
 
     const alternatives = altRes.rows.map(row => ({
