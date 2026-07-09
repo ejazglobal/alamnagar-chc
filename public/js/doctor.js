@@ -579,17 +579,34 @@ async function loadPrescription(appointmentId) {
   }
 }
 
-function showDuplicateConfirmModal(message, onYes, onNo) {
+function getGenericIngredients(genericStr) {
+  if (!genericStr) return [];
+  return genericStr
+    .toLowerCase()
+    .replace(/\s*(?:\+|,|\/|&|\band\b)\s*/g, '|')
+    .split('|')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+}
+
+function getOverlappingIngredients(gen1, gen2) {
+  const ing1 = getGenericIngredients(gen1);
+  const ing2 = getGenericIngredients(gen2);
+  return ing1.filter(i => ing2.includes(i));
+}
+
+function showDuplicateConfirmModal(message, onYes, onNo, onCancel) {
   const modal = document.getElementById('duplicate-confirm-modal');
   const msgEl = document.getElementById('duplicate-confirm-message');
   const btnYes = document.getElementById('duplicate-confirm-yes');
   const btnNo = document.getElementById('duplicate-confirm-no');
+  const btnClose = document.getElementById('duplicate-confirm-close');
   
   if (!modal || !msgEl || !btnYes || !btnNo) {
     if (confirm(message)) {
       onYes();
     } else {
-      onNo();
+      onCancel();
     }
     return;
   }
@@ -609,14 +626,22 @@ function showDuplicateConfirmModal(message, onYes, onNo) {
     onNo();
   };
 
+  const handleClose = () => {
+    modal.style.display = 'none';
+    cleanup();
+    onCancel();
+  };
+
   const cleanup = () => {
     btnYes.removeEventListener('click', handleYes);
     btnNo.removeEventListener('click', handleNo);
+    if (btnClose) btnClose.removeEventListener('click', handleClose);
   };
 
   cleanup();
   btnYes.addEventListener('click', handleYes);
   btnNo.addEventListener('click', handleNo);
+  if (btnClose) btnClose.addEventListener('click', handleClose);
 }
 
 window.addMedicineRow = function() {
@@ -651,7 +676,7 @@ window.addMedicineRow = function() {
     generic: selectedMedicine.generic || null
   };
 
-  // Check for duplicates (same brand name or same generic composition)
+  // Check for duplicates (same brand name or overlapping generic ingredients)
   let duplicateIndex = -1;
   let dupReason = '';
   let dupName = '';
@@ -667,14 +692,15 @@ window.addMedicineRow = function() {
       break;
     }
     
-    // Check same generic composition match (if both have generic specified)
-    const medGen = med.generic ? med.generic.trim().toLowerCase() : '';
-    const rowGen = rowData.generic ? rowData.generic.trim().toLowerCase() : '';
-    if (medGen && rowGen && medGen === rowGen) {
-      duplicateIndex = i;
-      dupReason = `same generic composition (${med.generic})`;
-      dupName = med.name;
-      break;
+    // Check overlapping generic composition match (if both have generic specified)
+    if (med.generic && rowData.generic) {
+      const overlaps = getOverlappingIngredients(med.generic, rowData.generic);
+      if (overlaps.length > 0) {
+        duplicateIndex = i;
+        dupReason = `overlapping generic composition (${overlaps.join(', ')})`;
+        dupName = med.name;
+        break;
+      }
     }
   }
 
@@ -696,7 +722,13 @@ window.addMedicineRow = function() {
         clearFields();
       },
       () => {
-        // NO clicked: do not replace, but clear fields
+        // NO clicked (Keep Both): do not replace, but add as a new item and clear
+        prescribedMedicines.push(rowData);
+        renderMedRows();
+        clearFields();
+      },
+      () => {
+        // CANCEL clicked (Close button): do not replace, do not add, just clear fields
         clearFields();
       }
     );
