@@ -579,6 +579,46 @@ async function loadPrescription(appointmentId) {
   }
 }
 
+function showDuplicateConfirmModal(message, onYes, onNo) {
+  const modal = document.getElementById('duplicate-confirm-modal');
+  const msgEl = document.getElementById('duplicate-confirm-message');
+  const btnYes = document.getElementById('duplicate-confirm-yes');
+  const btnNo = document.getElementById('duplicate-confirm-no');
+  
+  if (!modal || !msgEl || !btnYes || !btnNo) {
+    if (confirm(message)) {
+      onYes();
+    } else {
+      onNo();
+    }
+    return;
+  }
+
+  msgEl.textContent = message;
+  modal.style.display = 'flex';
+
+  const handleYes = () => {
+    modal.style.display = 'none';
+    cleanup();
+    onYes();
+  };
+
+  const handleNo = () => {
+    modal.style.display = 'none';
+    cleanup();
+    onNo();
+  };
+
+  const cleanup = () => {
+    btnYes.removeEventListener('click', handleYes);
+    btnNo.removeEventListener('click', handleNo);
+  };
+
+  cleanup();
+  btnYes.addEventListener('click', handleYes);
+  btnNo.addEventListener('click', handleNo);
+}
+
 window.addMedicineRow = function() {
   const searchInput = document.getElementById('med-search-input');
   if (!selectedMedicine) {
@@ -638,33 +678,34 @@ window.addMedicineRow = function() {
     }
   }
 
+  const clearFields = () => {
+    if (searchInput) searchInput.value = '';
+    selectedMedicine = null;
+    const wrapper = document.getElementById('alternatives-wrapper');
+    if (wrapper) wrapper.style.display = 'none';
+  };
+
   if (duplicateIndex !== -1) {
-    const confirmReplace = confirm(
+    showDuplicateConfirmModal(
       `Medicine "${rowData.name}" has the ${dupReason} as the already prescribed medicine "${dupName}".\n\n` +
-      `Would you like to replace the existing prescription of "${dupName}" with "${rowData.name}"?`
+      `Would you like to replace the existing prescription of "${dupName}" with "${rowData.name}"?`,
+      () => {
+        // YES clicked: replace, render, and clear
+        prescribedMedicines[duplicateIndex] = rowData;
+        renderMedRows();
+        clearFields();
+      },
+      () => {
+        // NO clicked: do not replace, but clear fields
+        clearFields();
+      }
     );
-    
-    if (confirmReplace) {
-      prescribedMedicines[duplicateIndex] = rowData;
-      renderMedRows();
-      
-      if (searchInput) searchInput.value = '';
-      selectedMedicine = null;
-      const wrapper = document.getElementById('alternatives-wrapper');
-      if (wrapper) wrapper.style.display = 'none';
-    }
     return;
   }
 
   prescribedMedicines.push(rowData);
   renderMedRows();
-
-  if (searchInput) searchInput.value = '';
-  selectedMedicine = null;
-
-  // Hide alternatives panel
-  const wrapper = document.getElementById('alternatives-wrapper');
-  if (wrapper) wrapper.style.display = 'none';
+  clearFields();
 };
 
 function renderMedRows() {
