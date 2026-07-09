@@ -632,16 +632,33 @@ function showDuplicateConfirmModal(message, onYes, onNo, onCancel) {
     onCancel();
   };
 
+  const handleKeydown = (e) => {
+    if (modal.style.display === 'flex') {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleYes();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+      } else if (e.key === ' ' || e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        handleNo();
+      }
+    }
+  };
+
   const cleanup = () => {
     btnYes.removeEventListener('click', handleYes);
     btnNo.removeEventListener('click', handleNo);
     if (btnClose) btnClose.removeEventListener('click', handleClose);
+    window.removeEventListener('keydown', handleKeydown);
   };
 
   cleanup();
   btnYes.addEventListener('click', handleYes);
   btnNo.addEventListener('click', handleNo);
   if (btnClose) btnClose.addEventListener('click', handleClose);
+  window.addEventListener('keydown', handleKeydown);
 }
 
 window.addMedicineRow = function() {
@@ -766,6 +783,27 @@ function renderMedRows() {
     const itemCost = unitPrice * qty;
     totalCost += itemCost;
 
+    let overlapWarning = '';
+    if (med.generic) {
+      const otherOverlaps = [];
+      prescribedMedicines.forEach((otherMed, oIdx) => {
+        if (oIdx !== idx && otherMed.generic) {
+          const overlaps = getOverlappingIngredients(med.generic, otherMed.generic);
+          if (overlaps.length > 0) {
+            overlaps.forEach(o => {
+              if (!otherOverlaps.includes(o)) {
+                otherOverlaps.push(o);
+              }
+            });
+          }
+        }
+      });
+      if (otherOverlaps.length > 0) {
+        const capOverlaps = otherOverlaps.map(o => o.charAt(0).toUpperCase() + o.slice(1));
+        overlapWarning = `<div style="margin-top:0.15rem;"><span style="font-size:0.75rem; color:#b45309; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem; background:#fffbeb; border:1px solid #fde68a; padding:2px 6px; border-radius:4px;">⚠️ Overlapping Generic: ${escapeHTML(capOverlaps.join(', '))}</span></div>`;
+      }
+    }
+
     const row1 = document.createElement('tr');
     row1.style.borderBottom = 'none';
     
@@ -781,6 +819,7 @@ function renderMedRows() {
     row1.innerHTML = `
       <td>
         <strong>${escapeHTML(med.name)}</strong>
+        ${overlapWarning}
         ${priceSubtext}
       </td>
       <td>${escapeHTML(med.dosage)}</td>

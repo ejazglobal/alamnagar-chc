@@ -264,6 +264,11 @@ async function initializeDatabase() {
       await pool.query("UPDATE medicines SET brand_name = name WHERE brand_name IS NULL AND name IS NOT NULL");
       await pool.query("UPDATE medicines SET brand_name = 'Unknown Medicine' WHERE brand_name IS NULL");
       await pool.query("ALTER TABLE medicines ALTER COLUMN brand_name SET NOT NULL");
+
+      // Performance indexing for autocomplete searches and generic lookup logic
+      await pool.query("CREATE INDEX IF NOT EXISTS idx_medicines_lookup ON medicines (generic, strength, dosage_form)");
+      await pool.query("CREATE INDEX IF NOT EXISTS idx_medicines_brand_name_lower ON medicines (lower(brand_name))");
+      await pool.query("CREATE INDEX IF NOT EXISTS idx_medicines_generic_lower ON medicines (lower(generic))");
     } catch (migErr) {
       console.warn("Table migrations warning (might be already modified):", migErr.message);
     }
