@@ -349,6 +349,10 @@ window.closePrescriptionModal = function(e) {
 };
 
 window.printPortalPrescription = function() {
+  if (window.Capacitor) {
+    alert("Printing directly from the Android App is not supported. Please log into the Patient Portal in your phone's web browser (like Google Chrome or Safari) to print your prescription.");
+    return;
+  }
   const p = window.currentPortalPrescription;
   if (!p) return alert('No prescription loaded to print.');
 

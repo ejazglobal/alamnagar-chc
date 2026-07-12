@@ -171,15 +171,15 @@
 
   <!-- Prescription Viewer Modal -->
   <div id="prescription-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closePrescriptionModal(event)">
-    <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 600px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">
-      <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+    <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 600px; padding: 1.5rem; box-shadow: var(--shadow-lg); max-height: 90vh; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; flex-shrink: 0;">
         <h3 style="margin: 0; color: var(--primary-color);">My Prescription Details</h3>
         <button class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;" onclick="closePrescriptionModal(event)">&times;</button>
       </div>
-      <div id="prescription-modal-body" style="max-height: 450px; overflow-y: auto; font-size: 0.9rem; color: var(--text-dark);">
+      <div id="prescription-modal-body" style="overflow-y: auto; font-size: 0.9rem; color: var(--text-dark); flex: 1;">
         <!-- Dynamic content -->
       </div>
-      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; flex-shrink: 0;">
         <button class="btn" style="width: auto; padding: 0.5rem 1.25rem; background: #e2e8f0; color: var(--text-dark); border: none; cursor: pointer;" onclick="closePrescriptionModal(event)">Close</button>
         <button class="btn" style="width: auto; padding: 0.5rem 1.25rem; background-color: var(--secondary-color); color: var(--text-dark); border: none; cursor: pointer;" onclick="printPortalPrescription()">Print</button>
       </div>
