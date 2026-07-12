@@ -1812,7 +1812,7 @@ async function loadPatientHistory(phone) {
         itemDiv.innerHTML = `
           <div class="timeline-date">${formattedDate} at ${visit.appointment_time}</div>
           <div class="timeline-card">
-            <div class="timeline-doc">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
+            <div class="timeline-doc">Dr. ${escapeHTML((visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, ''))}</div>
             ${visit.past_complaints ? `<div style="margin-top:0.25rem;"><strong>Complaints:</strong> <em>${escapeHTML(visit.past_complaints)}</em></div>` : ''}
             ${visit.observations ? `<div style="margin-top:0.15rem;"><strong>Obs:</strong> ${escapeHTML(visit.observations)}</div>` : ''}
             ${(viewButtonHtml || cloneButtonHtml || modifyButtonHtml) ? `
@@ -2106,7 +2106,7 @@ window.openPastPrescription = function(appointmentId) {
 
   body.innerHTML = `
     <div style="border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
-      <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary-hover);">Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
+      <div style="font-size: 1.1rem; font-weight: 700; color: var(--primary-hover);">Dr. ${escapeHTML((visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, ''))}</div>
       <div style="font-size: 0.8rem; color: var(--text-muted);">Consultation date: ${formattedDate} at ${visit.appointment_time}</div>
     </div>
     

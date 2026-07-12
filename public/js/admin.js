@@ -1358,7 +1358,7 @@ window.viewPrescription = async function(appointmentId) {
         signatureHtml = `
           <div style="margin-top: 1.5rem; text-align: right;">
             <img src="${visit.doctor_signature}" alt="Doctor Signature" style="max-height: 50px; display: inline-block;">
-            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Dr. ${escapeHTML(visit.doctor_name || '')}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Dr. ${escapeHTML((visit.doctor_name || '').replace(/^Dr\.\s+/i, ''))}</div>
           </div>
         `;
       }
@@ -1371,7 +1371,7 @@ window.viewPrescription = async function(appointmentId) {
           </div>
           <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
             <div><strong>Date:</strong> ${new Date(visit.appointment_date).toLocaleDateString()}</div>
-            <div><strong>Doctor:</strong> Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
+            <div><strong>Doctor:</strong> Dr. ${escapeHTML((visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, ''))}</div>
           </div>
         </div>
 
