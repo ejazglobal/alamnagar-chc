@@ -20,4 +20,11 @@
     };
     console.log('[Capacitor CONFIG] Global API redirection active. Routing all API traffic to:', API_BASE_URL);
   }
+
+  window.toggleMobileMenu = function() {
+    const menu = document.getElementById('nav-menu');
+    if (menu) {
+      menu.classList.toggle('active');
+    }
+  };
 })();

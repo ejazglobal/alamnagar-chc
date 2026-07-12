@@ -1433,7 +1433,7 @@ window.closeAdminPrescriptionModal = function(e) {
 };
 
 window.printAdminPrescription = function() {
-  if (window.Capacitor) {
+  if (window.Capacitor || /wv|WebView|Android.*Version\/[0-9.]+/i.test(navigator.userAgent)) {
     alert("Printing directly from the Android App is not supported. Please open the admin panel in your web browser (like Google Chrome) to print prescriptions.");
     return;
   }
