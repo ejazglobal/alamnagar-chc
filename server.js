@@ -1345,6 +1345,7 @@ app.get('/api/prescriptions/:appointmentId', authenticateToken, async (req, res)
           return res.status(403).json({ error: 'Access Denied: You can only view your own prescriptions.' });
         }
       }
+    }
     const query = `
       SELECT p.*,
              a.patient_name, a.phone as patient_phone, a.appointment_date, a.appointment_time, a.notes as past_complaints,
