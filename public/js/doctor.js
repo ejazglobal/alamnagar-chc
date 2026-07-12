@@ -1140,8 +1140,12 @@ function showStatusBanner(element, message, type) {
 
 // Print / PDF export
 window.printPrescription = function() {
-  if (window.Capacitor || /wv|WebView|Android.*Version\/[0-9.]+/i.test(navigator.userAgent)) {
-    alert("Printing directly from the Android App is not supported. Please open this portal in your computer or phone's web browser (like Google Chrome) to print prescriptions.");
+  if (window.AndroidPrint) {
+    window.AndroidPrint.printPage();
+    return;
+  }
+  if (window.Capacitor || /wv|WebView/i.test(navigator.userAgent)) {
+    alert("Printing directly from this version of the Android App is not supported. Please install the updated app build, or open the portal in your phone's web browser (like Google Chrome) to print.");
     return;
   }
   if (!activeAppointment) return;
@@ -2142,8 +2146,12 @@ window.closePastPrescriptionModal = function(e) {
 };
 
 function printPastPrescription(visit) {
-  if (window.Capacitor || /wv|WebView|Android.*Version\/[0-9.]+/i.test(navigator.userAgent)) {
-    alert("Printing directly from the Android App is not supported. Please open this portal in your computer or phone's web browser (like Google Chrome) to print prescriptions.");
+  if (window.AndroidPrint) {
+    window.AndroidPrint.printPage();
+    return;
+  }
+  if (window.Capacitor || /wv|WebView/i.test(navigator.userAgent)) {
+    alert("Printing directly from this version of the Android App is not supported. Please install the updated app build, or open the portal in your phone's web browser (like Google Chrome) to print.");
     return;
   }
   const printDocName = document.getElementById('print-doctor-name-display');

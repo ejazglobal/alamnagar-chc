@@ -1433,8 +1433,8 @@ window.closeAdminPrescriptionModal = function(e) {
 };
 
 window.printAdminPrescription = function() {
-  if (window.Capacitor || /wv|WebView|Android.*Version\/[0-9.]+/i.test(navigator.userAgent)) {
-    alert("Printing directly from the Android App is not supported. Please open the admin panel in your web browser (like Google Chrome) to print prescriptions.");
+  if (!window.AndroidPrint && (window.Capacitor || /wv|WebView|Android.*Version\/[0-9.]+/i.test(navigator.userAgent))) {
+    alert("Printing directly from this version of the Android App is not supported. Please install the updated app build, or open the portal in your phone's web browser (like Google Chrome) to print.");
     return;
   }
   const p = window.currentAdminPrescription;
@@ -1618,6 +1618,17 @@ window.printAdminPrescription = function() {
       </body>
     </html>
   `;
+
+  if (window.AndroidPrint) {
+    document.body.innerHTML = content;
+    setTimeout(() => {
+      window.AndroidPrint.printPage();
+      setTimeout(() => {
+        location.reload();
+      }, 1000);
+    }, 500);
+    return;
+  }
 
   const printWindow = window.open('', '_blank');
   printWindow.document.write(content);
