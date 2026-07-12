@@ -268,6 +268,31 @@
       }
     }
 
+    @media (max-width: 991px) {
+      .doctor-grid, .doctor-grid.has-history {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        max-width: 100%;
+        width: 100%;
+      }
+      .queue-panel, .history-panel, #prescription-container {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .prescription-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+      .prescription-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding-right: 0;
+        padding-bottom: 1.5rem;
+      }
+    }
+
     .med-builder-grid {
       display: grid;
       grid-template-columns: 2fr 1fr 1fr 1.2fr auto;

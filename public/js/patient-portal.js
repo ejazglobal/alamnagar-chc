@@ -308,26 +308,28 @@ window.viewPrescriptionDetails = async function(appointmentId) {
 
         <div style="margin-bottom: 1rem;">
           <h5 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Rx (Prescribed Medicines)</h5>
-          <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-            <thead>
-              <tr style="border-bottom: 2px solid var(--border-color); text-align: left; color: var(--text-muted);">
-                <th style="padding: 0.25rem 0;">Name</th>
-                <th style="padding: 0.25rem 0;">Dosage</th>
-                <th style="padding: 0.25rem 0;">Timing</th>
-                <th style="padding: 0.25rem 0;">Duration</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${medsList.map(m => `
-                <tr style="border-bottom: 1px solid var(--border-color);">
-                  <td style="padding: 0.4rem 0;"><strong>${escapeHTML(m.name)}</strong></td>
-                  <td style="padding: 0.4rem 0;">${escapeHTML(m.dosage)}</td>
-                  <td style="padding: 0.4rem 0;">${escapeHTML(m.timing)}</td>
-                  <td style="padding: 0.4rem 0;">${escapeHTML(m.duration)}</td>
+          <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem; background: white;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 400px;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left; color: var(--text-muted);">
+                  <th style="padding: 0.25rem 0;">Name</th>
+                  <th style="padding: 0.25rem 0;">Dosage</th>
+                  <th style="padding: 0.25rem 0;">Timing</th>
+                  <th style="padding: 0.25rem 0;">Duration</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${medsList.map(m => `
+                  <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.4rem 0;"><strong>${escapeHTML(m.name)}</strong></td>
+                    <td style="padding: 0.4rem 0;">${escapeHTML(m.dosage)}</td>
+                    <td style="padding: 0.4rem 0;">${escapeHTML(m.timing)}</td>
+                    <td style="padding: 0.4rem 0;">${escapeHTML(m.duration)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         ${vitalsHtml}
