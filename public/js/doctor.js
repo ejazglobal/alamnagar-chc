@@ -1140,11 +1140,7 @@ function showStatusBanner(element, message, type) {
 
 // Print / PDF export
 window.printPrescription = function() {
-  if (window.AndroidPrint) {
-    window.AndroidPrint.printPage();
-    return;
-  }
-  if (window.Capacitor || /wv|WebView/i.test(navigator.userAgent)) {
+  if (!window.AndroidPrint && (window.Capacitor || /wv|WebView/i.test(navigator.userAgent))) {
     alert("Printing directly from this version of the Android App is not supported. Please install the updated app build, or open the portal in your phone's web browser (like Google Chrome) to print.");
     return;
   }
@@ -1274,7 +1270,11 @@ window.printPrescription = function() {
   }
   printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${docName.replace(/^Dr\.\s+/i, '')}</span>`;
 
-  window.print();
+  if (window.AndroidPrint) {
+    window.AndroidPrint.printPage();
+  } else {
+    window.print();
+  }
 };
 
 // Share & messaging handles
@@ -2146,11 +2146,7 @@ window.closePastPrescriptionModal = function(e) {
 };
 
 function printPastPrescription(visit) {
-  if (window.AndroidPrint) {
-    window.AndroidPrint.printPage();
-    return;
-  }
-  if (window.Capacitor || /wv|WebView/i.test(navigator.userAgent)) {
+  if (!window.AndroidPrint && (window.Capacitor || /wv|WebView/i.test(navigator.userAgent))) {
     alert("Printing directly from this version of the Android App is not supported. Please install the updated app build, or open the portal in your phone's web browser (like Google Chrome) to print.");
     return;
   }
@@ -2261,7 +2257,11 @@ function printPastPrescription(visit) {
   }
   printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${(visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, '')}</span>`;
   
-  window.print();
+  if (window.AndroidPrint) {
+    window.AndroidPrint.printPage();
+  } else {
+    window.print();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

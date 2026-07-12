@@ -1502,7 +1502,8 @@ window.printAdminPrescription = function() {
       <head>
         <title>Prescription Print</title>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 2.5rem; line-height: 1.5; color: #0f172a; }
+          @page { size: A4 portrait; margin: 10mm 12mm 10mm 12mm; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; margin: 0; line-height: 1.5; color: #0f172a; width: 100%; box-sizing: border-box; }
           .print-header { display: flex; justify-content: space-between; border-bottom: 2px solid #0d9488; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
           .print-logo-section { display: flex; align-items: center; gap: 0.75rem; }
           .print-clinic-meta { display: flex; flex-direction: column; }
