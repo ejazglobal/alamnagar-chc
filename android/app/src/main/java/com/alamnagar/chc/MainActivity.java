@@ -20,6 +20,10 @@ public class MainActivity extends BridgeActivity {
         super.onStart();
         final WebView webView = this.bridge.getWebView();
         if (webView != null) {
+            // Explicitly enable Android Autofill service integration for the WebView
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                webView.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_YES);
+            }
             webView.post(new Runnable() {
                 @Override
                 public void run() {
