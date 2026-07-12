@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "cap:sync": "cap sync",
+    "cap:open": "cap open android"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
@@ -14,6 +16,11 @@
     "multer": "^1.4.5-lts.1",
     "package-name": "^0.1.0",
     "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.1",
+    "@capacitor/cli": "^6.1.1",
+    "@capacitor/core": "^6.1.1"
   },
   "author": "Antigravity",
   "license": "ISC"

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Alamnagar CHC</string>
+    <string name="title_activity_main">Alamnagar CHC</string>
+    <string name="package_name">com.alamnagar.chc</string>
+    <string name="custom_url_scheme">com.alamnagar.chc</string>
+</resources>
