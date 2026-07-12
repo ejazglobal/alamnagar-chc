@@ -141,9 +141,9 @@ function renderQueue(listToRender) {
       item.classList.add('active');
     }
 
-    const formattedDate = new Date(appt.appointment_date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
+    const formattedDate = new Date(appt.appointment_date).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long'
     });
 
     const statusBadge = appt.status === 'completed' ? 
@@ -1797,9 +1797,9 @@ async function loadPatientHistory(phone) {
     combined.forEach(item => {
       if (item.type === 'visit') {
         const visit = item.data;
-        const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-US', {
-          month: 'short',
+        const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-GB', {
           day: 'numeric',
+          month: 'long',
           year: 'numeric'
         });
 
@@ -1836,8 +1836,10 @@ async function loadPatientHistory(phone) {
       } else {
         // Report type
         const report = item.data;
-        const formattedDate = new Date(report.upload_date).toLocaleDateString('en-US', {
-          month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        const formattedDate = new Date(report.upload_date).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
         });
 
         // Parse findings if any
@@ -2093,10 +2095,10 @@ window.openPastPrescription = function(appointmentId) {
     medsListHtml = '<div>No medicines prescribed.</div>';
   }
   
-  const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-US', {
+  const formattedDate = new Date(visit.appointment_date).toLocaleDateString('en-GB', {
     weekday: 'long',
-    month: 'short',
     day: 'numeric',
+    month: 'long',
     year: 'numeric'
   });
   
@@ -2580,8 +2582,8 @@ function renderPastPrescriptionsList(list) {
   }
   
   tbody.innerHTML = list.map(p => {
-    const formattedDate = new Date(p.appointment_date).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric'
+    const formattedDate = new Date(p.appointment_date).toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric'
     });
     
     let medsList = [];

@@ -564,10 +564,10 @@ function renderTable() {
   filtered.forEach(appt => {
     const row = document.createElement('tr');
 
-    const formattedDate = new Date(appt.appointment_date).toLocaleDateString('en-US', {
+    const formattedDate = new Date(appt.appointment_date).toLocaleDateString('en-GB', {
       weekday: 'short',
-      month: 'short',
       day: 'numeric',
+      month: 'long',
       year: 'numeric'
     });
 
