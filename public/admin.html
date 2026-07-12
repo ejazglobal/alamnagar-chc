@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="js/config.js"></script>
   <title>Alamnagar Charitable Healthcare Centre - Admin Dashboard</title>
   <meta name="description" content="Manage appointments, read details, and publish health announcements.">
   <link rel="stylesheet" href="css/styles.css">
@@ -290,6 +291,7 @@
                   <option value="news">News editor only</option>
                   <option value="doctors">Doctor editor only</option>
                   <option value="all">Full staff access</option>
+                  <option value="observer">Observer (Read-only access)</option>
                 </select>
               </div>
             </div>
@@ -456,6 +458,35 @@
       <p>&copy; 2026 Alamnagar CHC. Confidential healthcare staff utility.</p>
     </div>
   </footer>
+
+  <!-- Prescription Viewer Modal -->
+  <div id="admin-prescription-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closeAdminPrescriptionModal(event)">
+    <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 800px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <h3 style="margin: 0; color: var(--primary-color);">Patient Prescription Details</h3>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; background-color: var(--secondary-color); color: var(--text-dark);" onclick="printAdminPrescription()">Print</button>
+          <button class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;" onclick="closeAdminPrescriptionModal(event)">&times;</button>
+        </div>
+      </div>
+      <div id="admin-prescription-details" style="max-height: 500px; overflow-y: auto;">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Investigation Reports Modal -->
+  <div id="admin-reports-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closeAdminReportsModal(event)">
+    <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 600px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <h3 style="margin: 0; color: var(--primary-color);">Patient Investigation Reports</h3>
+        <button class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;" onclick="closeAdminReportsModal(event)">&times;</button>
+      </div>
+      <div id="admin-reports-list" style="max-height: 450px; overflow-y: auto;">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
 
   <script src="js/admin.js"></script>
 </body>

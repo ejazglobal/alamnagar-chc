@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const role = localStorage.getItem('chc_user_role');
   const token = localStorage.getItem('chc_token');
 
-  if (!token || (role !== 'Admin' && role !== 'Staff')) {
+  if (!token || (role !== 'Admin' && role !== 'Staff' && role !== 'Observer')) {
     // Access denied: redirect to login
     window.location.href = 'login.html';
   } else {
@@ -557,6 +557,9 @@ function renderTable() {
     return;
   }
 
+  const role = localStorage.getItem('chc_user_role');
+  const isObserver = role === 'Observer';
+
   // Populate row items
   filtered.forEach(appt => {
     const row = document.createElement('tr');
@@ -586,7 +589,7 @@ function renderTable() {
         ${appt.notes ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Note: <em>${escapeHTML(appt.notes)}</em></div>` : ''}
       </td>
       <td>
-        <div>${escapeHTML(appt.email)}</div>
+        <div>${escapeHTML(appt.email || '')}</div>
         <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.15rem;">${escapeHTML(appt.phone)}</div>
       </td>
       <td>
@@ -598,9 +601,17 @@ function renderTable() {
         <span class="badge ${appt.status}">${appt.status}</span>
       </td>
       <td>
-        <div class="action-btns">
-          <button class="btn-sm approve" onclick="updateStatus(${appt.id}, 'approved')" ${isApproved ? 'disabled' : ''}>Approve</button>
-          <button class="btn-sm cancel" onclick="updateStatus(${appt.id}, 'cancelled')" ${isCancelled ? 'disabled' : ''}>Cancel</button>
+        <div class="action-btns" style="display: flex; flex-direction: column; gap: 0.4rem;">
+          ${!isObserver ? `
+          <div style="display: flex; gap: 0.2rem; width: 100%;">
+            <button class="btn-sm approve" style="flex: 1;" onclick="updateStatus(${appt.id}, 'approved')" ${isApproved || isCancelled || appt.status === 'completed' ? 'disabled' : ''}>Approve</button>
+            <button class="btn-sm cancel" style="flex: 1;" onclick="updateStatus(${appt.id}, 'cancelled')" ${isCancelled || appt.status === 'completed' ? 'disabled' : ''}>Cancel</button>
+          </div>
+          ` : ''}
+          <div style="display: flex; gap: 0.2rem; width: 100%;">
+            <button class="btn-sm" style="flex: 1; background: var(--accent-color); color: white;" onclick="viewPatientReports('${appt.phone}', '${escapeHTML(appt.patient_name)}')">📂 Reports</button>
+            <button class="btn-sm" style="flex: 1; background: var(--primary-color); color: white;" onclick="viewPrescription(${appt.id})" ${appt.status !== 'completed' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>👁 Rx</button>
+          </div>
         </div>
       </td>
     `;
@@ -1053,7 +1064,29 @@ window.deleteStaff = async function(id) {
 function applyStaffPermissionsFilter() {
   const role = localStorage.getItem('chc_user_role');
   const permissions = localStorage.getItem('chc_user_permissions');
-  if (role === 'Staff') {
+  if (role === 'Observer') {
+    const panelsToHide = [
+      'news-post-form',
+      'news-manage-tbody',
+      'doctor-post-form',
+      'doctors-manage-tbody',
+      'gallery-upload-form',
+      'gallery-manage-tbody',
+      'admin-staff-section',
+      'change-password-form'
+    ];
+    panelsToHide.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        const panel = el.closest('.panel') || el.closest('section');
+        if (panel) panel.style.display = 'none';
+      }
+    });
+    const heroP = document.querySelector('.hero-content p');
+    if (heroP) heroP.textContent = 'Browse patient appointments, view clinical prescriptions, and read investigation reports.';
+    const heroH1 = document.querySelector('.hero-content h1');
+    if (heroH1) heroH1.textContent = 'Healthcare Observer Console';
+  } else if (role === 'Staff') {
     if (permissions === 'news') {
       const docForm = document.getElementById('doctor-post-form');
       if (docForm) {
@@ -1190,4 +1223,235 @@ window.deleteGalleryItem = async function(id) {
     console.error(err);
     showBanner(banner, err.message || 'Error deleting gallery item.', 'error');
   }
+};
+
+// --- VIEW PATIENT REPORTS & PRESCRIPTIONS MODALS ---
+window.viewPatientReports = async function(phone, patientName) {
+  const modal = document.getElementById('admin-reports-modal');
+  const container = document.getElementById('admin-reports-list');
+  if (!modal || !container) return;
+
+  container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading patient reports...</div>';
+  modal.style.display = 'flex';
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch(`/api/reports/${encodeURIComponent(phone)}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const reports = await res.json();
+      if (reports.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No investigation reports uploaded for ${escapeHTML(patientName)} (Mob: ${escapeHTML(phone)}).</div>`;
+        return;
+      }
+
+      container.innerHTML = reports.map(r => {
+        const isPdf = r.file_url && /\.pdf$/i.test(r.file_url);
+        const isImage = r.file_url && /\.(png|jpg|jpeg|gif|webp)$/i.test(r.file_url);
+        const viewLabel = isPdf ? '📄 View PDF' : isImage ? '🖼 View Image' : '👁 View Document';
+        
+        let findingsHtml = '';
+        if (r.findings) {
+          try {
+            const list = typeof r.findings === 'string' ? JSON.parse(r.findings) : r.findings;
+            if (list && list.length > 0) {
+              findingsHtml = `
+                <div style="margin-top: 0.5rem; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 0.5rem; font-size: 0.8rem;">
+                  <div style="font-weight: 700; color: var(--text-dark); text-transform: uppercase; font-size: 0.7rem; margin-bottom: 0.25rem;">Lab Findings:</div>
+                  ${list.map(f => `
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 0.15rem;">
+                      <span><strong>${escapeHTML(f.parameter)}</strong>: ${escapeHTML(f.value)}</span>
+                      <span style="font-weight: 700; color: ${f.status === 'High' ? 'var(--danger)' : f.status === 'Low' ? 'var(--accent-color)' : 'var(--success)'};">${escapeHTML(f.status || 'Normal')}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              `;
+            }
+          } catch(e) {
+            console.warn(e);
+          }
+        }
+
+        return `
+          <div style="border: 1px solid var(--border-color); border-radius: var(--radius); padding: 1.15rem; margin-bottom: 1rem; background: #f8fafc; display: flex; flex-direction: column; gap: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-weight: 600; color: var(--text-dark);">${escapeHTML(r.description || 'Investigation Report')}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Uploaded: ${new Date(r.upload_date).toLocaleDateString()} by ${escapeHTML(r.uploader_role)}</div>
+              </div>
+              <a href="${r.file_url}" target="_blank" class="btn" style="width: auto; padding: 0.4rem 0.8rem; text-decoration: none; font-size: 0.75rem;">${viewLabel}</a>
+            </div>
+            ${findingsHtml}
+          </div>
+        `;
+      }).join('');
+    } else {
+      container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--danger);">Failed to load patient reports.</div>';
+    }
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--danger);">Network error loading reports.</div>';
+  }
+};
+
+window.closeAdminReportsModal = function(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('admin-reports-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.viewPrescription = async function(appointmentId) {
+  const modal = document.getElementById('admin-prescription-modal');
+  const container = document.getElementById('admin-prescription-details');
+  if (!modal || !container) return;
+
+  container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading prescription details...</div>';
+  modal.style.display = 'flex';
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    
+    // Fetch full appointment & prescription details
+    const res = await fetch(`/api/share/prescription/${appointmentId}/verify`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ otp: 'bypass' }) // Admin/Staff bypass verification OTP
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const visit = data.prescription;
+
+      if (!visit || !visit.prescription_id) {
+        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">No prescription saved for this appointment.</div>';
+        return;
+      }
+
+      // Render prescription nicely
+      let medsList = [];
+      try {
+        medsList = typeof visit.medicines === 'string' ? JSON.parse(visit.medicines) : visit.medicines;
+      } catch (e) {
+        console.warn(e);
+      }
+
+      let vitalsHtml = '';
+      if (visit.bp || visit.temperature || visit.pulse) {
+        vitalsHtml = `
+          <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem; display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+            ${visit.bp ? `<span><strong>B.P:</strong> ${escapeHTML(visit.bp)}</span>` : ''}
+            ${visit.temperature ? `<span><strong>Temp:</strong> ${escapeHTML(visit.temperature)} °F</span>` : ''}
+            ${visit.pulse ? `<span><strong>Pulse:</strong> ${escapeHTML(visit.pulse)} bpm</span>` : ''}
+          </div>
+        `;
+      }
+
+      let signatureHtml = '';
+      if (visit.doctor_signature) {
+        signatureHtml = `
+          <div style="margin-top: 1.5rem; text-align: right;">
+            <img src="${visit.doctor_signature}" alt="Doctor Signature" style="max-height: 50px; display: inline-block;">
+            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Dr. ${escapeHTML(visit.doctor_name || '')}</div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+          <div>
+            <h4 style="margin: 0; color: var(--primary-hover); font-size: 1.1rem;">Alamnagar CHC</h4>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Charitable Healthcare Centre</span>
+          </div>
+          <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
+            <div><strong>Date:</strong> ${new Date(visit.appointment_date).toLocaleDateString()}</div>
+            <div><strong>Doctor:</strong> Dr. ${escapeHTML(visit.doctor_name || 'Sarah Rahman')}</div>
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; border: 1px solid var(--border-color); display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0.5rem;">
+          <div><strong>Patient:</strong> ${escapeHTML(visit.patient_name)}</div>
+          <div><strong>Age:</strong> ${escapeHTML(visit.age || 'N/A')}</div>
+          <div><strong>Gender:</strong> ${escapeHTML(visit.gender || 'N/A')}</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+          <div style="border-right: 1px solid var(--border-color); padding-right: 1rem;">
+            <h5 style="margin: 0 0 0.5rem 0; color: var(--primary-hover); font-size: 0.85rem; text-transform: uppercase;">Observations</h5>
+            <p style="font-size: 0.85rem; color: var(--text-dark); margin: 0 0 1rem 0;">${escapeHTML(visit.observations || 'None')}</p>
+
+            <h5 style="margin: 0 0 0.5rem 0; color: var(--primary-hover); font-size: 0.85rem; text-transform: uppercase;">Diagnostics</h5>
+            <p style="font-size: 0.85rem; color: var(--text-dark); margin: 0;">${escapeHTML(visit.diagnostics || 'None')}</p>
+          </div>
+          <div>
+            <h5 style="margin: 0 0 0.5rem 0; color: var(--primary-hover); font-size: 0.85rem; text-transform: uppercase;">Rx (Medicines)</h5>
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left; color: var(--text-muted);">
+                  <th style="padding: 0.25rem 0;">Name</th>
+                  <th style="padding: 0.25rem 0;">Dosage</th>
+                  <th style="padding: 0.25rem 0;">Timing</th>
+                  <th style="padding: 0.25rem 0;">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${medsList.map(m => `
+                  <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.4rem 0;"><strong>${escapeHTML(m.name)}</strong></td>
+                    <td style="padding: 0.4rem 0;">${escapeHTML(m.dosage)}</td>
+                    <td style="padding: 0.4rem 0;">${escapeHTML(m.timing)}</td>
+                    <td style="padding: 0.4rem 0;">${escapeHTML(m.duration)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        ${vitalsHtml}
+        ${signatureHtml}
+      `;
+    } else {
+      container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--danger);">Failed to load prescription details.</div>';
+    }
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--danger);">Network error loading prescription.</div>';
+  }
+};
+
+window.closeAdminPrescriptionModal = function(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('admin-prescription-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.printAdminPrescription = function() {
+  const content = document.getElementById('admin-prescription-details').innerHTML;
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Prescription Print</title>
+        <style>
+          body { font-family: sans-serif; padding: 2rem; line-height: 1.5; color: #0f172a; }
+          strong { color: #000; }
+          table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+          th, td { border-bottom: 1px solid #cbd5e1; padding: 0.5rem; text-align: left; }
+          th { text-transform: uppercase; font-size: 0.8rem; color: #475569; }
+        </style>
+      </head>
+      <body>
+        ${content}
+        <script>
+          window.onload = function() { window.print(); window.close(); }
+        </script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
 };

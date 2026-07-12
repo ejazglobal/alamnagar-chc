@@ -225,6 +225,7 @@ app.post('/api/auth/login', async (req, res) => {
       username: user.username,
       email: user.email,
       role: user.role,
+      phone: user.phone,
       permissions: permissions,
       doctor_id: user.doctor_id
     });
@@ -811,16 +812,24 @@ app.post('/api/admin/staff', authenticateToken, async (req, res) => {
     const existingEmail = await db.getUserByEmail(email.trim().toLowerCase());
     if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
 
-    const newStaff = await db.createStaffWithPermissions({
-      username: username.trim(),
-      email: email.trim().toLowerCase(),
-      password,
-      permissions
-    });
-    res.status(201).json(newStaff);
+    if (permissions === 'observer') {
+      const salt = db.generateSalt();
+      const hash = db.hashPassword(password, salt);
+      const query = `INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, 'Observer') RETURNING id`;
+      const resDb = await db.pool.query(query, [username.trim(), email.trim().toLowerCase(), hash, salt]);
+      res.status(201).json({ id: resDb.rows[0].id, username: username.trim(), email: email.trim().toLowerCase(), role: 'Observer', permissions: 'observer' });
+    } else {
+      const newStaff = await db.createStaffWithPermissions({
+        username: username.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        permissions
+      });
+      res.status(201).json(newStaff);
+    }
   } catch (err) {
-    console.error('Error creating staff:', err);
-    res.status(500).json({ error: 'Database error creating staff.' });
+    console.error('Error creating staff/observer:', err);
+    res.status(500).json({ error: 'Database error creating staff/observer.' });
   }
 });
 
@@ -1324,11 +1333,112 @@ app.get('/api/prescriptions/:appointmentId', authenticateToken, async (req, res)
     return res.status(400).json({ error: 'Invalid appointment ID.' });
   }
   try {
+    // Basic security check: if patient, ensure the prescription belongs to them
+    if (req.user.role === 'Patient') {
+      const apptRes = await db.pool.query("SELECT phone, user_id FROM appointments WHERE id = $1", [apptId]);
+      if (apptRes.rows.length > 0) {
+        const apptPhone = apptRes.rows[0].phone || '';
+        const apptUserId = apptRes.rows[0].user_id;
+        const normUserPhone = (req.user.phone || '').replace(/^88/, '');
+        const normApptPhone = apptPhone.replace(/^88/, '');
+        if (normUserPhone !== normApptPhone && req.user.id !== apptUserId) {
+          return res.status(403).json({ error: 'Access Denied: You can only view your own prescriptions.' });
+        }
+      }
+    }
     const prescription = await db.getPrescriptionByAppointmentId(apptId);
     res.json(prescription);
   } catch (err) {
     console.error('Error fetching prescription:', err);
     res.status(500).json({ error: 'Database error fetching prescription.' });
+  }
+});
+
+// Patient prescription list endpoint
+app.get('/api/patient/prescriptions', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Patient') {
+    return res.status(403).json({ error: 'Access Denied: Patient only.' });
+  }
+  const phone = req.user.phone;
+  if (!phone) {
+    return res.status(400).json({ error: 'Patient phone number is not available on this profile.' });
+  }
+  try {
+    const query = `
+      SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints,
+             p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
+             p.bp, p.temperature, p.pulse,
+             d.name_en as doctor_name
+      FROM appointments a
+      JOIN prescriptions p ON a.id = p.appointment_id
+      LEFT JOIN doctors d ON a.doctor_id = d.id
+      WHERE (a.phone = $1 OR RIGHT(REGEXP_REPLACE(a.phone, '\\D', '', 'g'), 10) = RIGHT(REGEXP_REPLACE($1, '\\D', '', 'g'), 10))
+      ORDER BY a.appointment_date DESC, a.created_at DESC
+    `;
+    const resDb = await db.pool.query(query, [phone.trim()]);
+    res.json(resDb.rows);
+  } catch (err) {
+    console.error('Error fetching patient prescriptions:', err);
+    res.status(500).json({ error: 'Database error fetching prescriptions.' });
+  }
+});
+
+// Doctor/Admin/Staff prescriptions list endpoint
+app.get('/api/doctor/prescriptions', authenticateToken, async (req, res) => {
+  const validRoles = ['doctor', 'admin', 'staff', 'observer'];
+  if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
+    return res.status(403).json({ error: 'Access Denied.' });
+  }
+  
+  try {
+    let query = `
+      SELECT p.id as prescription_id, p.appointment_id, p.observations, p.diagnostics, p.medicines, p.created_at,
+             p.bp, p.temperature, p.pulse,
+             a.patient_name, a.phone as patient_phone, a.appointment_date, a.appointment_time,
+             d.name_en as doctor_name
+      FROM prescriptions p
+      JOIN appointments a ON p.appointment_id = a.id
+      JOIN doctors d ON p.doctor_id = d.id
+    `;
+    
+    const params = [];
+    if (req.user.role === 'Doctor') {
+      const doctorId = req.user.doctor_id;
+      if (!doctorId) {
+        return res.status(400).json({ error: 'Doctor profile not linked to user.' });
+      }
+      query += ` WHERE p.doctor_id = $1`;
+      params.push(doctorId);
+    }
+    
+    query += ` ORDER BY a.appointment_date DESC, p.created_at DESC`;
+    const resDb = await db.pool.query(query, params);
+    res.json(resDb.rows);
+  } catch (err) {
+    console.error('Error fetching doctor prescriptions:', err);
+    res.status(500).json({ error: 'Database error fetching prescriptions.' });
+  }
+});
+
+// Admin/Staff/Observer fetch all investigation reports endpoint
+app.get('/api/reports', authenticateToken, async (req, res) => {
+  const allowedRoles = ['admin', 'staff', 'observer'];
+  if (!req.user || !allowedRoles.includes((req.user.role || '').toLowerCase())) {
+    return res.status(403).json({ error: 'Unauthorized.' });
+  }
+  
+  try {
+    const query = `
+      SELECT r.*, 
+             (SELECT patient_name FROM appointments WHERE phone = r.patient_phone ORDER BY appointment_date DESC LIMIT 1) as patient_name
+      FROM patient_reports r
+      ORDER BY r.upload_date DESC
+    `;
+    const resDb = await db.pool.query(query);
+    res.json(resDb.rows);
+  } catch (err) {
+    console.error('Error fetching all patient reports:', err);
+    res.status(500).json({ error: 'Database error fetching reports.' });
   }
 });
 

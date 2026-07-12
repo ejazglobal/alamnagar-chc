@@ -52,7 +52,7 @@ async function initializeDatabase() {
         email VARCHAR(255),
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
-        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor')),
+        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer')),
         phone VARCHAR(50) UNIQUE,
         doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -246,8 +246,11 @@ async function initializeDatabase() {
       try {
         await pool.query("ALTER TABLE users ALTER COLUMN email DROP NOT NULL");
         await pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key");
+        // Drop and recreate user role check constraint to include Observer
+        await pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
+        await pool.query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer'))");
       } catch (e) {
-        console.warn("Could not alter email constraints:", e.message);
+        console.warn("Could not alter constraints:", e.message);
       }
       try {
         await pool.query("ALTER TABLE appointments ALTER COLUMN email DROP NOT NULL");
@@ -624,10 +627,14 @@ module.exports = {
 
   getAllStaffWithPermissions: async () => {
     const res = await pool.query(`
-      SELECT users.id, users.username, users.email, staff_permissions.permissions 
+      SELECT users.id, users.username, users.email, 
+             CASE 
+               WHEN users.role = 'Observer' THEN 'observer'
+               ELSE staff_permissions.permissions 
+             END as permissions 
       FROM users 
-      JOIN staff_permissions ON users.id = staff_permissions.user_id 
-      WHERE users.role = 'Staff'
+      LEFT JOIN staff_permissions ON users.id = staff_permissions.user_id 
+      WHERE users.role IN ('Staff', 'Observer')
       ORDER BY users.username ASC
     `);
     return res.rows;
@@ -665,7 +672,7 @@ module.exports = {
     try {
       await client.query('BEGIN');
       await client.query("DELETE FROM staff_permissions WHERE user_id = $1", [userId]);
-      const res = await client.query("DELETE FROM users WHERE id = $1 AND role = 'Staff'", [userId]);
+      const res = await client.query("DELETE FROM users WHERE id = $1 AND role IN ('Staff', 'Observer')", [userId]);
       await client.query('COMMIT');
       return { changes: res.rowCount };
     } catch (e) {

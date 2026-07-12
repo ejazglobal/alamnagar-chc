@@ -2499,3 +2499,140 @@ window.importFindingsToPrescription = function(reportId) {
   alert('Report findings successfully imported into the Findings section!');
 };
 
+// --- DOCTOR PORTAL TAB SWITCHING & PAST PRESCRIPTION LOG ---
+window.switchDoctorTab = function(tab) {
+  const consultTab = document.getElementById('tab-active-consult');
+  const historyTab = document.getElementById('tab-past-presc');
+  const consultView = document.getElementById('active-consult-view');
+  const historyView = document.getElementById('past-presc-view');
+  
+  if (!consultTab || !historyTab || !consultView || !historyView) return;
+
+  if (tab === 'consult') {
+    consultTab.style.backgroundColor = 'var(--primary-color)';
+    consultTab.style.color = 'white';
+    historyTab.style.backgroundColor = '#cbd5e1';
+    historyTab.style.color = 'var(--text-dark)';
+    
+    consultView.style.display = 'block';
+    historyView.style.display = 'none';
+  } else {
+    historyTab.style.backgroundColor = 'var(--primary-color)';
+    historyTab.style.color = 'white';
+    consultTab.style.backgroundColor = '#cbd5e1';
+    consultTab.style.color = 'var(--text-dark)';
+    
+    consultView.style.display = 'none';
+    historyView.style.display = 'block';
+    
+    loadAllPastPrescriptions();
+  }
+};
+
+let doctorPrescriptions = [];
+
+async function loadAllPastPrescriptions() {
+  const tbody = document.getElementById('past-presc-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading prescriptions log...</td></tr>';
+  
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch('/api/doctor/prescriptions', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (res.ok) {
+      doctorPrescriptions = await res.json();
+      renderPastPrescriptionsList(doctorPrescriptions);
+    } else {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger);">Failed to load prescriptions from server.</td></tr>';
+    }
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger);">Network error loading prescriptions.</td></tr>';
+  }
+}
+
+function renderPastPrescriptionsList(list) {
+  const tbody = document.getElementById('past-presc-tbody');
+  if (!tbody) return;
+  
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No prescriptions found in record.</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = list.map(p => {
+    const formattedDate = new Date(p.appointment_date).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+    
+    let medsList = [];
+    try {
+      medsList = typeof p.medicines === 'string' ? JSON.parse(p.medicines) : p.medicines;
+    } catch(e) {}
+    
+    const medsDisplay = medsList.map(m => `• <strong>${escapeHTML(m.name)}</strong> (${escapeHTML(m.dosage)})`).join('<br>');
+    
+    return `
+      <tr>
+        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);">
+          <div style="font-weight: 600; color: var(--text-dark);">${formattedDate}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">${p.appointment_time}</div>
+        </td>
+        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);">
+          <div style="font-weight: 600; color: var(--text-dark);">${escapeHTML(p.patient_name)}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHTML(p.patient_phone)}</div>
+        </td>
+        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);">
+          ${p.observations ? `<div style="font-size: 0.85rem;"><strong>Obs:</strong> ${escapeHTML(p.observations)}</div>` : ''}
+          ${p.diagnostics ? `<div style="font-size: 0.85rem; margin-top: 0.25rem;"><strong>Diag:</strong> ${escapeHTML(p.diagnostics)}</div>` : ''}
+        </td>
+        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; max-width: 320px; overflow: hidden; text-overflow: ellipsis;">
+          ${medsDisplay || 'None'}
+        </td>
+        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); text-align: center;">
+          <div style="display: flex; gap: 0.35rem; justify-content: center;">
+            <button class="btn-sm" style="background: var(--accent-color); color: white; border: none; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer;" onclick="openPastPrescriptionFromTable(${p.appointment_id})">View</button>
+            <button class="btn-sm" style="background: var(--secondary-color); color: var(--text-dark); border: none; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer;" onclick="modifyPrescriptionFromTable(${p.appointment_id})">Modify</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.filterPastPrescriptions = function() {
+  const query = document.getElementById('past-presc-search').value.trim().toLowerCase();
+  if (!query) {
+    renderPastPrescriptionsList(doctorPrescriptions);
+    return;
+  }
+  
+  const filtered = doctorPrescriptions.filter(p => 
+    p.patient_name.toLowerCase().includes(query) ||
+    p.patient_phone.includes(query) ||
+    (p.observations && p.observations.toLowerCase().includes(query)) ||
+    (p.diagnostics && p.diagnostics.toLowerCase().includes(query))
+  );
+  renderPastPrescriptionsList(filtered);
+};
+
+window.openPastPrescriptionFromTable = function(appointmentId) {
+  const visit = doctorPrescriptions.find(p => p.appointment_id === appointmentId);
+  if (!visit) return;
+  
+  pastVisits = [visit];
+  openPastPrescription(appointmentId);
+};
+
+window.modifyPrescriptionFromTable = function(appointmentId) {
+  const visit = doctorPrescriptions.find(p => p.appointment_id === appointmentId);
+  if (!visit) return;
+  
+  pastVisits = [visit];
+  switchDoctorTab('consult');
+  modifyPrescription(appointmentId);
+};
+
