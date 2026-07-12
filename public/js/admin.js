@@ -1279,7 +1279,7 @@ window.viewPatientReports = async function(phone, patientName) {
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <div style="font-weight: 600; color: var(--text-dark);">${escapeHTML(r.description || 'Investigation Report')}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Uploaded: ${new Date(r.upload_date).toLocaleDateString()} by ${escapeHTML(r.uploader_role)}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Uploaded: ${new Date(r.upload_date).toLocaleDateString('en-GB')} by ${escapeHTML(r.uploader_role)}</div>
               </div>
               <a href="${r.file_url}" target="_blank" class="btn" style="width: auto; padding: 0.4rem 0.8rem; text-decoration: none; font-size: 0.75rem;">${viewLabel}</a>
             </div>
@@ -1370,7 +1370,7 @@ window.viewPrescription = async function(appointmentId) {
             <span style="font-size: 0.75rem; color: var(--text-muted);">Charitable Healthcare Centre</span>
           </div>
           <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
-            <div><strong>Date:</strong> ${new Date(visit.appointment_date).toLocaleDateString()}</div>
+            <div><strong>Date:</strong> ${new Date(visit.appointment_date).toLocaleDateString('en-GB')}</div>
             <div><strong>Doctor:</strong> Dr. ${escapeHTML((visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, ''))}</div>
           </div>
         </div>
@@ -1448,8 +1448,8 @@ window.printAdminPrescription = function() {
     console.warn(e);
   }
 
-  const formattedDate = new Date(p.appointment_date || p.created_at).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric'
+  const formattedDate = new Date(p.appointment_date || p.created_at).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric'
   });
 
   const obs = p.observations || 'None';

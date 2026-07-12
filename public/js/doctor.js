@@ -1164,7 +1164,7 @@ window.printPrescription = function() {
   document.getElementById('print-patient-name').textContent = activeAppointment.patient_name;
   document.getElementById('print-patient-age').textContent = age;
   document.getElementById('print-patient-gender').textContent = gender;
-  document.getElementById('print-patient-date').textContent = new Date(activeAppointment.appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  document.getElementById('print-patient-date').textContent = new Date(activeAppointment.appointment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   document.getElementById('print-patient-address').textContent = address;
   document.getElementById('print-patient-weight').textContent = weight;
   document.getElementById('print-patient-phone').textContent = activeAppointment.phone;
@@ -2175,7 +2175,7 @@ function printPastPrescription(visit) {
   printPatientName.textContent = activeAppointment ? activeAppointment.patient_name : (document.getElementById('patient-banner-name').textContent || 'Patient');
   printPatientAge.textContent = document.getElementById('patient-age').value.trim() || 'N/A';
   printPatientGender.textContent = document.getElementById('patient-gender').value || 'Male';
-  printPatientDate.textContent = new Date(visit.appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  printPatientDate.textContent = new Date(visit.appointment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   printPatientAddress.textContent = document.getElementById('patient-address').value.trim() || 'N/A';
   printPatientWeight.textContent = document.getElementById('patient-weight').value.trim() || 'N/A';
   printPatientPhone.textContent = visit.phone || (activeAppointment ? activeAppointment.phone : '');

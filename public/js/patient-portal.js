@@ -132,7 +132,7 @@ async function loadMyReports() {
         <div class="report-card">
           <div>
             <div style="font-weight: 600; color: var(--text-dark);">${r.description || 'Investigation Report'}</div>
-            <div style="font-size: 0.8rem; color: var(--text-muted);">Uploaded: ${new Date(r.upload_date).toLocaleDateString()}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Uploaded: ${new Date(r.upload_date).toLocaleDateString('en-GB')}</div>
           </div>
           <a href="${r.file_url}" target="_blank" class="btn" style="width: auto; padding: 0.5rem 1rem; text-decoration: none; font-size:0.875rem;">${viewLabel}</a>
         </div>`;
@@ -289,7 +289,7 @@ window.viewPrescriptionDetails = async function(appointmentId) {
         </div>
         
         <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; background: var(--bg-main); padding: 0.5rem; border-radius: 6px;">
-          <div><strong>Date:</strong> ${new Date(p.created_at).toLocaleDateString()}</div>
+          <div><strong>Date:</strong> ${new Date(p.created_at).toLocaleDateString('en-GB')}</div>
         </div>
 
         <div style="margin-bottom: 1rem;">
@@ -366,8 +366,8 @@ window.printPortalPrescription = function() {
     console.warn(e);
   }
 
-  const formattedDate = new Date(p.appointment_date || p.created_at).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric'
+  const formattedDate = new Date(p.appointment_date || p.created_at).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric'
   });
 
   const obs = p.observations || 'None';
