@@ -10,17 +10,17 @@
     /* Premium clinical styles */
     .doctor-grid {
       display: grid;
-      grid-template-columns: 320px 1fr;
-      gap: 1.5rem;
-      max-width: 1400px;
-      margin: 2rem auto;
-      padding: 0 1.5rem;
+      grid-template-columns: 260px 1fr;
+      gap: 1.25rem;
+      max-width: 100%;
+      margin: 1.5rem auto;
+      padding: 0 1rem;
       min-height: 80vh;
       transition: var(--transition-smooth);
     }
     
     .doctor-grid.has-history {
-      grid-template-columns: 300px 1fr 340px;
+      grid-template-columns: 240px 1fr 280px;
     }
     
     .history-panel {
@@ -220,15 +220,15 @@
 
     .prescription-layout {
       display: grid;
-      grid-template-columns: 280px 1fr;
-      gap: 2rem;
+      grid-template-columns: 230px 1fr;
+      gap: 1.5rem;
       border-top: 1px solid var(--border-color);
       padding-top: 1.5rem;
     }
 
     .prescription-sidebar {
       border-right: 1px solid var(--border-color);
-      padding-right: 1.5rem;
+      padding-right: 1.25rem;
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
@@ -238,6 +238,34 @@
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
+    }
+
+    @media (max-width: 1380px) {
+      .doctor-grid {
+        grid-template-columns: 220px 1fr;
+        gap: 0.75rem;
+      }
+      .doctor-grid.has-history {
+        grid-template-columns: 210px 1fr 240px;
+      }
+      .prescription-layout {
+        grid-template-columns: 190px 1fr;
+        gap: 1rem;
+      }
+      .prescription-sidebar {
+        padding-right: 0.75rem;
+      }
+    }
+
+    @media (max-width: 1120px) {
+      .doctor-grid.has-history {
+        grid-template-columns: 200px 1fr;
+      }
+      .history-panel {
+        grid-column: span 2;
+        max-height: none;
+        margin-top: 1.5rem;
+      }
     }
 
     .med-builder-grid {

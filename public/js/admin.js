@@ -1332,6 +1332,8 @@ window.viewPrescription = async function(appointmentId) {
         return;
       }
 
+      window.currentAdminPrescription = visit;
+
       // Render prescription nicely
       let medsList = [];
       try {
@@ -1431,27 +1433,189 @@ window.closeAdminPrescriptionModal = function(e) {
 };
 
 window.printAdminPrescription = function() {
-  const content = document.getElementById('admin-prescription-details').innerHTML;
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`
+  const p = window.currentAdminPrescription;
+  if (!p) return alert('No prescription loaded to print.');
+
+  let medsList = [];
+  try {
+    medsList = typeof p.medicines === 'string' ? JSON.parse(p.medicines) : p.medicines;
+    if (!Array.isArray(medsList)) medsList = [];
+  } catch (e) {
+    console.warn(e);
+  }
+
+  const formattedDate = new Date(p.appointment_date || p.created_at).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric'
+  });
+
+  const obs = p.observations || 'None';
+  const diags = p.diagnostics || 'None';
+  
+  let diagsHtml = '';
+  if (diags && diags.toLowerCase() !== 'none') {
+    const list = diags.split(/[\n,;]+/).map(item => item.trim()).filter(Boolean);
+    diagsHtml = list.map(item => `<li>${escapeHTML(item)}</li>`).join('');
+  } else {
+    diagsHtml = '<li>None recommended</li>';
+  }
+
+  let vitalsHtml = '';
+  if (p.bp || p.temperature || p.pulse) {
+    let items = [];
+    if (p.bp) {
+      const bpFormatted = p.bp.toLowerCase().includes('mmhg') ? p.bp : `${p.bp} mmHg`;
+      items.push(`<div><strong>B.P:</strong> ${escapeHTML(bpFormatted)}</div>`);
+    }
+    if (p.temperature) {
+      const tempFormatted = p.temperature.toLowerCase().includes('°') || p.temperature.toLowerCase().includes('f') ? p.temperature : `${p.temperature} °F`;
+      items.push(`<div><strong>Temperature:</strong> ${escapeHTML(tempFormatted)}</div>`);
+    }
+    if (p.pulse) {
+      const pulseFormatted = p.pulse.toLowerCase().includes('bpm') ? p.pulse : `${p.pulse} bpm`;
+      items.push(`<div><strong>Pulse:</strong> ${escapeHTML(pulseFormatted)}</div>`);
+    }
+    vitalsHtml = `
+      <div style="margin-top: 1.2rem;">
+        <div style="font-size: 0.75rem; font-weight: 700; color: #0d9488; letter-spacing: 0.5px; margin-bottom: 0.5rem; text-transform: uppercase;">PHYSICAL OBSERVATIONS</div>
+        <div style="font-size: 0.85rem; line-height: 1.5; color: #334155; margin-top: 0.25rem;">
+          ${items.join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  let signatureHtml = '';
+  if (p.doctor_signature) {
+    signatureHtml = `<img src="${p.doctor_signature}" alt="Signature" style="max-height: 50px; display: inline-block;">`;
+  }
+
+  const docName = p.doctor_name || 'Sarah Rahman';
+  const docSpecialty = p.doctor_specialty || 'General Physician';
+  const docHours = p.doctor_visiting_hours || 'Sat, Mon, Wed (03:00 PM - 07:00 PM)';
+
+  const content = `
     <html>
       <head>
         <title>Prescription Print</title>
         <style>
-          body { font-family: sans-serif; padding: 2rem; line-height: 1.5; color: #0f172a; }
-          strong { color: #000; }
-          table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-          th, td { border-bottom: 1px solid #cbd5e1; padding: 0.5rem; text-align: left; }
-          th { text-transform: uppercase; font-size: 0.8rem; color: #475569; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 2.5rem; line-height: 1.5; color: #0f172a; }
+          .print-header { display: flex; justify-content: space-between; border-bottom: 2px solid #0d9488; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+          .print-logo-section { display: flex; align-items: center; gap: 0.75rem; }
+          .print-clinic-meta { display: flex; flex-direction: column; }
+          .print-clinic-title { font-size: 1.5rem; font-weight: 800; color: #0d9488; margin: 0; }
+          .print-clinic-sub { font-size: 0.8rem; color: #64748b; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+          .print-clinic-contact { font-size: 0.75rem; color: #64748b; margin: 2px 0 0 0; }
+          .print-doctor-section { text-align: right; }
+          .print-doctor-name { font-size: 1.2rem; font-weight: 700; margin: 0 0 2px 0; color: #1e293b; }
+          .print-doctor-specialty { font-size: 0.85rem; color: #0d9488; margin: 0 0 2px 0; font-weight: 600; }
+          .print-doctor-hours { font-size: 0.75rem; color: #64748b; margin: 0; }
+          .print-patient-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 0.5rem; font-size: 0.85rem; color: #1e293b; background: #f8fafc; padding: 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; margin-top: 10px; margin-bottom: 1.5rem; }
+          .print-body-layout { display: grid; grid-template-columns: 200px 1fr; gap: 1.5rem; min-height: 400px; }
+          .print-sidebar-col { border-right: 1.5px solid #cbd5e1; padding-right: 1rem; }
+          .print-section-title { font-size: 0.75rem; font-weight: 700; color: #0d9488; letter-spacing: 0.5px; margin-bottom: 0.5rem; text-transform: uppercase; }
+          .print-obs-text { font-size: 0.85rem; line-height: 1.4; color: #334155; white-space: pre-line; margin: 0 0 1rem 0; }
+          .print-diag-list { padding-left: 1.25rem; font-size: 0.85rem; color: #334155; margin: 0; }
+          .print-rx-label { font-size: 1.8rem; font-weight: 800; font-style: italic; color: #0d9488; margin-bottom: 0.5rem; }
+          .print-med-table { width: 100%; border-collapse: collapse; }
+          .print-med-table th, .print-med-table td { border-bottom: 1px solid #e2e8f0; padding: 0.5rem; text-align: left; font-size: 0.85rem; }
+          .print-med-table th { color: #64748b; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; }
+          .print-footer-section { display: flex; justify-content: flex-end; margin-top: 2rem; }
+          .print-signature-area { display: flex; flex-direction: column; align-items: center; }
         </style>
       </head>
       <body>
-        ${content}
+        <div class="print-header">
+          <div class="print-logo-section">
+            <img src="alchc-logo.png" alt="Logo" style="width:50px;height:50px;border-radius:50%;">
+            <div class="print-clinic-meta">
+              <h1 class="print-clinic-title">Alamnagar CHC</h1>
+              <p class="print-clinic-sub">Charitable Healthcare Centre</p>
+              <p class="print-clinic-contact">Phone: +8801912562131 | Email: info@alamnagar-chc.org</p>
+            </div>
+          </div>
+          <div class="print-doctor-section">
+            <h2 class="print-doctor-name">Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}</h2>
+            <p class="print-doctor-specialty">${escapeHTML(docSpecialty)}</p>
+            <p class="print-doctor-hours">${escapeHTML(docHours)}</p>
+          </div>
+        </div>
+
+        <div class="print-patient-grid">
+          <div><strong>Patient Name:</strong> ${escapeHTML(p.patient_name)}</div>
+          <div><strong>Age:</strong> ${escapeHTML(p.age || 'N/A')}</div>
+          <div><strong>Gender:</strong> ${escapeHTML(p.gender || 'N/A')}</div>
+          <div><strong>Date:</strong> ${formattedDate}</div>
+          <div style="grid-column: span 2;"><strong>Address:</strong> ${escapeHTML(p.address || 'N/A')}</div>
+          <div><strong>Weight:</strong> ${escapeHTML(p.weight || 'N/A')}</div>
+          <div><strong>Phone:</strong> ${escapeHTML(p.patient_phone || p.phone || 'N/A')}</div>
+        </div>
+
+        <div class="print-body-layout">
+          <div class="print-sidebar-col">
+            <div class="print-section-title">OBSERVATIONS & SYMPTOMS</div>
+            <p class="print-obs-text">${escapeHTML(obs)}</p>
+
+            <div style="margin-top: 1.2rem;">
+              <div class="print-section-title">INVESTIGATION FINDINGS</div>
+              <p class="print-obs-text" style="font-size: 0.85rem; color: #334155;">${escapeHTML(p.findings || 'None')}</p>
+            </div>
+
+            ${vitalsHtml}
+
+            <div class="print-section-title" style="margin-top: 1.5rem;">RECOMMENDED DIAGNOSTICS</div>
+            <ul class="print-diag-list">
+              ${diagsHtml}
+            </ul>
+          </div>
+
+          <div class="print-main-col">
+            <div class="print-rx-label">Rx</div>
+            <table class="print-med-table">
+              <thead>
+                <tr>
+                  <th>Medicine Name</th>
+                  <th>Dosage</th>
+                  <th>Instructions</th>
+                  <th>Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${medsList.map(m => `
+                  <tr style="border-bottom: ${m.advice ? 'none' : '1px solid #e2e8f0'};">
+                    <td><strong>${escapeHTML(m.name)}</strong></td>
+                    <td>${escapeHTML(m.dosage)}</td>
+                    <td>${escapeHTML(m.timing)}</td>
+                    <td>${escapeHTML(m.duration)}</td>
+                  </tr>
+                  ${m.advice ? `
+                  <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td colspan="4" style="font-size: 0.75rem; color: #64748b; padding-top: 0; padding-bottom: 0.5rem; font-style: italic;">
+                      Advice: ${escapeHTML(m.advice)}
+                    </td>
+                  </tr>
+                  ` : ''}
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="print-footer-section">
+          <div class="print-signature-area">
+            ${signatureHtml}
+            <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">
+              Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}
+            </div>
+          </div>
+        </div>
         <script>
           window.onload = function() { window.print(); window.close(); }
         </script>
       </body>
     </html>
-  `);
+  `;
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(content);
   printWindow.document.close();
 };

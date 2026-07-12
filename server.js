@@ -1345,9 +1345,21 @@ app.get('/api/prescriptions/:appointmentId', authenticateToken, async (req, res)
           return res.status(403).json({ error: 'Access Denied: You can only view your own prescriptions.' });
         }
       }
+    const query = `
+      SELECT p.*,
+             a.patient_name, a.phone as patient_phone, a.appointment_date, a.appointment_time, a.notes as past_complaints,
+             a.age, a.gender, a.address, a.weight,
+             d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_visiting_hours
+      FROM prescriptions p
+      JOIN appointments a ON p.appointment_id = a.id
+      LEFT JOIN doctors d ON p.doctor_id = d.id
+      WHERE p.appointment_id = $1
+    `;
+    const resDb = await db.pool.query(query, [apptId]);
+    if (resDb.rows.length === 0) {
+      return res.status(404).json({ error: 'Prescription not found.' });
     }
-    const prescription = await db.getPrescriptionByAppointmentId(apptId);
-    res.json(prescription);
+    res.json(resDb.rows[0]);
   } catch (err) {
     console.error('Error fetching prescription:', err);
     res.status(500).json({ error: 'Database error fetching prescription.' });
