@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
 const dns = require('dns');
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');

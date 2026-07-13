@@ -1,7 +1,7 @@
 // Global configurations for the Alamnagar CHC Android App
 (function () {
-  // IMPORTANT: Replace this with your actual production Render server URL
-  const API_BASE_URL = 'https://alamnagar-chc.onrender.com';
+  // IMPORTANT: Replace this with your actual production DigitalOcean server URL
+  const API_BASE_URL = 'https://ashiana.online';
 
   // Check if we are running in local web development (localhost with a port, e.g., localhost:5000)
   const isLocalWebDev = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '';
