@@ -3,27 +3,9 @@ const path = require('path');
 const https = require('https');
 const querystring = require('querystring');
 
-// Normalize Bangladeshi phone numbers based on provider requirements
-function normalizeBDPhoneNumber(phone, provider = 'shiram') {
+// Normalize Bangladeshi phone numbers to the 8801XXXXXXXXX format
+function normalizeBDPhoneNumber(phone) {
   let digits = phone.replace(/\D/g, '');
-  
-  if (provider === 'mimsms') {
-    if (digits.startsWith('880') && digits.length === 13) {
-      return digits.substring(2); // Remove the '88' prefix -> 01XXXXXXXXX
-    }
-    if (digits.startsWith('0') && digits.length === 11) {
-      return digits;
-    }
-    if (digits.startsWith('1') && digits.length === 10) {
-      return '0' + digits;
-    }
-    if (digits.length === 11) {
-      return digits;
-    }
-    return digits;
-  }
-
-  // Default to Shiram 13-digit format (8801XXXXXXXXX)
   if (digits.startsWith('880') && digits.length === 13) {
     return digits;
   }
@@ -42,7 +24,7 @@ function normalizeBDPhoneNumber(phone, provider = 'shiram') {
 // Helper to send real SMS via Shiram System API or MiMSMS API V2
 function sendSMS(to, message) {
   const smsProvider = (process.env.SMS_PROVIDER || 'shiram').toLowerCase();
-  const normalizedPhone = normalizeBDPhoneNumber(to, smsProvider);
+  const normalizedPhone = normalizeBDPhoneNumber(to);
 
   if (smsProvider === 'mimsms') {
     const userName = process.env.SMS_USER || 'ejaz.cacts@gmail.com';
