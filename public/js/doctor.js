@@ -1271,13 +1271,28 @@ window.printPrescription = function() {
   printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${docName.replace(/^Dr\.\s+/i, '')}</span>`;
 
   if (window.AndroidPrint) {
-    document.body.classList.add('android-printing');
-    setTimeout(() => {
-      window.AndroidPrint.printPage();
+    const template = document.getElementById('print-prescription-template');
+    if (template) {
+      const originalDisplays = [];
+      Array.from(document.body.children).forEach(child => {
+        if (child !== template) {
+          originalDisplays.push({ element: child, display: child.style.display });
+          child.style.setProperty('display', 'none', 'important');
+        }
+      });
+      const origTemplateDisplay = template.style.display;
+      template.style.setProperty('display', 'block', 'important');
+
       setTimeout(() => {
-        document.body.classList.remove('android-printing');
-      }, 3000);
-    }, 500);
+        window.AndroidPrint.printPage();
+        setTimeout(() => {
+          originalDisplays.forEach(item => {
+            item.element.style.display = item.display;
+          });
+          template.style.display = origTemplateDisplay;
+        }, 3000);
+      }, 500);
+    }
   } else {
     window.print();
   }
@@ -2266,13 +2281,28 @@ function printPastPrescription(visit) {
   printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${(visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, '')}</span>`;
   
   if (window.AndroidPrint) {
-    document.body.classList.add('android-printing');
-    setTimeout(() => {
-      window.AndroidPrint.printPage();
+    const template = document.getElementById('print-prescription-template');
+    if (template) {
+      const originalDisplays = [];
+      Array.from(document.body.children).forEach(child => {
+        if (child !== template) {
+          originalDisplays.push({ element: child, display: child.style.display });
+          child.style.setProperty('display', 'none', 'important');
+        }
+      });
+      const origTemplateDisplay = template.style.display;
+      template.style.setProperty('display', 'block', 'important');
+
       setTimeout(() => {
-        document.body.classList.remove('android-printing');
-      }, 3000);
-    }, 500);
+        window.AndroidPrint.printPage();
+        setTimeout(() => {
+          originalDisplays.forEach(item => {
+            item.element.style.display = item.display;
+          });
+          template.style.display = origTemplateDisplay;
+        }, 3000);
+      }, 500);
+    }
   } else {
     window.print();
   }

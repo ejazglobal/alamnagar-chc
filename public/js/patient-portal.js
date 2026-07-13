@@ -546,11 +546,22 @@ window.printPortalPrescription = function() {
       document.body.appendChild(printContainer);
     }
     printContainer.innerHTML = content;
-    document.body.classList.add('android-printing');
+    
+    // Hide all other direct children of body
+    const originalDisplays = [];
+    Array.from(document.body.children).forEach(child => {
+      if (child !== printContainer) {
+        originalDisplays.push({ element: child, display: child.style.display });
+        child.style.setProperty('display', 'none', 'important');
+      }
+    });
+
     setTimeout(() => {
       window.AndroidPrint.printPage();
       setTimeout(() => {
-        document.body.classList.remove('android-printing');
+        originalDisplays.forEach(item => {
+          item.element.style.display = item.display;
+        });
         printContainer.innerHTML = '';
       }, 3000);
     }, 500);
