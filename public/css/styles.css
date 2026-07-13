@@ -1123,3 +1123,10 @@ body.android-printing #android-print-container {
   background: #ffffff !important;
 }
 
+@media print {
+  #print-return-banner {
+    display: none !important;
+  }
+}
+
+

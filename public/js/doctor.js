@@ -1273,25 +1273,7 @@ window.printPrescription = function() {
   if (window.AndroidPrint) {
     const template = document.getElementById('print-prescription-template');
     if (template) {
-      const originalDisplays = [];
-      Array.from(document.body.children).forEach(child => {
-        if (child !== template) {
-          originalDisplays.push({ element: child, display: child.style.display });
-          child.style.setProperty('display', 'none', 'important');
-        }
-      });
-      const origTemplateDisplay = template.style.display;
-      template.style.setProperty('display', 'block', 'important');
-
-      setTimeout(() => {
-        window.AndroidPrint.printPage();
-        setTimeout(() => {
-          originalDisplays.forEach(item => {
-            item.element.style.display = item.display;
-          });
-          template.style.display = origTemplateDisplay;
-        }, 3000);
-      }, 500);
+      window.runAndroidPrintFlow(template);
     }
   } else {
     window.print();
@@ -2283,25 +2265,7 @@ function printPastPrescription(visit) {
   if (window.AndroidPrint) {
     const template = document.getElementById('print-prescription-template');
     if (template) {
-      const originalDisplays = [];
-      Array.from(document.body.children).forEach(child => {
-        if (child !== template) {
-          originalDisplays.push({ element: child, display: child.style.display });
-          child.style.setProperty('display', 'none', 'important');
-        }
-      });
-      const origTemplateDisplay = template.style.display;
-      template.style.setProperty('display', 'block', 'important');
-
-      setTimeout(() => {
-        window.AndroidPrint.printPage();
-        setTimeout(() => {
-          originalDisplays.forEach(item => {
-            item.element.style.display = item.display;
-          });
-          template.style.display = origTemplateDisplay;
-        }, 3000);
-      }, 500);
+      window.runAndroidPrintFlow(template);
     }
   } else {
     window.print();
