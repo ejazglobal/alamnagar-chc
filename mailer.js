@@ -42,7 +42,8 @@ function sendSMS(to, message) {
       senderName: senderName,
       transactionType: 'T',
       mobileNumber: normalizedPhone,
-      message: message
+      message: message,
+      campaignName: 'Alamnagar CHC'
     });
 
     console.log(`[SMS DISPATCH] MiMSMS POST → api.mimsms.com/api/V2/SMS`);
