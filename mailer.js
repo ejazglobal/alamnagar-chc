@@ -21,86 +21,149 @@ function normalizeBDPhoneNumber(phone) {
   return digits;
 }
 
-// Helper to send real SMS via Shiram System API
-// Docs: https://smsapi.shiramsystem.com/user_api/
-// Method: POST | Params: email, password, method, mask, mobile[], message
+// Helper to send real SMS via Shiram System API or MiMSMS API V2
 function sendSMS(to, message) {
   const normalizedPhone = normalizeBDPhoneNumber(to);
+  const smsProvider = (process.env.SMS_PROVIDER || 'shiram').toLowerCase();
 
-  // Load credentials from Render environment variables
-  const smsUrl      = 'https://smsapi.shiramsystem.com/user_api/';
-  const smsEmail    = process.env.SMS_USER || 'inforcmc@gmail.com';
-  const smsPassword = process.env.SMS_PASS || '14142135';
-  // For non-masking SMS the mask value must be the string 'Non-Masking'
-  const smsMask     = process.env.SMS_MASK || 'HEALTH CITY';
+  if (smsProvider === 'mimsms') {
+    const userName = process.env.SMS_USER || 'ejaz.cacts@gmail.com';
+    const apiKey   = process.env.SMS_API_KEY || 'Mim@G1Q8Q0QX0AFEYNX';
+    const senderName = process.env.SMS_MASK || 'Non-Masking';
 
-  if (!smsEmail.trim() || !smsPassword.trim()) {
-    console.log(`[SIMULATED SMS] No credentials — Phone: ${normalizedPhone}, Msg: "${message}"`);
-    return;
-  }
+    if (!userName.trim() || !apiKey.trim()) {
+      console.log(`[SIMULATED MiMSMS] No credentials — Phone: ${normalizedPhone}, Msg: "${message}"`);
+      return;
+    }
 
-  // Build POST body exactly as Shiram docs specify
-  // mobile must be sent as mobile[] (array notation)
-  const postBody = querystring.stringify({
-    email:    smsEmail,
-    password: smsPassword,
-    method:   'send_sms',
-    mask:     smsMask,          // 'Non-Masking' or approved mask name
-    message:  message
-  }) + `&mobile%5B%5D=${encodeURIComponent(normalizedPhone)}`; // mobile[] array
+    const postData = JSON.stringify({
+      apiKey: apiKey,
+      userName: userName,
+      senderName: senderName,
+      transactionType: 'T',
+      mobileNumber: normalizedPhone,
+      message: message
+    });
 
-  console.log(`[SMS DISPATCH] POST → ${smsUrl}`);
-  console.log(`[SMS DISPATCH] To: ${normalizedPhone} | Mask: ${smsMask}`);
-  console.log(`[SMS DISPATCH] Msg: "${message}"`);
+    console.log(`[SMS DISPATCH] MiMSMS POST → api.mimsms.com/api/V2/SMS`);
+    console.log(`[SMS DISPATCH] To: ${normalizedPhone} | Sender: ${senderName}`);
+    console.log(`[SMS DISPATCH] Msg: "${message}"`);
 
-  try {
-    const parsedUrl = new URL(smsUrl);
-    const httpLib   = parsedUrl.protocol === 'http:' ? require('http') : https;
-
-    const options = {
-      hostname:           parsedUrl.hostname,
-      port:               443,
-      path:               parsedUrl.pathname,
-      method:             'POST',
-      rejectUnauthorized: false,
-      headers: {
-        'Content-Type':   'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(postBody)
-      }
-    };
-
-    const req = httpLib.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end',  () => {
-        const body = data.trim();
-        console.log(`[SMS DISPATCH] Shiram response — HTTP ${res.statusCode}: ${body}`);
-        try {
-          const json = JSON.parse(body);
-          if (json.status === true && json.error_code === 0) {
-            console.log(`[SMS DISPATCH] ✅ SMS sent successfully! Cost: ${json.cost}, Count: ${json.sms_count}`);
-          } else {
-            console.error(`SMS Gateway Error Details: error_code=${json.error_code} — ${json.message}`);
-          }
-        } catch {
-          // Non-JSON body
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            console.log(`[SMS DISPATCH] Gateway response (non-JSON): ${body}`);
-          } else {
-            console.error(`SMS Gateway Error Details: HTTP ${res.statusCode} — ${body}`);
-          }
+    try {
+      const options = {
+        hostname: 'api.mimsms.com',
+        port: 443,
+        path: '/api/V2/SMS',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
         }
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          const body = data.trim();
+          console.log(`[SMS DISPATCH] MiMSMS response — HTTP ${res.statusCode}: ${body}`);
+          try {
+            const json = JSON.parse(body);
+            if (json.statusCode === 200 || json.status === true || json.success === true) {
+              console.log(`[SMS DISPATCH] ✅ MiMSMS sent successfully!`);
+            } else {
+              console.error(`MiMSMS Gateway Error Details: ${body}`);
+            }
+          } catch {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              console.log(`[SMS DISPATCH] MiMSMS response (non-JSON): ${body}`);
+            } else {
+              console.error(`MiMSMS Gateway Error Details: HTTP ${res.statusCode} — ${body}`);
+            }
+          }
+        });
       });
-    });
 
-    req.on('error', (e) => {
-      console.error('SMS Gateway Error Details:', e.message);
-    });
+      req.on('error', (e) => {
+        console.error('MiMSMS Gateway Request Error:', e.message);
+      });
 
-    req.write(postBody);
-    req.end();
-  } catch (err) {
-    console.error('SMS Gateway Error Details:', err.message);
+      req.write(postData);
+      req.end();
+    } catch (err) {
+      console.error('MiMSMS Gateway Exception:', err.message);
+    }
+  } else {
+    const smsUrl      = 'https://smsapi.shiramsystem.com/user_api/';
+    const smsEmail    = process.env.SMS_USER || 'inforcmc@gmail.com';
+    const smsPassword = process.env.SMS_PASS || '14142135';
+    const smsMask     = process.env.SMS_MASK || 'HEALTH CITY';
+
+    if (!smsEmail.trim() || !smsPassword.trim()) {
+      console.log(`[SIMULATED SMS] No credentials — Phone: ${normalizedPhone}, Msg: "${message}"`);
+      return;
+    }
+
+    const postBody = querystring.stringify({
+      email:    smsEmail,
+      password: smsPassword,
+      method:   'send_sms',
+      mask:     smsMask,
+      message:  message
+    }) + `&mobile%5B%5D=${encodeURIComponent(normalizedPhone)}`;
+
+    console.log(`[SMS DISPATCH] POST → ${smsUrl}`);
+    console.log(`[SMS DISPATCH] To: ${normalizedPhone} | Mask: ${smsMask}`);
+    console.log(`[SMS DISPATCH] Msg: "${message}"`);
+
+    try {
+      const parsedUrl = new URL(smsUrl);
+      const httpLib   = parsedUrl.protocol === 'http:' ? require('http') : https;
+
+      const options = {
+        hostname:           parsedUrl.hostname,
+        port:               443,
+        path:               parsedUrl.pathname,
+        method:             'POST',
+        rejectUnauthorized: false,
+        headers: {
+          'Content-Type':   'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postBody)
+        }
+      };
+
+      const req = httpLib.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end',  () => {
+          const body = data.trim();
+          console.log(`[SMS DISPATCH] Shiram response — HTTP ${res.statusCode}: ${body}`);
+          try {
+            const json = JSON.parse(body);
+            if (json.status === true && json.error_code === 0) {
+              console.log(`[SMS DISPATCH] ✅ SMS sent successfully! Cost: ${json.cost}, Count: ${json.sms_count}`);
+            } else {
+              console.error(`SMS Gateway Error Details: error_code=${json.error_code} — ${json.message}`);
+            }
+          } catch {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              console.log(`[SMS DISPATCH] Gateway response (non-JSON): ${body}`);
+            } else {
+              console.error(`SMS Gateway Error Details: HTTP ${res.statusCode} — ${body}`);
+            }
+          }
+        });
+      });
+
+      req.on('error', (e) => {
+        console.error('SMS Gateway Error Details:', e.message);
+      });
+
+      req.write(postBody);
+      req.end();
+    } catch (err) {
+      console.error('SMS Gateway Error Details:', err.message);
+    }
   }
 }
 
