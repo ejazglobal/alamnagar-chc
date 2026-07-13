@@ -27,4 +27,22 @@
       menu.classList.toggle('active');
     }
   };
+
+  // Collapse mobile menu when selecting an item or clicking outside
+  document.addEventListener('click', function(e) {
+    const menu = document.getElementById('nav-menu');
+    const toggleBtn = document.querySelector('.menu-toggle');
+    if (!menu) return;
+    
+    if (menu.classList.contains('active')) {
+      if (
+        e.target.closest('#nav-menu a') || 
+        e.target.closest('#nav-menu button') || 
+        e.target.closest('#nav-menu .nav-link') ||
+        (!menu.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target)))
+      ) {
+        menu.classList.remove('active');
+      }
+    }
+  });
 })();

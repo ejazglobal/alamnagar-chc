@@ -1271,7 +1271,13 @@ window.printPrescription = function() {
   printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${docName.replace(/^Dr\.\s+/i, '')}</span>`;
 
   if (window.AndroidPrint) {
-    window.AndroidPrint.printPage();
+    document.body.classList.add('android-printing');
+    setTimeout(() => {
+      window.AndroidPrint.printPage();
+      setTimeout(() => {
+        document.body.classList.remove('android-printing');
+      }, 3000);
+    }, 500);
   } else {
     window.print();
   }
@@ -2171,8 +2177,8 @@ function printPastPrescription(visit) {
   const printSigName = document.getElementById('print-sig-doc-name');
   
   printDocName.textContent = `Dr. ${(visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, '')}`;
-  printDocSpecialty.textContent = doctorProfile ? doctorProfile.specialty_en : 'Clinical Specialist';
-  printDocHours.textContent = doctorProfile ? doctorProfile.visiting_hours_en : 'Regular Hours';
+  printDocSpecialty.textContent = visit.doctor_specialty || (doctorProfile ? doctorProfile.specialty_en : 'Clinical Specialist');
+  printDocHours.textContent = visit.doctor_visiting_hours || visit.doctor_hours || (doctorProfile ? doctorProfile.visiting_hours_en : 'Regular Hours');
   
   printPatientName.textContent = activeAppointment ? activeAppointment.patient_name : (document.getElementById('patient-banner-name').textContent || 'Patient');
   printPatientAge.textContent = document.getElementById('patient-age').value.trim() || 'N/A';
@@ -2260,7 +2266,13 @@ function printPastPrescription(visit) {
   printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${(visit.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, '')}</span>`;
   
   if (window.AndroidPrint) {
-    window.AndroidPrint.printPage();
+    document.body.classList.add('android-printing');
+    setTimeout(() => {
+      window.AndroidPrint.printPage();
+      setTimeout(() => {
+        document.body.classList.remove('android-printing');
+      }, 3000);
+    }, 500);
   } else {
     window.print();
   }

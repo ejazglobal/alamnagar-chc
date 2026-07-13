@@ -1106,7 +1106,7 @@ app.post('/api/share/prescription/:id/verify', async (req, res) => {
   try {
     const apptRes = await db.pool.query(`
       SELECT a.*, p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.doctor_signature, p.bp, p.temperature, p.pulse, p.rich_state, p.created_at,
-             d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_hours
+             d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_visiting_hours, d.visiting_hours_en as doctor_hours
       FROM appointments a
       LEFT JOIN prescriptions p ON a.id = p.appointment_id
       LEFT JOIN doctors d ON a.doctor_id = d.id
@@ -1408,7 +1408,7 @@ app.get('/api/doctor/prescriptions', authenticateToken, async (req, res) => {
       SELECT p.id as prescription_id, p.appointment_id, p.observations, p.diagnostics, p.medicines, p.created_at,
              p.bp, p.temperature, p.pulse,
              a.patient_name, a.phone as patient_phone, a.appointment_date, a.appointment_time,
-             d.name_en as doctor_name
+             d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_visiting_hours
       FROM prescriptions p
       JOIN appointments a ON p.appointment_id = a.id
       JOIN doctors d ON p.doctor_id = d.id

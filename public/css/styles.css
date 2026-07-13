@@ -1099,3 +1099,27 @@ footer {
   width: 14px;
   height: 14px;
 }
+
+/* Android Native Printing Utility Bridge */
+body.android-printing {
+  background: #ffffff !important;
+  color: #000000 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+body.android-printing > *:not(#print-prescription-template):not(#android-print-container) {
+  display: none !important;
+}
+
+body.android-printing #print-prescription-template,
+body.android-printing #android-print-container {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+}
+

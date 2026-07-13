@@ -413,7 +413,7 @@ window.printPortalPrescription = function() {
 
   const docName = p.doctor_name || 'Sarah Rahman';
   const docSpecialty = p.doctor_specialty || 'General Physician';
-  const docHours = p.doctor_visiting_hours || 'Sat, Mon, Wed (03:00 PM - 07:00 PM)';
+  const docHours = p.doctor_visiting_hours || p.doctor_hours || 'Sat, Mon, Wed (03:00 PM - 07:00 PM)';
 
   const content = `
     <html>
@@ -539,12 +539,20 @@ window.printPortalPrescription = function() {
   `;
 
   if (window.AndroidPrint) {
-    document.body.innerHTML = content;
+    let printContainer = document.getElementById('android-print-container');
+    if (!printContainer) {
+      printContainer = document.createElement('div');
+      printContainer.id = 'android-print-container';
+      document.body.appendChild(printContainer);
+    }
+    printContainer.innerHTML = content;
+    document.body.classList.add('android-printing');
     setTimeout(() => {
       window.AndroidPrint.printPage();
       setTimeout(() => {
-        location.reload();
-      }, 1000);
+        document.body.classList.remove('android-printing');
+        printContainer.innerHTML = '';
+      }, 3000);
     }, 500);
     return;
   }
