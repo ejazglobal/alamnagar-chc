@@ -1378,7 +1378,7 @@ app.get('/api/patient/prescriptions', authenticateToken, async (req, res) => {
   }
   try {
     const query = `
-      SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints,
+      SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints, a.patient_name,
              p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
              p.bp, p.temperature, p.pulse,
              d.name_en as doctor_name

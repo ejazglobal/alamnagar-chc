@@ -225,6 +225,7 @@ async function loadMyPrescriptions() {
           <div>
             <div style="font-weight: 600; color: var(--text-dark);">Prescription by Dr. ${escapeHTML((p.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, ''))}</div>
             <div style="font-size: 0.8rem; color: var(--text-muted);">Consulted: ${formattedDate}</div>
+            <div style="font-size: 0.8rem; color: var(--primary-color); font-weight: 600; margin-top: 0.15rem;">Patient: ${escapeHTML(p.patient_name || 'Dependent')}</div>
             ${p.observations ? `<div style="font-size: 0.78rem; color: var(--text-dark); margin-top: 0.25rem;">Obs: <em>${escapeHTML(p.observations)}</em></div>` : ''}
           </div>
           <button onclick="viewPrescriptionDetails(${p.appointment_id})" class="btn" style="width: auto; padding: 0.5rem 1rem; font-size:0.875rem; background: var(--accent-color);">👁 View Rx</button>
