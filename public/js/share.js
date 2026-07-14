@@ -154,7 +154,7 @@ function renderPrescription(visit) {
 
   container.innerHTML = `
     <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="prescription-header">
       <div style="display: flex; align-items: center; gap: 1rem;">
         <img src="alchc-logo.png" style="width:50px;height:50px;border-radius:50%;">
         <div>
@@ -173,7 +173,7 @@ function renderPrescription(visit) {
     <div style="border-bottom: 2px solid #0d9488; margin-bottom: 1rem;"></div>
     
     <!-- Patient Info -->
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; font-size: 0.9rem; margin-bottom: 1rem;">
+    <div class="prescription-info-grid">
       <div><strong>Patient Name:</strong> ${escapeHTML(pName)}</div>
       <div><strong>Age:</strong> ${escapeHTML(pAge)}</div>
       <div><strong>Gender:</strong> ${escapeHTML(pGender)}</div>
@@ -186,7 +186,7 @@ function renderPrescription(visit) {
     <div style="border-bottom: 1px solid #e2e8f0; margin-bottom: 1.5rem;"></div>
     
     <!-- Body -->
-    <div style="display: grid; grid-template-columns: 250px 1fr; gap: 2rem;">
+    <div class="prescription-body-layout">
       <!-- Sidebar -->
       <div>
         <div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem;">OBSERVATIONS & SYMPTOMS</div>

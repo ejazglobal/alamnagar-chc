@@ -2,6 +2,7 @@
 (function () {
   // IMPORTANT: Replace this with your actual production DigitalOcean server URL
   const API_BASE_URL = 'https://ashiana.online';
+  window.API_BASE_URL = API_BASE_URL;
 
   // Check if we are running in local web development (localhost with a port, e.g., localhost:5000)
   const isLocalWebDev = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '';
@@ -49,6 +50,9 @@
   window.runAndroidPrintFlow = function(targetElement, cleanupCallback) {
     if (!window.AndroidPrint) return;
 
+    // Add android-printing class to body
+    document.body.classList.add('android-printing');
+
     // Create the return banner
     let banner = document.getElementById('print-return-banner');
     if (!banner) {
@@ -78,6 +82,9 @@
     function exitPrintMode() {
       if (printModeExited) return;
       printModeExited = true;
+
+      // Remove android-printing class from body
+      document.body.classList.remove('android-printing');
 
       // Restore displays
       originalDisplays.forEach(item => {

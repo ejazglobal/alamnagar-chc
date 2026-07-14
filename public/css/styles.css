@@ -1102,6 +1102,9 @@ footer {
 
 /* Android Native Printing Utility Bridge */
 body.android-printing {
+  display: block !important;
+  min-height: auto !important;
+  height: auto !important;
   background: #ffffff !important;
   color: #000000 !important;
   padding: 0 !important;

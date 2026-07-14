@@ -1301,7 +1301,24 @@ window.openShareModal = function() {
     }
   });
 
-  const messageText = `Hello ${activeAppointment.patient_name},\n\nYour digital prescription from Alamnagar CHC has been prepared.\n\nPatient Details:\n- Age: ${age}\n- Gender: ${gender}\n- Weight: ${weight}\n\nMedicines prescribed:\n${medsText}\nObservations:\n${document.getElementById('obs-input').value.trim()}\n\nWish you a speedy recovery!`;
+  // Populate secure OTP share link
+  const apptId = activeAppointment.id;
+  let shareUrl = '';
+  if (apptId && apptId !== 'walkin') {
+    const isCapacitor = window.Capacitor || (window.location.origin.startsWith('http://localhost') && !window.location.port) || (window.location.origin.startsWith('https://localhost') && !window.location.port);
+    const baseOrigin = isCapacitor ? (window.API_BASE_URL || 'https://ashiana.online') : window.location.origin;
+    shareUrl = `${baseOrigin}/share.html?id=${apptId}`;
+    const linkInput = document.getElementById('share-link-input');
+    if (linkInput) linkInput.value = shareUrl;
+  }
+
+  // Include the secure link in the message text if available
+  let linkMessagePart = '';
+  if (shareUrl) {
+    linkMessagePart = `\n\nYou can view and download your secure digital prescription here:\n${shareUrl}\n(Mobile OTP verification required)`;
+  }
+
+  const messageText = `Hello ${activeAppointment.patient_name},\n\nYour digital prescription from Alamnagar CHC has been prepared.${linkMessagePart}\n\nPatient Details:\n- Age: ${age}\n- Gender: ${gender}\n- Weight: ${weight}\n\nMedicines prescribed:\n${medsText}\nObservations:\n${document.getElementById('obs-input').value.trim()}\n\nWish you a speedy recovery!`;
 
   // WhatsApp link
   const formattedPhone = activeAppointment.phone.replace(/[^0-9]/g, '');
@@ -1309,14 +1326,6 @@ window.openShareModal = function() {
 
   // Email client link
   email.href = `mailto:${activeAppointment.email}?subject=Your%20Digital%20Prescription%20-%20Alamnagar%20CHC&body=${encodeURIComponent(messageText)}`;
-
-  // Populate secure OTP share link
-  const apptId = activeAppointment.id;
-  if (apptId && apptId !== 'walkin') {
-    const shareUrl = `${window.location.origin}/share.html?id=${apptId}`;
-    const linkInput = document.getElementById('share-link-input');
-    if (linkInput) linkInput.value = shareUrl;
-  }
 
   modal.style.display = 'flex';
 };
