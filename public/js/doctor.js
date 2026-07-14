@@ -41,6 +41,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (doctorProfile) {
         if (doctorProfile.signature_url) {
           signatureBase64 = doctorProfile.signature_url;
+          const printSigImg = document.getElementById('print-doctor-signature');
+          if (printSigImg) {
+            printSigImg.src = signatureBase64;
+            printSigImg.style.display = 'block';
+          }
         }
         // Populate profile modal fields
         const profName = document.getElementById('profile-name-en');
@@ -72,6 +77,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       preview.src = signatureBase64;
       preview.style.display = 'inline-block';
       prompt.style.display = 'none';
+    }
+    const printSigImg = document.getElementById('print-doctor-signature');
+    if (printSigImg) {
+      printSigImg.src = signatureBase64;
+      printSigImg.style.display = 'block';
     }
   }
 
@@ -570,6 +580,11 @@ async function loadPrescription(appointmentId) {
         preview.style.display = 'inline-block';
         prompt.style.display = 'none';
       }
+      const printSigImg = document.getElementById('print-doctor-signature');
+      if (printSigImg) {
+        printSigImg.src = signatureBase64;
+        printSigImg.style.display = 'block';
+      }
     }
     
     // Show share controls
@@ -884,6 +899,11 @@ window.handleSignatureUpload = function(e) {
       preview.src = signatureBase64;
       preview.style.display = 'inline-block';
       prompt.style.display = 'none';
+    }
+    const printSigImg = document.getElementById('print-doctor-signature');
+    if (printSigImg) {
+      printSigImg.src = signatureBase64;
+      printSigImg.style.display = 'block';
     }
   };
   reader.readAsDataURL(file);
@@ -1558,6 +1578,11 @@ window.saveProfileSignature = async function() {
       rxPreview.src = signatureBase64;
       rxPreview.style.display = 'inline-block';
       rxPrompt.style.display = 'none';
+    }
+    const printSigImg = document.getElementById('print-doctor-signature');
+    if (printSigImg) {
+      printSigImg.src = signatureBase64;
+      printSigImg.style.display = 'block';
     }
 
     showStatusBanner(banner, 'Signature saved to profile successfully.', 'success');

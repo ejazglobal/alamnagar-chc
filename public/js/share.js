@@ -171,7 +171,7 @@ function renderPrescription(visit) {
     medsHtml = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">No medicines prescribed</td></tr>';
   }
 
-  const sigImg = visit.doctor_signature ? `<img src="${visit.doctor_signature}" alt="Signature" style="max-height:60px; display:block; margin:0 auto;">` : '';
+  const sigImg = visit.doctor_signature ? `<img src="${visit.doctor_signature}" alt="Signature" style="max-height: 50px; display: block; margin-bottom: 0.5rem;">` : '';
 
   container.innerHTML = `
     <!-- Header -->
@@ -241,10 +241,12 @@ function renderPrescription(visit) {
     </div>
     
     <!-- Footer -->
-    <div style="margin-top: 4rem; text-align: right;">
-      ${sigImg}
-      <div style="display: inline-block; border-top: 1px solid #475569; width: 200px; padding-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">
-        <span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}</span>
+    <div style="display: flex; justify-content: flex-end; margin-top: 4rem;">
+      <div style="display: flex; flex-direction: column; align-items: center; width: 200px; text-align: center;">
+        ${sigImg}
+        <div style="border-top: 1px solid #475569; width: 100%; padding-top: 0.25rem; font-size: 0.85rem; font-weight: 600; color: #475569;">
+          Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}
+        </div>
       </div>
     </div>
   `;
