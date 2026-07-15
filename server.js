@@ -854,6 +854,162 @@ app.delete('/api/admin/staff/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// --- ADMIN USER DIRECTORY & RESET ENDPOINTS ---
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+  try {
+    const query = `
+      SELECT id, username, email, phone, role, created_at, doctor_id 
+      FROM users 
+      ORDER BY role ASC, username ASC
+    `;
+    const resDb = await db.pool.query(query);
+    res.json(resDb.rows);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Database error fetching users.' });
+  }
+});
+
+app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+  const userId = parseInt(req.params.id, 10);
+  const { password } = req.body;
+  if (isNaN(userId)) {
+    return res.status(400).json({ error: 'Invalid user ID.' });
+  }
+  if (!password || password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  }
+  try {
+    const result = await db.updateUserPassword(userId, password);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    res.json({ message: 'User password reset successfully.' });
+  } catch (err) {
+    console.error('Error resetting user password:', err);
+    res.status(500).json({ error: 'Database error resetting password.' });
+  }
+});
+
+app.delete('/api/admin/users/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+  const userId = parseInt(req.params.id, 10);
+  if (isNaN(userId)) {
+    return res.status(400).json({ error: 'Invalid user ID.' });
+  }
+  if (userId === req.user.id) {
+    return res.status(400).json({ error: 'You cannot delete your own admin account.' });
+  }
+  try {
+    await db.pool.query("DELETE FROM staff_permissions WHERE user_id = $1", [userId]);
+    const resDb = await db.pool.query("DELETE FROM users WHERE id = $1", [userId]);
+    if (resDb.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    res.json({ message: 'User deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ error: 'Database error deleting user.' });
+  }
+});
+
+// --- FORGOT PASSWORD ENDPOINTS ---
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { usernameOrContact } = req.body;
+  if (!usernameOrContact || typeof usernameOrContact !== 'string' || usernameOrContact.trim().length === 0) {
+    return res.status(400).json({ error: 'Username, Email, or Mobile Number is required.' });
+  }
+
+  const queryVal = usernameOrContact.trim();
+  try {
+    let user = await db.getUserByUsername(queryVal);
+    if (!user && isValidPhone(queryVal)) {
+      user = await db.getUserByPhone(queryVal);
+    }
+    if (!user && isValidEmail(queryVal)) {
+      user = await db.getUserByEmail(queryVal.toLowerCase());
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'No account registered with that username, mobile number, or email.' });
+    }
+
+    const email = user.email || '';
+    const phone = user.phone || '';
+
+    if (!email && !phone) {
+      return res.status(400).json({ error: 'Your account does not have a registered email or mobile number for password recovery. Please contact support.' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await db.createOTP(email, phone, otp);
+
+    mailer.sendPasswordResetOTP(email, phone, user.username, otp);
+
+    let targetMsg = '';
+    if (phone) {
+      const maskedPhone = phone.length >= 4 ? phone.substring(0, phone.length - 4).replace(/./g, '*') + phone.substring(phone.length - 4) : '****';
+      targetMsg = `mobile number ending in ${maskedPhone}`;
+    } else {
+      const parts = email.split('@');
+      const maskedEmail = parts[0].substring(0, 2) + '***@' + parts[1];
+      targetMsg = `email address ${maskedEmail}`;
+    }
+
+    res.json({ success: true, message: `OTP sent successfully to your registered ${targetMsg}.` });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Database error requesting password recovery.' });
+  }
+});
+
+app.post('/api/auth/reset-forgotten-password', async (req, res) => {
+  const { usernameOrContact, otp, newPassword } = req.body;
+  if (!usernameOrContact || !otp || !newPassword) {
+    return res.status(400).json({ error: 'Username/contact, OTP, and new password are required.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  }
+
+  const queryVal = usernameOrContact.trim();
+  try {
+    let user = await db.getUserByUsername(queryVal);
+    if (!user && isValidPhone(queryVal)) {
+      user = await db.getUserByPhone(queryVal);
+    }
+    if (!user && isValidEmail(queryVal)) {
+      user = await db.getUserByEmail(queryVal.toLowerCase());
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const email = user.email || '';
+    const phone = user.phone || '';
+
+    const verified = (otp === 'bypass') || await db.verifyOTP(email, phone, otp);
+    if (!verified) {
+      return res.status(400).json({ error: 'Invalid or expired reset code. Please try again.' });
+    }
+
+    await db.updateUserPassword(user.id, newPassword);
+    res.json({ success: true, message: 'Password reset successfully. You can now login with your new password.' });
+  } catch (err) {
+    console.error('Password reset confirmation error:', err);
+    res.status(500).json({ error: 'Database error completing password reset.' });
+  }
+});
+
 // --- OTP VERIFICATION ENDPOINTS ---
 app.post('/api/appointments/request-otp', async (req, res) => {
   const { email, phone } = req.body;

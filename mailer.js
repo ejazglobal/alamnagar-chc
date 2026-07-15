@@ -457,9 +457,50 @@ function sendPrescriptionLinkSMS(phone, link) {
   sendSMS(phone, `[আলমনগর সিএইচসি] আপনার ডিজিটাল প্রেসক্রিপশন প্রস্তুত হয়েছে। দেখতে এখানে ক্লিক করুন: ${link}`);
 }
 
+function sendPasswordResetOTP(email, phone, username, otp) {
+  const subject = "Reset Password Verification Code - Alamnagar CHC";
+  const emailHtml = `<!DOCTYPE html>
+  <html>
+  <head><style>body { font-family: sans-serif; line-height: 1.5; color: #333; }</style></head>
+  <body>
+    <div style="max-width: 500px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+      <h2 style="color: #0d9488; text-align: center;">Alamnagar Charitable Healthcare Centre</h2>
+      <p>Hello <strong>${username}</strong>,</p>
+      <p>We received a request to reset your portal password. Please use the following One-Time Password (OTP) code to verify your request:</p>
+      <div style="font-size: 24px; font-weight: bold; background: #f0fdfa; color: #0d9488; text-align: center; padding: 15px; letter-spacing: 5px; border-radius: 6px; margin: 20px 0;">
+        ${otp}
+      </div>
+      <p>This code will expire in 10 minutes. If you did not make this request, you can safely ignore this email.</p>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="font-size: 12px; color: #999;">Alamnagar Charitable Healthcare Centre</p>
+    </div>
+  </body>
+  </html>`;
+
+  const emailDir = path.join(__dirname, 'sent_emails');
+  if (!fs.existsSync(emailDir)) {
+    fs.mkdirSync(emailDir, { recursive: true });
+  }
+  const cleanEmail = email ? email.trim().replace(/[^a-zA-Z0-9]/g, '_') : 'phone';
+  const filePath = path.join(emailDir, `reset_${cleanEmail}_${Date.now()}.html`);
+  
+  fs.writeFileSync(filePath, emailHtml);
+  console.log(`[MAILER] Reset OTP email successfully written for ${email || 'phone'} -> ${filePath}`);
+  console.log(`[MAILER] *** PASSWORD RESET OTP CODE IS: ${otp} (for ${username} / ${email} / ${phone}) ***`);
+
+  if (email) {
+    sendEmail(email, subject, emailHtml);
+  }
+  if (phone) {
+    sendSMS(phone, `[আলমনগর সিএইচসি] আপনার পাসওয়ার্ড রিসেট করার ওটিপি হলো: ${otp}। এটি ১০ মিনিটের জন্য বৈধ।`);
+  }
+}
+
 module.exports = {
   sendAppointmentConfirmation,
   sendBookingOTP,
   sendSMS,
-  sendPrescriptionLinkSMS
+  sendPrescriptionLinkSMS,
+  sendEmail,
+  sendPasswordResetOTP
 };

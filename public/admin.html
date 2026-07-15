@@ -325,6 +325,50 @@
           </div>
         </section>
 
+        <!-- Manage User Registry (Admin Only) -->
+        <section class="panel" id="admin-user-directory-section" style="margin-top: 1.5rem; display: none;">
+          <h2 class="panel-title">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            User Directory & Management
+          </h2>
+          
+          <div id="user-directory-status-banner" class="status-banner" style="margin-bottom: 1rem;"></div>
+
+          <!-- User Filters & Search -->
+          <div class="filters-bar" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="filter-btn-group" id="user-role-filter-group" style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+              <button class="filter-btn active" data-filter="all" onclick="filterUsersRole('all')">All</button>
+              <button class="filter-btn" data-filter="Admin" onclick="filterUsersRole('Admin')">Admin</button>
+              <button class="filter-btn" data-filter="Staff" onclick="filterUsersRole('Staff')">Staff</button>
+              <button class="filter-btn" data-filter="Doctor" onclick="filterUsersRole('Doctor')">Doctor</button>
+              <button class="filter-btn" data-filter="Patient" onclick="filterUsersRole('Patient')">Patient</button>
+              <button class="filter-btn" data-filter="Observer" onclick="filterUsersRole('Observer')">Observer</button>
+            </div>
+            <input type="search" id="user-search-input" class="search-input" placeholder="Search username, contact..." oninput="searchUsers(this.value)">
+          </div>
+
+          <div class="table-wrapper">
+            <table class="news-manage-table">
+              <thead>
+                <tr>
+                  <th>User Details</th>
+                  <th>Role</th>
+                  <th>Joined Date</th>
+                  <th style="width: 180px; text-align: center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-directory-tbody">
+                <!-- Dynamically populated -->
+                <tr>
+                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">Loading user registry...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <!-- Photo Gallery Management Section -->
         <section class="panel" style="margin-top: 1.5rem;">
           <h2 class="panel-title">
@@ -498,6 +542,31 @@
       <div id="admin-reports-list" style="overflow-y: auto; flex: 1;">
         <!-- Populated dynamically -->
       </div>
+    </div>
+  </div>
+
+  <!-- Admin Reset Password Modal -->
+  <div id="admin-reset-password-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closeResetPasswordModal(event)">
+    <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 400px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <h3 style="margin: 0; color: var(--primary-color);">Reset User Password</h3>
+        <button class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;" onclick="closeResetPasswordModal(event)">&times;</button>
+      </div>
+      <div id="admin-reset-status-banner" class="status-banner" style="margin-bottom: 1rem; display: none;"></div>
+      <form id="admin-reset-password-form">
+        <input type="hidden" id="reset-user-id" value="">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <span class="form-label" style="font-weight: 600;">Resetting password for: <strong id="reset-username-label" style="color: var(--primary-color);"></strong></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reset-new-password">New Password *</label>
+          <div style="position: relative;">
+            <input type="password" id="reset-new-password" class="form-control" placeholder="Minimum 6 characters" required style="padding-right: 3.5rem;">
+            <button type="button" onclick="togglePasswordVisibility('reset-new-password', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 0.8rem; color: var(--primary-color); cursor: pointer; font-weight: 600; outline: none; padding: 0;">Show</button>
+          </div>
+        </div>
+        <button type="submit" class="btn">Confirm Password Reset</button>
+      </form>
     </div>
   </div>
 

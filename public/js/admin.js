@@ -58,14 +58,31 @@ async function unlockDashboard(role) {
     if (staffSec) staffSec.style.display = 'block';
     setupStaffDashboardEvents();
     await loadStaffAndRender();
+
+    const userSec = document.getElementById('admin-user-directory-section');
+    if (userSec) userSec.style.display = 'block';
+    setupUserDirectoryEvents();
+    await loadUsersAndRender();
   }
   applyStaffPermissionsFilter();
 }
 
 // Load Appointments, News, Doctors, Gallery
 async function loadData() {
-  isFallbackMode = false;
-  if (adminDemoNotice) adminDemoNotice.style.display = 'none';
+  isFallbackMode = window.location.protocol === 'file:';
+  if (adminDemoNotice) adminDemoNotice.style.display = isFallbackMode ? 'block' : 'none';
+
+  if (isFallbackMode) {
+    appointments = JSON.parse(localStorage.getItem('chc_appointments')) || [
+      { id: 1, patient_name: 'Jane Doe', email: 'jane@example.com', phone: '01712345678', appointment_date: '2026-07-20', appointment_time: '10:00', status: 'pending', notes: 'Routine checkup' }
+    ];
+    doctors = JSON.parse(localStorage.getItem('chc_doctors')) || [
+      { id: 1, name_en: 'Dr. Sarah Rahman', specialty_en: 'Pediatric Specialist', visiting_days: '1,3', visiting_hours_en: '09:00 AM - 01:00 PM' }
+    ];
+    newsItems = JSON.parse(localStorage.getItem('chc_news')) || [];
+    galleryItems = JSON.parse(localStorage.getItem('chc_gallery')) || [];
+    return;
+  }
 
   try {
     const token = localStorage.getItem('chc_token');
@@ -1638,4 +1655,216 @@ window.printAdminPrescription = function() {
   const printWindow = window.open('', '_blank');
   printWindow.document.write(content);
   printWindow.document.close();
+};
+
+// --- USER DIRECTORY & MANAGEMENT UTILITIES ---
+let usersList = [];
+let currentUsersFilter = 'all';
+let usersSearchQuery = '';
+
+async function loadUsersAndRender() {
+  const tbody = document.getElementById('users-directory-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">Loading user registry...</td></tr>';
+  
+  try {
+    if (isFallbackMode) {
+      usersList = JSON.parse(localStorage.getItem('chc_users')) || [
+        { id: 1, username: 'admin', role: 'Admin', email: 'admin@chc.org', phone: '' },
+        { id: 2, username: 'staff', role: 'Staff', email: 'staff@chc.org', phone: '' },
+        { id: 3, username: 'patient', role: 'Patient', email: 'patient@example.com', phone: '01712345678' }
+      ];
+      localStorage.setItem('chc_users', JSON.stringify(usersList));
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch('/api/admin/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        usersList = await response.json();
+      } else {
+        throw new Error('Failed to fetch user directory.');
+      }
+    }
+    renderUsersTable();
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger); padding: 1rem 0;">Failed to load user list.</td></tr>';
+  }
+}
+
+function renderUsersTable() {
+  const tbody = document.getElementById('users-directory-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  const filtered = usersList.filter(user => {
+    if (currentUsersFilter !== 'all' && user.role !== currentUsersFilter) {
+      return false;
+    }
+    if (usersSearchQuery) {
+      const usernameMatch = user.username.toLowerCase().includes(usersSearchQuery);
+      const emailMatch = (user.email || '').toLowerCase().includes(usersSearchQuery);
+      const phoneMatch = (user.phone || '').includes(usersSearchQuery);
+      return usernameMatch || emailMatch || phoneMatch;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">No matching users found.</td></tr>';
+    return;
+  }
+
+  const currentUserId = parseInt(localStorage.getItem('chc_user_id'), 10);
+  const currentUsername = localStorage.getItem('chc_user_name');
+
+  filtered.forEach(user => {
+    const row = document.createElement('tr');
+    
+    const contactParts = [];
+    if (user.email) contactParts.push(escapeHTML(user.email));
+    if (user.phone) contactParts.push(escapeHTML(user.phone));
+    const contactText = contactParts.length > 0 ? contactParts.join(' / ') : '<span style="color: var(--text-muted);">No contact info</span>';
+    
+    const joinedDate = user.created_at ? new Date(user.created_at).toLocaleDateString('en-GB') : 'N/A';
+    const isSelf = user.id === currentUserId || user.username === currentUsername;
+    
+    row.innerHTML = `
+      <td>
+        <strong style="color: var(--text-dark);">${escapeHTML(user.username)}</strong>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">${contactText}</div>
+      </td>
+      <td>
+        <span class="badge" style="background: #e2e8f0; color: #475569;">${escapeHTML(user.role)}</span>
+      </td>
+      <td>${joinedDate}</td>
+      <td style="text-align: center;">
+        <button class="news-action-btn edit" onclick="openResetPasswordModal(${user.id}, '${escapeHTML(user.username)}')">Reset Pass</button>
+        <button class="news-action-btn delete" onclick="deleteUserAccount(${user.id}, '${escapeHTML(user.username)}')" ${isSelf ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Delete</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+window.filterUsersRole = function(role) {
+  currentUsersFilter = role;
+  const buttons = document.querySelectorAll('#user-role-filter-group .filter-btn');
+  buttons.forEach(btn => {
+    if (btn.getAttribute('data-filter') === role) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  renderUsersTable();
+};
+
+window.searchUsers = function(val) {
+  usersSearchQuery = val.toLowerCase().trim();
+  renderUsersTable();
+};
+
+function setupUserDirectoryEvents() {
+  const form = document.getElementById('admin-reset-password-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userId = parseInt(document.getElementById('reset-user-id').value, 10);
+      const newPassword = document.getElementById('reset-new-password').value;
+      const banner = document.getElementById('admin-reset-status-banner');
+      
+      try {
+        if (isFallbackMode) {
+          const users = JSON.parse(localStorage.getItem('chc_users')) || [];
+          const idx = users.findIndex(u => u.id === userId);
+          if (idx !== -1) {
+            users[idx].password = newPassword;
+            localStorage.setItem('chc_users', JSON.stringify(users));
+          }
+          showBanner(banner, 'User password updated (Offline fallback).', 'success');
+          setTimeout(() => {
+            closeResetPasswordModal();
+          }, 1500);
+        } else {
+          const token = localStorage.getItem('chc_token');
+          const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ password: newPassword })
+          });
+          
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Failed to reset password.');
+          }
+          
+          showBanner(banner, 'User password reset successfully.', 'success');
+          setTimeout(() => {
+            closeResetPasswordModal();
+          }, 1500);
+        }
+      } catch (err) {
+        console.error(err);
+        showBanner(banner, err.message || 'Error resetting password.', 'error');
+      }
+    });
+  }
+}
+
+window.openResetPasswordModal = function(id, username) {
+  const modal = document.getElementById('admin-reset-password-modal');
+  if (!modal) return;
+  document.getElementById('reset-user-id').value = id;
+  document.getElementById('reset-username-label').textContent = username;
+  document.getElementById('reset-new-password').value = '';
+  
+  const banner = document.getElementById('admin-reset-status-banner');
+  if (banner) {
+    banner.style.display = 'none';
+    banner.className = 'status-banner';
+  }
+  
+  modal.style.display = 'flex';
+};
+
+window.closeResetPasswordModal = function(e) {
+  if (e) e.stopPropagation();
+  const modal = document.getElementById('admin-reset-password-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.deleteUserAccount = async function(id, username) {
+  if (!confirm(`Are you sure you want to delete the user account "${username}"?`)) return;
+  const banner = document.getElementById('user-directory-status-banner');
+  
+  try {
+    if (isFallbackMode) {
+      usersList = usersList.filter(u => u.id !== id);
+      localStorage.setItem('chc_users', JSON.stringify(usersList));
+      showBanner(banner, `User "${username}" deleted (Offline fallback).`, 'success');
+      renderUsersTable();
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch(`/api/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to delete user.');
+      }
+      
+      showBanner(banner, `User "${username}" deleted successfully.`, 'success');
+      await loadUsersAndRender();
+    }
+  } catch (err) {
+    console.error(err);
+    showBanner(banner, err.message || 'Error deleting user.', 'error');
+  }
 };
