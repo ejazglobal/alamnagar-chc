@@ -448,9 +448,8 @@ function sendBookingOTP(email, phone, otp) {
   console.log(`[MAILER] OTP email successfully written for ${email} -> ${filePath}`);
   console.log(`[MAILER] *** OTP CODE IS: ${otp} (for ${email} / ${phone}) ***`);
 
-  // Real delivery
   sendEmail(email, subject, emailHtml);
-  sendSMS(phone, `[আলমনগর সিএইচসি] আপনার অ্যাপয়েন্টমেন্ট বুকিংয়ের ওটিপি (OTP) হলো: ${otp}। এটি ১০ মিনিটের জন্য বৈধ।`);
+  sendSMS(phone, `[আলমনগর সিএইচসি] আপনার অ্যাপয়েন্টমেন্ট বুকিংয়ের ওটিপি (OTP) হলো ${otp} । এটি ১০ মিনিটের জন্য বৈধ।`);
 }
 
 function sendPrescriptionLinkSMS(phone, link) {
@@ -492,7 +491,7 @@ function sendPasswordResetOTP(email, phone, username, otp) {
     sendEmail(email, subject, emailHtml);
   }
   if (phone) {
-    sendSMS(phone, `[আলমনগর সিএইচসি] আপনার পাসওয়ার্ড রিসেট করার ওটিপি হলো: ${otp}। এটি ১০ মিনিটের জন্য বৈধ।`);
+    sendSMS(phone, `[আলমনগর সিএইচসি] আপনার পাসওয়ার্ড রিসেট করার ওটিপি হলো ${otp} । এটি ১০ মিনিটের জন্য বৈধ।`);
   }
 }
 

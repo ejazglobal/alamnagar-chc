@@ -700,13 +700,18 @@ module.exports = {
 
   verifyOTP: async (email, phone, otp) => {
     const res = await pool.query(
-      "SELECT * FROM otp_verifications WHERE email = $1 AND phone = $2 AND otp = $3 AND expires_at > NOW()",
+      "SELECT * FROM otp_verifications WHERE email = $1 AND phone = $2 AND otp = $3",
       [email, phone, otp]
     );
     if (res.rows.length > 0) {
-      // Invalidate it immediately so it can't be reused
-      await pool.query("DELETE FROM otp_verifications WHERE id = $1", [res.rows[0].id]);
-      return true;
+      const record = res.rows[0];
+      const now = new Date();
+      const expiresAt = new Date(record.expires_at);
+      if (expiresAt > now) {
+        // Valid: invalidate immediately and return true
+        await pool.query("DELETE FROM otp_verifications WHERE id = $1", [record.id]);
+        return true;
+      }
     }
     return false;
   },
