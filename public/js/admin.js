@@ -847,9 +847,32 @@ window.editDoctor = function(id) {
   document.getElementById('doctor-submit-btn').textContent = 'Update Doctor';
   document.getElementById('doctor-cancel-edit-btn').style.display = 'inline-block';
 
-  // Hide login fields when editing
+  // Populate and show login credentials fields when editing
   const authFields = document.getElementById('doctor-auth-fields');
-  if (authFields) authFields.style.display = 'none';
+  if (authFields) authFields.style.display = 'block';
+
+  const usernameInput = document.getElementById('doctor-username');
+  if (usernameInput) {
+    usernameInput.value = doc.login_username || '';
+    usernameInput.readOnly = true;
+    usernameInput.style.backgroundColor = '#f1f5f9';
+  }
+
+  const passwordInput = document.getElementById('doctor-password');
+  if (passwordInput) {
+    passwordInput.value = '';
+    passwordInput.placeholder = 'Leave blank to keep current';
+  }
+
+  const emailInput = document.getElementById('doctor-email');
+  if (emailInput) {
+    emailInput.value = doc.login_email || '';
+  }
+
+  const phoneInput = document.getElementById('doctor-phone');
+  if (phoneInput) {
+    phoneInput.value = doc.login_phone || '';
+  }
 
   document.getElementById('doctor-post-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 };
@@ -858,7 +881,18 @@ window.cancelDoctorEdit = function() {
   editingDoctorId = null;
   editingDoctorImage = '';
   document.getElementById('doctor-post-form').reset();
-  document.querySelectorAll('input[name="visiting-weekday"]').forEach(cb => cb.checked = false);
+  
+  const usernameInput = document.getElementById('doctor-username');
+  if (usernameInput) {
+    usernameInput.readOnly = false;
+    usernameInput.style.backgroundColor = 'white';
+  }
+
+  const passwordInput = document.getElementById('doctor-password');
+  if (passwordInput) {
+    passwordInput.placeholder = 'Min 6 characters';
+  }
+
   document.getElementById('doctor-submit-btn').textContent = 'Add Doctor';
   document.getElementById('doctor-cancel-edit-btn').style.display = 'none';
   
@@ -1751,7 +1785,8 @@ function renderUsersTable() {
         <span class="badge" style="background: #e2e8f0; color: #475569;">${escapeHTML(user.role)}</span>
       </td>
       <td>${joinedDate}</td>
-      <td style="text-align: center;">
+      <td style="text-align: center; white-space: nowrap;">
+        <button class="news-action-btn edit" onclick="openEditUserModal(${user.id}, '${escapeHTML(user.username)}', '${escapeHTML(user.email || '')}', '${escapeHTML(user.phone || '')}')">Edit Info</button>
         <button class="news-action-btn edit" onclick="openResetPasswordModal(${user.id}, '${escapeHTML(user.username)}')">Reset Pass</button>
         <button class="news-action-btn delete" onclick="deleteUserAccount(${user.id}, '${escapeHTML(user.username)}')" ${isSelf ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Delete</button>
       </td>
@@ -1826,7 +1861,82 @@ function setupUserDirectoryEvents() {
       }
     });
   }
+
+  const editForm = document.getElementById('admin-edit-user-form');
+  if (editForm) {
+    editForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userId = parseInt(document.getElementById('edit-user-id').value, 10);
+      const email = document.getElementById('edit-user-email').value.trim();
+      const phone = document.getElementById('edit-user-phone').value.trim();
+      const banner = document.getElementById('admin-edit-user-status-banner');
+      
+      try {
+        if (isFallbackMode) {
+          const users = JSON.parse(localStorage.getItem('chc_users')) || [];
+          const idx = users.findIndex(u => u.id === userId);
+          if (idx !== -1) {
+            users[idx].email = email;
+            users[idx].phone = phone;
+            localStorage.setItem('chc_users', JSON.stringify(users));
+          }
+          showBanner(banner, 'User details updated (Offline fallback).', 'success');
+          setTimeout(() => {
+            closeEditUserModal();
+            loadUsersAndRender();
+          }, 1500);
+        } else {
+          const token = localStorage.getItem('chc_token');
+          const response = await fetch(`/api/admin/users/${userId}/update-info`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ email, phone })
+          });
+          
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Failed to update user info.');
+          }
+          
+          showBanner(banner, 'User details updated successfully.', 'success');
+          setTimeout(() => {
+            closeEditUserModal();
+            loadUsersAndRender();
+          }, 1500);
+        }
+      } catch (err) {
+        console.error(err);
+        showBanner(banner, err.message || 'Error updating user info.', 'error');
+      }
+    });
+  }
 }
+
+window.openEditUserModal = function(id, username, email, phone) {
+  const modal = document.getElementById('admin-edit-user-modal');
+  if (!modal) return;
+  document.getElementById('edit-user-id').value = id;
+  document.getElementById('edit-username-label').textContent = username;
+  document.getElementById('edit-user-email').value = email;
+  document.getElementById('edit-user-phone').value = phone;
+  
+  const banner = document.getElementById('admin-edit-user-status-banner');
+  if (banner) {
+    banner.style.display = 'none';
+    banner.className = 'status-banner';
+  }
+  
+  modal.style.display = 'flex';
+};
+
+window.closeEditUserModal = function(e) {
+  if (e) e.stopPropagation();
+  const modal = document.getElementById('admin-edit-user-modal');
+  if (modal) modal.style.display = 'none';
+};
 
 window.openResetPasswordModal = function(id, username) {
   const modal = document.getElementById('admin-reset-password-modal');

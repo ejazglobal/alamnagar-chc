@@ -507,7 +507,7 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Invalid doctor ID.' });
   }
 
-  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = req.body;
+  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, login_email, login_phone, login_password } = req.body;
 
   if (!name_en || !name_bn || !specialty_en || !specialty_bn || !visiting_hours_en || !visiting_hours_bn || !visiting_days) {
     return res.status(400).json({ error: 'All fields except photo are required.' });
@@ -519,6 +519,42 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
   }
 
   try {
+    const cleanEmail = login_email && login_email.trim().length > 0 ? login_email.trim().toLowerCase() : null;
+    const cleanPhone = login_phone && login_phone.trim().length > 0 ? login_phone.trim() : null;
+
+    // Check if there is an existing linked user account
+    const userRes = await db.pool.query("SELECT id, email, phone FROM users WHERE doctor_id = $1 AND role = 'Doctor'", [docId]);
+    if (userRes.rows.length > 0) {
+      const linkedUser = userRes.rows[0];
+      if (cleanEmail && cleanEmail !== linkedUser.email) {
+        const existingEmail = await db.getUserByEmail(cleanEmail);
+        if (existingEmail) return res.status(409).json({ error: 'Doctor login email is already registered.' });
+      }
+      if (cleanPhone && cleanPhone !== linkedUser.phone) {
+        if (!isValidPhone(cleanPhone)) {
+          return res.status(400).json({ error: 'A valid doctor mobile number is required.' });
+        }
+        const existingPhone = await db.getUserByPhone(cleanPhone);
+        if (existingPhone) return res.status(409).json({ error: 'Doctor login mobile number is already registered.' });
+      }
+
+      // Update basic fields
+      await db.pool.query(
+        "UPDATE users SET email = $1, phone = $2 WHERE id = $3",
+        [cleanEmail, cleanPhone, linkedUser.id]
+      );
+
+      // Reset password if provided
+      if (login_password && login_password.trim().length >= 6) {
+        const salt = db.generateSalt();
+        const hash = db.hashPassword(login_password, salt);
+        await db.pool.query(
+          "UPDATE users SET password_hash = $1, salt = $2 WHERE id = $3",
+          [hash, salt, linkedUser.id]
+        );
+      }
+    }
+
     const result = await db.updateDoctor(docId, {
       name_en: name_en.trim(),
       name_bn: name_bn.trim(),
@@ -926,6 +962,51 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
   } catch (err) {
     console.error('Error resetting user password:', err);
     res.status(500).json({ error: 'Database error resetting password.' });
+  }
+});
+
+app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+  const userId = parseInt(req.params.id, 10);
+  if (isNaN(userId)) {
+    return res.status(400).json({ error: 'Invalid user ID.' });
+  }
+  const { email, phone } = req.body;
+  
+  try {
+    const userRes = await db.pool.query("SELECT id, email, phone FROM users WHERE id = $1", [userId]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    const user = userRes.rows[0];
+    
+    const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
+    const cleanPhone = phone && phone.trim().length > 0 ? phone.trim() : null;
+    
+    if (cleanEmail && cleanEmail !== user.email) {
+      const existingEmail = await db.getUserByEmail(cleanEmail);
+      if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
+    }
+    
+    if (cleanPhone && cleanPhone !== user.phone) {
+      if (!isValidPhone(cleanPhone)) {
+        return res.status(400).json({ error: 'A valid mobile number is required.' });
+      }
+      const existingPhone = await db.getUserByPhone(cleanPhone);
+      if (existingPhone) return res.status(409).json({ error: 'Mobile number is already registered.' });
+    }
+    
+    await db.pool.query(
+      "UPDATE users SET email = $1, phone = $2 WHERE id = $3",
+      [cleanEmail, cleanPhone, userId]
+    );
+    
+    res.json({ message: 'User information updated successfully.' });
+  } catch (err) {
+    console.error('Error updating user info:', err);
+    res.status(500).json({ error: 'Database error updating user info.' });
   }
 });
 

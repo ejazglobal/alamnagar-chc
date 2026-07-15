@@ -557,12 +557,17 @@ module.exports = {
   },
 
   getAllDoctors: async () => {
-    const res = await pool.query("SELECT * FROM doctors ORDER BY name_en ASC");
+    const res = await pool.query(
+      "SELECT d.*, u.email AS login_email, u.phone AS login_phone, u.username AS login_username FROM doctors d LEFT JOIN users u ON u.doctor_id = d.id AND u.role = 'Doctor' ORDER BY d.name_en ASC"
+    );
     return res.rows;
   },
 
   getDoctorById: async (id) => {
-    const res = await pool.query("SELECT * FROM doctors WHERE id = $1", [id]);
+    const res = await pool.query(
+      "SELECT d.*, u.email AS login_email, u.phone AS login_phone, u.username AS login_username FROM doctors d LEFT JOIN users u ON u.doctor_id = d.id AND u.role = 'Doctor' WHERE d.id = $1",
+      [id]
+    );
     return res.rows[0] || null;
   },
 
