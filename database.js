@@ -641,7 +641,7 @@ module.exports = {
   },
 
   createStaffWithPermissions: async (staffData) => {
-    const { username, email, password, permissions } = staffData;
+    const { username, email, password, permissions, phone } = staffData;
     const salt = generateSalt();
     const hash = hashPassword(password, salt);
     
@@ -649,8 +649,8 @@ module.exports = {
     try {
       await client.query('BEGIN');
       const userRes = await client.query(
-        "INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, 'Staff') RETURNING id",
-        [username, email, hash, salt]
+        "INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Staff', $5) RETURNING id",
+        [username, email || null, hash, salt, phone || null]
       );
       const userId = userRes.rows[0].id;
       await client.query(
@@ -658,7 +658,7 @@ module.exports = {
         [userId, permissions]
       );
       await client.query('COMMIT');
-      return { id: userId, username, email, role: 'Staff', permissions };
+      return { id: userId, username, email: email || null, role: 'Staff', permissions, phone: phone || null };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;

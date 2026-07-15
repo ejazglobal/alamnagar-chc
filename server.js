@@ -424,7 +424,7 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Access Denied: You do not have permission to manage doctors.' });
   }
 
-  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, login_username, login_password } = req.body;
+  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, login_username, login_password, login_email, login_phone } = req.body;
 
   if (!name_en || !name_bn || !specialty_en || !specialty_bn || !visiting_hours_en || !visiting_hours_bn || !visiting_days) {
     return res.status(400).json({ error: 'All fields except photo are required.' });
@@ -441,6 +441,23 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
       const existingUser = await db.getUserByUsername(login_username.trim());
       if (existingUser) {
         return res.status(409).json({ error: 'Doctor login username is already taken.' });
+      }
+
+      if (login_email && login_email.trim().length > 0) {
+        const existingEmail = await db.getUserByEmail(login_email.trim().toLowerCase());
+        if (existingEmail) {
+          return res.status(409).json({ error: 'Doctor login email is already registered.' });
+        }
+      }
+
+      if (login_phone && login_phone.trim().length > 0) {
+        if (!isValidPhone(login_phone)) {
+          return res.status(400).json({ error: 'A valid doctor mobile number is required.' });
+        }
+        const existingPhone = await db.getUserByPhone(login_phone.trim());
+        if (existingPhone) {
+          return res.status(409).json({ error: 'Doctor login mobile number is already registered.' });
+        }
       }
     }
 
@@ -461,11 +478,12 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
     if (login_username && login_username.trim().length > 0 && login_password && login_password.length >= 6) {
       const salt = db.generateSalt();
       const hash = db.hashPassword(login_password, salt);
-      const email = `${login_username.trim().toLowerCase()}@alamnagar-chc.org`;
+      const email = login_email && login_email.trim().length > 0 ? login_email.trim().toLowerCase() : null;
+      const phone = login_phone && login_phone.trim().length > 0 ? login_phone.trim() : null;
       
       await db.pool.query(
-        "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, 'Doctor', $5)",
-        [login_username.trim(), email, hash, salt, newDoc.id]
+        "INSERT INTO users (username, email, password_hash, salt, role, doctor_id, phone) VALUES ($1, $2, $3, $4, 'Doctor', $5, $6)",
+        [login_username.trim(), email, hash, salt, newDoc.id, phone]
       );
       console.log(`Automatically created doctor user account: '${login_username}' for Doctor ID ${newDoc.id}`);
     }
@@ -802,29 +820,43 @@ app.post('/api/admin/staff', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {
     return res.status(403).json({ error: 'Access Denied: Admin only.' });
   }
-  const { username, email, password, permissions } = req.body;
-  if (!username || !email || !password || !permissions) {
-    return res.status(400).json({ error: 'All fields are required.' });
+  const { username, email, password, permissions, phone } = req.body;
+  if (!username || !password || !permissions) {
+    return res.status(400).json({ error: 'Username, password, and permissions are required.' });
   }
   try {
     const existingUser = await db.getUserByUsername(username.trim());
     if (existingUser) return res.status(409).json({ error: 'Username is already taken.' });
 
-    const existingEmail = await db.getUserByEmail(email.trim().toLowerCase());
-    if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
+    const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
+    const cleanPhone = phone && phone.trim().length > 0 ? phone.trim() : null;
+
+    if (cleanEmail) {
+      const existingEmail = await db.getUserByEmail(cleanEmail);
+      if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
+    }
+
+    if (cleanPhone) {
+      if (!isValidPhone(cleanPhone)) {
+        return res.status(400).json({ error: 'A valid mobile number is required.' });
+      }
+      const existingPhone = await db.getUserByPhone(cleanPhone);
+      if (existingPhone) return res.status(409).json({ error: 'Mobile number is already registered.' });
+    }
 
     if (permissions === 'observer') {
       const salt = db.generateSalt();
       const hash = db.hashPassword(password, salt);
-      const query = `INSERT INTO users (username, email, password_hash, salt, role) VALUES ($1, $2, $3, $4, 'Observer') RETURNING id`;
-      const resDb = await db.pool.query(query, [username.trim(), email.trim().toLowerCase(), hash, salt]);
-      res.status(201).json({ id: resDb.rows[0].id, username: username.trim(), email: email.trim().toLowerCase(), role: 'Observer', permissions: 'observer' });
+      const query = `INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Observer', $5) RETURNING id`;
+      const resDb = await db.pool.query(query, [username.trim(), cleanEmail, hash, salt, cleanPhone]);
+      res.status(201).json({ id: resDb.rows[0].id, username: username.trim(), email: cleanEmail, role: 'Observer', permissions: 'observer', phone: cleanPhone });
     } else {
       const newStaff = await db.createStaffWithPermissions({
         username: username.trim(),
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         password,
-        permissions
+        permissions,
+        phone: cleanPhone
       });
       res.status(201).json(newStaff);
     }

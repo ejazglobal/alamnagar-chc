@@ -395,8 +395,13 @@ function setupDashboardEvents() {
 
       const usernameInput = document.getElementById('doctor-username');
       const passwordInput = document.getElementById('doctor-password');
+      const emailInput = document.getElementById('doctor-email');
+      const phoneInput = document.getElementById('doctor-phone');
+      
       const loginUsername = usernameInput ? usernameInput.value.trim() : '';
       const loginPassword = passwordInput ? passwordInput.value : '';
+      const loginEmail = emailInput ? emailInput.value.trim() : '';
+      const loginPhone = phoneInput ? phoneInput.value.trim() : '';
 
       const payload = {
         name_en: nameEn,
@@ -410,7 +415,9 @@ function setupDashboardEvents() {
         image_url,
         visiting_days: visitingDays,
         login_username: loginUsername,
-        login_password: loginPassword
+        login_password: loginPassword,
+        login_email: loginEmail,
+        login_phone: loginPhone
       };
 
       try {
@@ -989,7 +996,10 @@ function renderStaffTable() {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td><strong style="color: var(--text-dark);">${escapeHTML(member.username)}</strong></td>
-      <td>${escapeHTML(member.email)}</td>
+      <td>
+        ${member.email ? escapeHTML(member.email) : ''}
+        ${member.phone ? `<div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHTML(member.phone)}</div>` : ''}
+      </td>
       <td><span class="badge" style="background: var(--primary-light); color: var(--primary-color);">${escapeHTML(member.permissions)}</span></td>
       <td>
         <button class="news-action-btn delete" onclick="deleteStaff(${member.id})">Delete</button>
@@ -1006,6 +1016,8 @@ function setupStaffDashboardEvents() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = document.getElementById('staff-username').value.trim();
+    const phoneInput = document.getElementById('staff-phone');
+    const phone = phoneInput ? phoneInput.value.trim() : '';
     const email = document.getElementById('staff-email').value.trim().toLowerCase();
     const password = document.getElementById('staff-password').value;
     const permissions = document.getElementById('staff-permissions').value;
@@ -1014,7 +1026,7 @@ function setupStaffDashboardEvents() {
     
     try {
       if (isFallbackMode) {
-        const newStaff = { id: Date.now(), username, email, permissions };
+        const newStaff = { id: Date.now(), username, email, permissions, phone };
         staffMembers.push(newStaff);
         localStorage.setItem('chc_staff_members', JSON.stringify(staffMembers));
         showBanner(banner, 'Staff member added (Offline fallback).', 'success');
@@ -1028,7 +1040,7 @@ function setupStaffDashboardEvents() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ username, email, password, permissions })
+          body: JSON.stringify({ username, email, password, permissions, phone })
         });
         
         if (!response.ok) {
