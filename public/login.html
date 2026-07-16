@@ -131,10 +131,25 @@
           <label class="form-label" for="reg-username">Username *</label>
           <input type="text" id="reg-username" class="form-control" placeholder="Choose a username" required autocomplete="username">
         </div>
+        
         <div class="form-group">
+          <label class="form-label">Register With *</label>
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+            <button type="button" id="reg-method-phone" class="btn" onclick="setRegisterMethod('phone')" style="flex: 1; padding: 0.5rem; margin: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--primary-color); color: white; transition: all 0.2s; font-weight: 600;">Mobile Number</button>
+            <button type="button" id="reg-method-email" class="btn" onclick="setRegisterMethod('email')" style="flex: 1; padding: 0.5rem; margin: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-muted); transition: all 0.2s; font-weight: 600;">Email Address</button>
+          </div>
+        </div>
+
+        <div class="form-group" id="reg-phone-group">
           <label class="form-label" for="reg-phone">Mobile Number *</label>
           <input type="tel" id="reg-phone" class="form-control" placeholder="e.g. 01712345678" required autocomplete="tel">
         </div>
+
+        <div class="form-group" id="reg-email-group" style="display: none;">
+          <label class="form-label" for="reg-email">Email Address *</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="e.g. email@example.com" autocomplete="email">
+        </div>
+
         <div class="form-group">
           <label class="form-label" for="reg-password">Password *</label>
           <div style="position: relative;">
@@ -308,23 +323,82 @@
       }
     });
 
+    // Registration method toggle logic
+    let currentRegMethod = 'phone';
+    window.setRegisterMethod = function(method) {
+      currentRegMethod = method;
+      const phoneBtn = document.getElementById('reg-method-phone');
+      const emailBtn = document.getElementById('reg-method-email');
+      const phoneGroup = document.getElementById('reg-phone-group');
+      const emailGroup = document.getElementById('reg-email-group');
+      const phoneInput = document.getElementById('reg-phone');
+      const emailInput = document.getElementById('reg-email');
+
+      if (method === 'phone') {
+        phoneBtn.style.backgroundColor = 'var(--primary-color)';
+        phoneBtn.style.color = 'white';
+        emailBtn.style.backgroundColor = 'var(--bg-card)';
+        emailBtn.style.color = 'var(--text-muted)';
+        
+        phoneGroup.style.display = 'block';
+        emailGroup.style.display = 'none';
+        
+        phoneInput.required = true;
+        emailInput.required = false;
+        emailInput.value = '';
+      } else {
+        phoneBtn.style.backgroundColor = 'var(--bg-card)';
+        phoneBtn.style.color = 'var(--text-muted)';
+        emailBtn.style.backgroundColor = 'var(--primary-color)';
+        emailBtn.style.color = 'white';
+        
+        phoneGroup.style.display = 'none';
+        emailGroup.style.display = 'block';
+        
+        phoneInput.required = false;
+        emailInput.required = true;
+        phoneInput.value = '';
+      }
+    };
+
     // Registration logic
     document.getElementById('register-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const username = document.getElementById('reg-username').value.trim();
       const phone = document.getElementById('reg-phone').value.trim();
+      const email = document.getElementById('reg-email').value.trim().toLowerCase();
       const password = document.getElementById('reg-password').value;
+
+      if (currentRegMethod === 'phone') {
+        const digits = phone.replace(/\D/g, '');
+        const isValid = (digits.length === 11 && digits.startsWith('01')) || (digits.length === 13 && digits.startsWith('8801'));
+        if (!isValid) {
+          showStatus('Mobile Number must be in format 01XXXXXXXXX (11 digits).', 'error');
+          return;
+        }
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          showStatus('Please enter a valid email address.', 'error');
+          return;
+        }
+      }
 
       if (isFallbackMode) {
         // Register locally
         const users = getDemoUsers();
 
-        if (users.some(u => u.username === username || u.phone === phone)) {
-          showStatus('Username or Mobile Number already exists in Demo mode.', 'error');
+        const duplicate = users.some(u => 
+          u.username === username || 
+          (phone && u.phone === phone) || 
+          (email && u.email === email)
+        );
+        if (duplicate) {
+          showStatus('Username, Mobile Number, or Email already exists in Demo mode.', 'error');
           return;
         }
 
-        const newUser = { id: Date.now(), username, email: null, phone, password, role: 'Patient' };
+        const newUser = { id: Date.now(), username, email: email || null, phone: phone || null, password, role: 'Patient' };
         users.push(newUser);
         localStorage.setItem('chc_users', JSON.stringify(users));
 
@@ -336,7 +410,7 @@
           const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, phone })
+            body: JSON.stringify({ username, password, phone: phone || null, email: email || null })
           });
 
           if (!res.ok) {

@@ -135,8 +135,22 @@ function isValidEmail(email) {
 }
 
 function isValidPhone(phone) {
-  const phoneRegex = /^\+?[0-9\s\-]{8,15}$/;
-  return phoneRegex.test(phone);
+  if (typeof phone !== 'string') return false;
+  const digits = phone.replace(/\D/g, '');
+  return (digits.length === 11 && digits.startsWith('01')) ||
+         (digits.length === 13 && digits.startsWith('8801'));
+}
+
+function normalizePhone(phone) {
+  if (!phone || typeof phone !== 'string') return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 13 && digits.startsWith('8801')) {
+    return digits.substring(2);
+  }
+  if (digits.length === 11 && digits.startsWith('01')) {
+    return digits;
+  }
+  return digits;
 }
 
 function isValidDate(dateStr) {
@@ -153,7 +167,7 @@ function isValidTime(timeStr) {
 
 // 1. Patient Registration
 app.post('/api/auth/register', async (req, res) => {
-  const { username, password, phone } = req.body;
+  const { username, password, phone, email } = req.body;
 
   if (!username || typeof username !== 'string' || username.trim().length < 3) {
     return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
@@ -161,8 +175,20 @@ app.post('/api/auth/register', async (req, res) => {
   if (!password || typeof password !== 'string' || password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
   }
-  if (!phone || !isValidPhone(phone)) {
-    return res.status(400).json({ error: 'A valid mobile number is required.' });
+
+  const cleanEmail = email && typeof email === 'string' && email.trim().length > 0 ? email.trim().toLowerCase() : null;
+  const cleanPhone = phone && typeof phone === 'string' && phone.trim().length > 0 ? phone.trim() : null;
+
+  if (!cleanEmail && !cleanPhone) {
+    return res.status(400).json({ error: 'Either Mobile Number or Email Address is required.' });
+  }
+
+  if (cleanPhone && !isValidPhone(cleanPhone)) {
+    return res.status(400).json({ error: 'Invalid mobile number. Must be exactly 11 digits starting with 01.' });
+  }
+
+  if (cleanEmail && !isValidEmail(cleanEmail)) {
+    return res.status(400).json({ error: 'A valid email address is required.' });
   }
 
   try {
@@ -170,15 +196,24 @@ app.post('/api/auth/register', async (req, res) => {
     const existingUser = await db.getUserByUsername(username.trim());
     if (existingUser) return res.status(409).json({ error: 'Username is already taken.' });
 
-    const existingPhone = await db.getUserByPhone(phone.trim());
-    if (existingPhone) return res.status(409).json({ error: 'Mobile number is already registered.' });
+    let normalizedPhone = null;
+    if (cleanPhone) {
+      normalizedPhone = normalizePhone(cleanPhone);
+      const existingPhone = await db.getUserByPhone(normalizedPhone);
+      if (existingPhone) return res.status(409).json({ error: 'Mobile number is already registered.' });
+    }
+
+    if (cleanEmail) {
+      const existingEmail = await db.getUserByEmail(cleanEmail);
+      if (existingEmail) return res.status(409).json({ error: 'Email address is already registered.' });
+    }
 
     const newUser = await db.createUser({
       username: username.trim(),
-      email: null,
+      email: cleanEmail,
       password,
       role: 'Patient',
-      phone: phone.trim()
+      phone: normalizedPhone
     });
 
     res.status(201).json({ message: 'User registered successfully!', user: newUser });
@@ -200,7 +235,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Search by username, phone or email
     let user = await db.getUserByUsername(username.trim());
     if (!user && isValidPhone(username.trim())) {
-      user = await db.getUserByPhone(username.trim());
+      user = await db.getUserByPhone(normalizePhone(username.trim()));
     }
     if (!user && isValidEmail(username.trim())) {
       user = await db.getUserByEmail(username.trim().toLowerCase());
@@ -454,7 +489,8 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
         if (!isValidPhone(login_phone)) {
           return res.status(400).json({ error: 'A valid doctor mobile number is required.' });
         }
-        const existingPhone = await db.getUserByPhone(login_phone.trim());
+        const normalizedPhone = normalizePhone(login_phone);
+        const existingPhone = await db.getUserByPhone(normalizedPhone);
         if (existingPhone) {
           return res.status(409).json({ error: 'Doctor login mobile number is already registered.' });
         }
@@ -479,7 +515,7 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
       const salt = db.generateSalt();
       const hash = db.hashPassword(login_password, salt);
       const email = login_email && login_email.trim().length > 0 ? login_email.trim().toLowerCase() : null;
-      const phone = login_phone && login_phone.trim().length > 0 ? login_phone.trim() : null;
+      const phone = login_phone && login_phone.trim().length > 0 ? normalizePhone(login_phone) : null;
       
       await db.pool.query(
         "INSERT INTO users (username, email, password_hash, salt, role, doctor_id, phone) VALUES ($1, $2, $3, $4, 'Doctor', $5, $6)",
@@ -520,7 +556,7 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
 
   try {
     const cleanEmail = login_email && login_email.trim().length > 0 ? login_email.trim().toLowerCase() : null;
-    const cleanPhone = login_phone && login_phone.trim().length > 0 ? login_phone.trim() : null;
+    const cleanPhone = login_phone && login_phone.trim().length > 0 ? normalizePhone(login_phone) : null;
 
     // Check if there is an existing linked user account
     const userRes = await db.pool.query("SELECT id, email, phone FROM users WHERE doctor_id = $1 AND role = 'Doctor'", [docId]);
@@ -531,7 +567,7 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
         if (existingEmail) return res.status(409).json({ error: 'Doctor login email is already registered.' });
       }
       if (cleanPhone && cleanPhone !== linkedUser.phone) {
-        if (!isValidPhone(cleanPhone)) {
+        if (!isValidPhone(login_phone)) {
           return res.status(400).json({ error: 'A valid doctor mobile number is required.' });
         }
         const existingPhone = await db.getUserByPhone(cleanPhone);
@@ -865,15 +901,15 @@ app.post('/api/admin/staff', authenticateToken, async (req, res) => {
     if (existingUser) return res.status(409).json({ error: 'Username is already taken.' });
 
     const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
-    const cleanPhone = phone && phone.trim().length > 0 ? phone.trim() : null;
+    const cleanPhone = phone && phone.trim().length > 0 ? normalizePhone(phone) : null;
 
     if (cleanEmail) {
       const existingEmail = await db.getUserByEmail(cleanEmail);
       if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
     }
 
-    if (cleanPhone) {
-      if (!isValidPhone(cleanPhone)) {
+    if (phone && phone.trim().length > 0) {
+      if (!isValidPhone(phone)) {
         return res.status(400).json({ error: 'A valid mobile number is required.' });
       }
       const existingPhone = await db.getUserByPhone(cleanPhone);
@@ -983,19 +1019,25 @@ app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res)
     const user = userRes.rows[0];
     
     const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
-    const cleanPhone = phone && phone.trim().length > 0 ? phone.trim() : null;
+    const cleanPhone = phone && phone.trim().length > 0 ? normalizePhone(phone) : null;
     
+    if (cleanEmail && !isValidEmail(cleanEmail)) {
+      return res.status(400).json({ error: 'A valid email address is required.' });
+    }
+
     if (cleanEmail && cleanEmail !== user.email) {
       const existingEmail = await db.getUserByEmail(cleanEmail);
       if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
     }
     
-    if (cleanPhone && cleanPhone !== user.phone) {
-      if (!isValidPhone(cleanPhone)) {
+    if (phone && phone.trim().length > 0) {
+      if (!isValidPhone(phone)) {
         return res.status(400).json({ error: 'A valid mobile number is required.' });
       }
-      const existingPhone = await db.getUserByPhone(cleanPhone);
-      if (existingPhone) return res.status(409).json({ error: 'Mobile number is already registered.' });
+      if (cleanPhone !== user.phone) {
+        const existingPhone = await db.getUserByPhone(cleanPhone);
+        if (existingPhone) return res.status(409).json({ error: 'Mobile number is already registered.' });
+      }
     }
     
     await db.pool.query(
@@ -1045,7 +1087,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     let user = await db.getUserByUsername(queryVal);
     if (!user && isValidPhone(queryVal)) {
-      user = await db.getUserByPhone(queryVal);
+      user = await db.getUserByPhone(normalizePhone(queryVal));
     }
     if (!user && isValidEmail(queryVal)) {
       user = await db.getUserByEmail(queryVal.toLowerCase());
@@ -1097,7 +1139,7 @@ app.post('/api/auth/reset-forgotten-password', async (req, res) => {
   try {
     let user = await db.getUserByUsername(queryVal);
     if (!user && isValidPhone(queryVal)) {
-      user = await db.getUserByPhone(queryVal);
+      user = await db.getUserByPhone(normalizePhone(queryVal));
     }
     if (!user && isValidEmail(queryVal)) {
       user = await db.getUserByEmail(queryVal.toLowerCase());
@@ -1134,12 +1176,13 @@ app.post('/api/appointments/request-otp', async (req, res) => {
   }
   
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const normalizedPhone = normalizePhone(phone);
   
   try {
-    await db.createOTP(email ? email.trim().toLowerCase() : '', phone.trim(), otp);
+    await db.createOTP(email ? email.trim().toLowerCase() : '', normalizedPhone, otp);
     
     // Delegate to mailer client (supports simulation + real SendGrid/Twilio dispatch)
-    mailer.sendBookingOTP(email ? email.trim().toLowerCase() : '', phone.trim(), otp);
+    mailer.sendBookingOTP(email ? email.trim().toLowerCase() : '', normalizedPhone, otp);
 
     res.json({ success: true, message: 'OTP sent successfully!' });
   } catch (err) {
@@ -1159,8 +1202,10 @@ app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async 
     return res.status(400).json({ error: 'Missing appointment details.' });
   }
 
+  const normalizedPhone = normalizePhone(phone);
+
   try {
-    const verified = (otp === 'bypass') || await db.verifyOTP(email ? email.trim().toLowerCase() : '', phone.trim(), otp);
+    const verified = (otp === 'bypass') || await db.verifyOTP(email ? email.trim().toLowerCase() : '', normalizedPhone, otp);
     if (!verified) {
       return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
     }
@@ -1169,7 +1214,7 @@ app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async 
       user_id: req.user ? req.user.id : null,
       patient_name: patient_name.trim(),
       email: email ? email.trim().toLowerCase() : '',
-      phone: phone.trim(),
+      phone: normalizedPhone,
       appointment_date,
       appointment_time,
       notes: notes ? notes.trim() : '',

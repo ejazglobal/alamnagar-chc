@@ -463,11 +463,24 @@ async function initializeDatabase() {
 // Initialize database
 initializeDatabase();
 
+function normalizePhone(phone) {
+  if (!phone || typeof phone !== 'string') return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 13 && digits.startsWith('8801')) {
+    return digits.substring(2);
+  }
+  if (digits.length === 11 && digits.startsWith('01')) {
+    return digits;
+  }
+  return digits;
+}
+
 // Database query helpers matching async format
 module.exports = {
   hashPassword,
   generateSalt,
   pool,
+  normalizePhone,
 
   getUserByUsername: async (username) => {
     const res = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
@@ -480,7 +493,8 @@ module.exports = {
   },
 
   getUserByPhone: async (phone) => {
-    const res = await pool.query("SELECT * FROM users WHERE phone = $1", [phone]);
+    const normalized = normalizePhone(phone);
+    const res = await pool.query("SELECT * FROM users WHERE phone = $1", [normalized]);
     return res.rows[0] || null;
   },
 
@@ -488,9 +502,10 @@ module.exports = {
     const { username, email, password, role, phone } = user;
     const salt = generateSalt();
     const hash = hashPassword(password, salt);
+    const normalizedPhone = normalizePhone(phone);
     const query = `INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
-    const res = await pool.query(query, [username, email || null, hash, salt, role, phone || null]);
-    return { id: res.rows[0].id, username, email: email || null, role, phone };
+    const res = await pool.query(query, [username, email || null, hash, salt, role, normalizedPhone]);
+    return { id: res.rows[0].id, username, email: email || null, role, phone: normalizedPhone };
   },
 
   getAllAppointments: async () => {
@@ -558,14 +573,24 @@ module.exports = {
 
   getAllDoctors: async () => {
     const res = await pool.query(
-      "SELECT d.*, u.email AS login_email, u.phone AS login_phone, u.username AS login_username FROM doctors d LEFT JOIN users u ON u.doctor_id = d.id AND u.role = 'Doctor' ORDER BY d.name_en ASC"
+      `SELECT d.*, 
+              (SELECT email FROM users WHERE doctor_id = d.id AND role = 'Doctor' LIMIT 1) AS login_email,
+              (SELECT phone FROM users WHERE doctor_id = d.id AND role = 'Doctor' LIMIT 1) AS login_phone,
+              (SELECT username FROM users WHERE doctor_id = d.id AND role = 'Doctor' LIMIT 1) AS login_username
+       FROM doctors d 
+       ORDER BY d.name_en ASC`
     );
     return res.rows;
   },
 
   getDoctorById: async (id) => {
     const res = await pool.query(
-      "SELECT d.*, u.email AS login_email, u.phone AS login_phone, u.username AS login_username FROM doctors d LEFT JOIN users u ON u.doctor_id = d.id AND u.role = 'Doctor' WHERE d.id = $1",
+      `SELECT d.*, 
+              (SELECT email FROM users WHERE doctor_id = d.id AND role = 'Doctor' LIMIT 1) AS login_email,
+              (SELECT phone FROM users WHERE doctor_id = d.id AND role = 'Doctor' LIMIT 1) AS login_phone,
+              (SELECT username FROM users WHERE doctor_id = d.id AND role = 'Doctor' LIMIT 1) AS login_username
+       FROM doctors d 
+       WHERE d.id = $1`,
       [id]
     );
     return res.rows[0] || null;
@@ -649,13 +674,14 @@ module.exports = {
     const { username, email, password, permissions, phone } = staffData;
     const salt = generateSalt();
     const hash = hashPassword(password, salt);
+    const normalizedPhone = normalizePhone(phone);
     
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       const userRes = await client.query(
         "INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Staff', $5) RETURNING id",
-        [username, email || null, hash, salt, phone || null]
+        [username, email || null, hash, salt, normalizedPhone]
       );
       const userId = userRes.rows[0].id;
       await client.query(
@@ -663,7 +689,7 @@ module.exports = {
         [userId, permissions]
       );
       await client.query('COMMIT');
-      return { id: userId, username, email: email || null, role: 'Staff', permissions, phone: phone || null };
+      return { id: userId, username, email: email || null, role: 'Staff', permissions, phone: normalizedPhone };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;

@@ -586,7 +586,16 @@ function renderDoctorsDropdown() {
   
   select.innerHTML = `<option value="" data-i18n="booking-select-prompt">${TRANSLATIONS[currentLanguage]["booking-select-prompt"]}</option>`;
   
+  const uniqueDoctors = [];
+  const seenIds = new Set();
   doctors.forEach(doc => {
+    if (!seenIds.has(doc.id)) {
+      seenIds.add(doc.id);
+      uniqueDoctors.push(doc);
+    }
+  });
+
+  uniqueDoctors.forEach(doc => {
     const option = document.createElement('option');
     option.value = doc.id;
     const name = currentLanguage === 'bn' ? doc.name_bn : doc.name_en;
