@@ -1291,15 +1291,16 @@ app.post('/api/patient/verify-otp', async (req, res) => {
       const userRes = await db.pool.query("SELECT id, username, email, phone, role FROM users WHERE id = $1", [userId]);
       if (userRes.rows.length > 0) {
         const dbUser = userRes.rows[0];
+        const dbPhone = normalizePhone(digits);
         if (!dbUser.phone) {
           // Verify phone is not registered on another account first
-          const existingPhone = await db.getUserByPhone(digits);
+          const existingPhone = await db.getUserByPhone(dbPhone);
           if (existingPhone && existingPhone.id !== userId) {
             return res.status(409).json({ error: 'This mobile number is already registered to another account.' });
           }
-          await db.pool.query("UPDATE users SET phone = $1 WHERE id = $2", [digits, userId]);
-          dbUser.phone = digits;
-        } else if (dbUser.phone !== digits) {
+          await db.pool.query("UPDATE users SET phone = $1 WHERE id = $2", [dbPhone, userId]);
+          dbUser.phone = dbPhone;
+        } else if (normalizePhone(dbUser.phone) !== dbPhone) {
           return res.status(400).json({ error: 'Profile is already linked to a different mobile number.' });
         }
         
@@ -1315,8 +1316,9 @@ app.post('/api/patient/verify-otp', async (req, res) => {
       }
     }
 
-    const token = encryptToken({ phone: digits, role: 'Patient' });
-    res.json({ token, user: { phone: digits, role: 'Patient' } });
+    const patientPhone = normalizePhone(digits);
+    const token = encryptToken({ phone: patientPhone, role: 'Patient' });
+    res.json({ token, user: { phone: patientPhone, role: 'Patient' } });
   } catch (err) {
     console.error('Patient portal OTP verification error:', err);
     res.status(500).json({ error: 'Verification failed.' });

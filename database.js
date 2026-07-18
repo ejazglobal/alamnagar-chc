@@ -305,6 +305,18 @@ async function initializeDatabase() {
       console.warn("Could not rename 'sarah' user to 'azam':", renameErr.message);
     }
 
+    // Strip '88' prefix from any existing phone numbers in users table to make them consistent
+    try {
+      const fixPhonesRes = await pool.query(
+        "UPDATE users SET phone = SUBSTRING(phone FROM 3) WHERE phone LIKE '8801%' AND LENGTH(phone) = 13"
+      );
+      if (fixPhonesRes.rowCount > 0) {
+        console.log(`Successfully migrated ${fixPhonesRes.rowCount} user phone numbers to 11-digit format.`);
+      }
+    } catch (fixPhonesErr) {
+      console.warn("Could not clean up user phone prefixes:", fixPhonesErr.message);
+    }
+
     // --- SEED DOCTORS ---
     const docCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM doctors");
     const docCount = parseInt(docCountRes.rows[0].count, 10);
