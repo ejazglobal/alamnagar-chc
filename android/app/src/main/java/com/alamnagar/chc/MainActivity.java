@@ -1,4 +1,4 @@
-package com.alamnagar.chc;
+package com.ashiana.online;
 
 import android.content.Context;
 import android.print.PrintAttributes;
@@ -29,7 +29,7 @@ public class MainActivity extends BridgeActivity {
                             PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
                             if (printManager != null) {
                                 PrintDocumentAdapter printAdapter = webView.createPrintDocumentAdapter("Prescription Document");
-                                String jobName = getString(R.string.app_name) + " Print Job";
+                                String jobName = getString(com.ashiana.online.R.string.app_name) + " Print Job";
                                 printManager.print(jobName, printAdapter, new PrintAttributes.Builder().build());
                             }
                         }

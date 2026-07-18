@@ -1,5 +1,9 @@
 {
-  "appId": "com.alamnagar.chc",
+  "appId": "com.ashiana.online",
   "appName": "Alamnagar CHC",
-  "webDir": "public"
+  "webDir": "public",
+  "server": {
+    "url": "https://ashiana.online",
+    "cleartext": true
+  }
 }
