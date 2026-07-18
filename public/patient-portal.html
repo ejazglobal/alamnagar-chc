@@ -122,6 +122,15 @@
         <input type="text" id="patient-otp" class="form-control" placeholder="6-digit code" required>
       </div>
       <button class="btn" onclick="verifyOTP()">Verify Identity</button>
+      
+      <!-- Resend OTP button and countdown timer -->
+      <div style="margin-top: 1.5rem; text-align: center; font-size: 0.9rem;">
+        <span id="resend-timer-text" style="color: var(--text-muted); font-weight: 500;">
+          Resend OTP in <span id="resend-timer-count" style="font-weight: 600; color: var(--primary-color);">90</span>s
+        </span>
+        <button id="btn-resend-otp" style="display: none; background: none; border: none; color: var(--primary-color); font-weight: 600; cursor: pointer; text-decoration: underline;" onclick="resendOTP()">Resend OTP</button>
+      </div>
+
       <div id="otp-verify-status" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
     </div>
 

@@ -1,5 +1,58 @@
 let currentPhone = '';
 let portalToken = '';
+let resendTimerInterval = null;
+
+function startResendTimer() {
+  const timerText = document.getElementById('resend-timer-text');
+  const timerCount = document.getElementById('resend-timer-count');
+  const btnResend = document.getElementById('btn-resend-otp');
+
+  if (resendTimerInterval) clearInterval(resendTimerInterval);
+
+  let timeLeft = 90;
+  timerText.style.display = 'inline';
+  btnResend.style.display = 'none';
+  timerCount.textContent = timeLeft;
+
+  resendTimerInterval = setInterval(() => {
+    timeLeft--;
+    timerCount.textContent = timeLeft;
+    if (timeLeft <= 0) {
+      clearInterval(resendTimerInterval);
+      timerText.style.display = 'none';
+      btnResend.style.display = 'inline-block';
+    }
+  }, 1000);
+}
+
+async function resendOTP() {
+  if (!currentPhone) return;
+  const status = document.getElementById('otp-verify-status');
+  status.textContent = 'Resending OTP...';
+  status.style.color = '#475569';
+
+  try {
+    const res = await fetch('/api/patient/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: currentPhone })
+    });
+    
+    if (res.ok) {
+      status.textContent = 'OTP resent successfully!';
+      status.style.color = 'green';
+      startResendTimer();
+    } else {
+      const err = await res.json();
+      status.textContent = err.error || 'Failed to resend OTP';
+      status.style.color = 'var(--danger)';
+    }
+  } catch (err) {
+    console.error(err);
+    status.textContent = 'Network error. Try again.';
+    status.style.color = 'var(--danger)';
+  }
+}
 
 async function requestOTP() {
   const phone = document.getElementById('patient-phone').value.trim();
@@ -20,6 +73,7 @@ async function requestOTP() {
       currentPhone = phone;
       document.getElementById('step-1').classList.remove('active');
       document.getElementById('step-2').classList.add('active');
+      startResendTimer();
     } else {
       const err = await res.json();
       status.textContent = err.error || 'Failed to request OTP';
@@ -65,6 +119,7 @@ async function verifyOTP() {
         }
       }
 
+      if (resendTimerInterval) clearInterval(resendTimerInterval);
       document.getElementById('step-2').classList.remove('active');
       document.getElementById('step-3').classList.add('active');
       loadMyReports();
