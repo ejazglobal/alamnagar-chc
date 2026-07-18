@@ -293,6 +293,18 @@ async function initializeDatabase() {
       console.warn("Could not auto-link 'rahnuma' user:", linkErr.message);
     }
 
+    // Proactively rename user 'sarah' to 'azam' and update email
+    try {
+      const renameRes = await pool.query(
+        "UPDATE users SET username = 'azam', email = 'azam@alamnagar-chc.org' WHERE username = 'sarah'"
+      );
+      if (renameRes.rowCount > 0) {
+        console.log("Successfully migrated and renamed username 'sarah' to 'azam'.");
+      }
+    } catch (renameErr) {
+      console.warn("Could not rename 'sarah' user to 'azam':", renameErr.message);
+    }
+
     // --- SEED DOCTORS ---
     const docCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM doctors");
     const docCount = parseInt(docCountRes.rows[0].count, 10);
@@ -360,8 +372,8 @@ async function initializeDatabase() {
       const staffSalt = generateSalt();
       const patientSalt = generateSalt();
       
-      const sarahSalt = generateSalt();
       const azamSalt = generateSalt();
+      const doc2Salt = generateSalt();
       const rahatSalt = generateSalt();
 
       // Standard seeded users
@@ -381,11 +393,11 @@ async function initializeDatabase() {
       // Seed Doctor accounts linked to doctors
       await pool.query(
         "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, $6)",
-        ["sarah", "sarah@alamnagar-chc.org", hashPassword("doctorpass", sarahSalt), sarahSalt, "Doctor", 1]
+        ["azam", "azam@alamnagar-chc.org", hashPassword("doctorpass", azamSalt), azamSalt, "Doctor", 1]
       );
       await pool.query(
         "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, $6)",
-        ["azam", "azam@alamnagar-chc.org", hashPassword("doctorpass", azamSalt), azamSalt, "Doctor", 2]
+        ["doctor2", "doctor2@alamnagar-chc.org", hashPassword("doctorpass", doc2Salt), doc2Salt, "Doctor", 2]
       );
       await pool.query(
         "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, $6)",
