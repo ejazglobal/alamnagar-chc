@@ -40,16 +40,31 @@ async function verifyOTP() {
   status.textContent = 'Verifying...';
   status.style.color = '#475569';
 
+  const sessionToken = localStorage.getItem('chc_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (sessionToken) {
+    headers['Authorization'] = `Bearer ${sessionToken}`;
+  }
+
   try {
     const res = await fetch('/api/patient/verify-otp', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({ phone: currentPhone, otp })
     });
     
     if (res.ok) {
       const data = await res.json();
       portalToken = data.token;
+      
+      // Update local storage if we are linking phone to an active session
+      if (sessionToken) {
+        localStorage.setItem('chc_token', data.token);
+        if (data.user && data.user.phone) {
+          localStorage.setItem('chc_user_phone', data.user.phone);
+        }
+      }
+
       document.getElementById('step-2').classList.remove('active');
       document.getElementById('step-3').classList.add('active');
       loadMyReports();
@@ -147,6 +162,15 @@ async function loadMyReports() {
 function logout() {
   portalToken = '';
   currentPhone = '';
+  
+  // Clear main app session keys if the user logged in via password/credentials
+  localStorage.removeItem('chc_token');
+  localStorage.removeItem('chc_user_role');
+  localStorage.removeItem('chc_user_name');
+  localStorage.removeItem('chc_user_email');
+  localStorage.removeItem('chc_user_phone');
+  localStorage.removeItem('chc_user_id');
+
   document.getElementById('step-3').classList.remove('active');
   document.getElementById('step-1').classList.add('active');
   document.getElementById('patient-phone').value = '';
@@ -558,3 +582,49 @@ window.printPortalPrescription = function() {
   printWindow.document.write(content);
   printWindow.document.close();
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+  const token = localStorage.getItem('chc_token');
+  const role = localStorage.getItem('chc_user_role');
+  const phone = localStorage.getItem('chc_user_phone');
+
+  if (token && role === 'Patient') {
+    if (phone && phone.trim().length > 0) {
+      // Auto-bypass OTP verification!
+      portalToken = token;
+      currentPhone = phone;
+      
+      const step1 = document.getElementById('step-1');
+      const step3 = document.getElementById('step-3');
+      if (step1 && step3) {
+        step1.classList.remove('active');
+        step3.classList.add('active');
+        loadMyReports();
+        loadMyPrescriptions();
+      }
+    } else {
+      // Prompt patient to link a mobile number
+      const step1Div = document.getElementById('step-1');
+      if (step1Div) {
+        const infoBanner = document.createElement('div');
+        infoBanner.className = 'status-banner success';
+        infoBanner.style.marginBottom = '1.5rem';
+        infoBanner.style.padding = '0.75rem';
+        infoBanner.style.borderRadius = '6px';
+        infoBanner.style.fontSize = '0.85rem';
+        infoBanner.style.lineHeight = '1.4';
+        infoBanner.style.backgroundColor = 'var(--primary-light)';
+        infoBanner.style.border = '1px solid var(--border-color)';
+        infoBanner.style.color = 'var(--primary-color)';
+        infoBanner.style.fontWeight = '500';
+        infoBanner.innerHTML = '👋 Welcome! To access your prescriptions and upload reports, please verify and link a mobile number to your account.';
+        step1Div.insertBefore(infoBanner, step1Div.firstChild);
+        
+        const label = document.querySelector('#step-1 .form-label');
+        if (label) {
+          label.textContent = 'Mobile Number to Link';
+        }
+      }
+    }
+  }
+});

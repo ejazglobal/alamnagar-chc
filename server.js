@@ -1251,7 +1251,8 @@ app.post('/api/patient/request-otp', async (req, res) => {
   
   try {
     await db.createOTP('', digits, otp);
-    mailer.sendSMS(digits, `[আলমনগর সিএইচসি] আপনার পেশেন্ট পোর্টাল লগইন ওটিপি হলো: ${otp}। এটি ১০ মিনিটের জন্য বৈধ।`);
+    // Added a space before the Bengali full stop '।' to prevent it from looking like a 7th digit
+    mailer.sendSMS(digits, `[আলমনগর সিএইচসি] আপনার পেশেন্ট পোর্টাল লগইন ওটিপি হলো ${otp} । এটি ১০ মিনিটের জন্য বৈধ।`);
     res.json({ success: true, message: 'OTP sent successfully!' });
   } catch (err) {
     console.error('Patient portal OTP request error:', err);
@@ -1272,6 +1273,46 @@ app.post('/api/patient/verify-otp', async (req, res) => {
     const verified = (otp === 'bypass') || await db.verifyOTP('', digits, otp);
     if (!verified) {
       return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
+    }
+
+    // Link phone to registered user if verified via an active password session (auth header token)
+    const authHeader = req.headers['authorization'];
+    const sessionToken = authHeader && authHeader.split(' ')[1];
+    let userId = null;
+    if (sessionToken) {
+      const decoded = decryptToken(sessionToken);
+      if (decoded && decoded.role === 'Patient' && decoded.id) {
+        userId = decoded.id;
+      }
+    }
+
+    if (userId) {
+      // Check if user already has a phone. If not, link it!
+      const userRes = await db.pool.query("SELECT id, username, email, phone, role FROM users WHERE id = $1", [userId]);
+      if (userRes.rows.length > 0) {
+        const dbUser = userRes.rows[0];
+        if (!dbUser.phone) {
+          // Verify phone is not registered on another account first
+          const existingPhone = await db.getUserByPhone(digits);
+          if (existingPhone && existingPhone.id !== userId) {
+            return res.status(409).json({ error: 'This mobile number is already registered to another account.' });
+          }
+          await db.pool.query("UPDATE users SET phone = $1 WHERE id = $2", [digits, userId]);
+          dbUser.phone = digits;
+        } else if (dbUser.phone !== digits) {
+          return res.status(400).json({ error: 'Profile is already linked to a different mobile number.' });
+        }
+        
+        // Re-generate token with the newly linked phone number
+        const newToken = encryptToken({
+          id: dbUser.id,
+          username: dbUser.username,
+          email: dbUser.email,
+          phone: dbUser.phone,
+          role: dbUser.role
+        });
+        return res.json({ token: newToken, user: dbUser });
+      }
     }
 
     const token = encryptToken({ phone: digits, role: 'Patient' });
@@ -1402,7 +1443,8 @@ app.post('/api/share/prescription/:id/request-otp', async (req, res) => {
     await db.createOTP('', phone, otp);
     
     // Using Shiram SMS to send the code dynamically
-    mailer.sendSMS(phone, `[আলমনগর সিএইচসি] আপনার প্রেসক্রিপশন দেখার ওটিপি হলো: ${otp}।`);
+    // Added a space before the Bengali full stop '।' to prevent it from looking like a 7th digit
+    mailer.sendSMS(phone, `[আলমনগর সিএইচসি] আপনার প্রেসক্রিপশন দেখার ওটিপি হলো ${otp} ।`);
     
     // Mask the phone number in the response
     const maskedPhone = phone.length >= 4 ? phone.substring(0, phone.length - 4).replace(/./g, '*') + phone.substring(phone.length - 4) : '****';
