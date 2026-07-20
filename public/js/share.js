@@ -3,6 +3,34 @@ const appointmentId = urlParams.get('id');
 
 if (!appointmentId) {
   document.getElementById('auth-wall').innerHTML = '<h2>Invalid Link</h2><p>No prescription ID found.</p>';
+} else {
+  // Check if this prescription link was already verified on this device!
+  const isVerified = localStorage.getItem(`share_verified_${appointmentId}`);
+  if (isVerified) {
+    // Auto-fetch fresh, real-time prescription data from server DB without asking for OTP again!
+    fetchPrescriptionDirect(isVerified);
+  }
+}
+
+async function fetchPrescriptionDirect(tokenKey) {
+  try {
+    const res = await fetch(`/api/share/prescription/${appointmentId}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ otp: tokenKey })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('auth-wall').style.display = 'none';
+      renderPrescription(data.prescription);
+      document.getElementById('prescription-view').style.display = 'block';
+    } else {
+      // If server rejected (e.g. invalid or data cleared), remove token so user can verify fresh
+      localStorage.removeItem(`share_verified_${appointmentId}`);
+    }
+  } catch(e) {
+    console.warn('Fetch error:', e);
+  }
 }
 
 async function requestPrescriptionOTP() {
@@ -51,6 +79,10 @@ async function verifyPrescriptionOTP() {
     
     if (res.ok) {
       const data = await res.json();
+      
+      // Save verification status locally so recipient doesn't have to repeat OTP for this link
+      localStorage.setItem(`share_verified_${appointmentId}`, 'verified_session');
+
       document.getElementById('auth-wall').style.display = 'none';
       renderPrescription(data.prescription);
       document.getElementById('prescription-view').style.display = 'block';
@@ -79,7 +111,9 @@ function renderPrescription(visit) {
   const container = document.getElementById('print-prescription-template');
   
   let state = visit.rich_state;
-  if (typeof state === 'string') state = JSON.parse(state);
+  if (typeof state === 'string') {
+    try { state = JSON.parse(state); } catch(e){}
+  }
   
   const docName = visit.doctor_name || 'Doctor Name';
   const docSpecialty = visit.doctor_specialty || 'Specialty';
@@ -90,7 +124,7 @@ function renderPrescription(visit) {
   const pGender = state?.gender || visit.gender || 'N/A';
   const pWeight = state?.weight || visit.weight || 'N/A';
   const pAddress = state?.address || visit.address || 'N/A';
-  const pDate = new Date(visit.appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const pDate = new Date(visit.appointment_date || visit.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const pPhone = visit.phone || '';
   
   const obs = state?.observations || visit.observations || 'None';
@@ -115,7 +149,7 @@ function renderPrescription(visit) {
     }
     vitalsHtml = `
       <div style="margin-top: 1.2rem;">
-        <div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem;">PHYSICAL OBSERVATIONS</div>
+        <div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem; color: #0d9488;">PHYSICAL OBSERVATIONS</div>
         <div style="font-size: 0.85rem; line-height: 1.5; color: #334155;">${items.join('')}</div>
       </div>
     `;
@@ -123,8 +157,9 @@ function renderPrescription(visit) {
   
   let diagsHtml = '';
   const diags = state?.diagnostics || visit.diagnostics || '';
-  if (diags) {
-    diagsHtml = diags.split(', ').map(d => `<li>${escapeHTML(d)}</li>`).join('');
+  if (diags && diags.toLowerCase() !== 'none') {
+    const list = diags.split(/[\n,;]+/).map(item => item.trim()).filter(Boolean);
+    diagsHtml = list.map(item => `<li>${escapeHTML(item)}</li>`).join('');
   } else {
     diagsHtml = '<li>None recommended</li>';
   }
@@ -145,71 +180,72 @@ function renderPrescription(visit) {
           <span style="font-weight: 600; color: #0d9488;">Advice:</span> <em>${escapeHTML(m.advice)}</em>
         </td>
       </tr>` : ''}
-    `).join('');
+    `.join('') ;
   } else {
-    medsHtml = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">No medicines prescribed</td></tr>';
+    medsHtml = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: #64748b;">No medicines prescribed</td></tr>';
   }
 
   const sigImg = visit.doctor_signature ? `<img src="${visit.doctor_signature}" alt="Signature" style="max-height: 50px; display: block; margin-bottom: 0.5rem;">` : '';
 
   container.innerHTML = `
     <!-- Header -->
-    <div class="prescription-header">
-      <div style="display: flex; align-items: center; gap: 1rem;">
+    <div class="prescription-header" style="display: flex; justify-content: space-between; border-bottom: 2px solid #0d9488; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
         <img src="alchc-logo.png" style="width:50px;height:50px;border-radius:50%;">
         <div>
-          <h1 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Alamnagar CHC</h1>
-          <p style="margin: 0; font-size: 0.8rem; color: #64748b;">Charitable Healthcare Centre</p>
-          <p style="margin: 0; font-size: 0.75rem; color: #64748b;">Phone: +8801912562131 | Email: info@alamnagar-chc.org</p>
+          <h1 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: #0d9488;">Alamnagar CHC</h1>
+          <p style="margin: 0; font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Charitable Healthcare Centre</p>
+          <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: #64748b;">Phone: +8801912562131 | Email: info@alamnagar-chc.org</p>
         </div>
       </div>
       <div style="text-align: right;">
-        <h2 style="margin: 0; font-size: 1.1rem; color: #0f172a;">Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}</h2>
-        <p style="margin: 0; font-size: 0.85rem; color: #475569;">${escapeHTML(docSpecialty)}</p>
-        <p style="margin: 0; font-size: 0.8rem; color: #64748b;">${escapeHTML(docHours)}</p>
+        <h2 style="margin: 0 0 2px 0; font-size: 1.2rem; font-weight: 700; color: #1e293b;">Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}</h2>
+        <p style="margin: 0 0 2px 0; font-size: 0.85rem; color: #0d9488; font-weight: 600;">${escapeHTML(docSpecialty)}</p>
+        <p style="margin: 0; font-size: 0.75rem; color: #64748b;">${escapeHTML(docHours)}</p>
       </div>
     </div>
     
-    <div style="border-bottom: 2px solid #0d9488; margin-bottom: 1rem;"></div>
-    
     <!-- Patient Info -->
-    <div class="prescription-info-grid">
+    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 0.5rem; font-size: 0.85rem; color: #1e293b; background: #f8fafc; padding: 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; margin-top: 10px; margin-bottom: 1.5rem;">
       <div><strong>Patient Name:</strong> ${escapeHTML(pName)}</div>
       <div><strong>Age:</strong> ${escapeHTML(pAge)}</div>
       <div><strong>Gender:</strong> ${escapeHTML(pGender)}</div>
-      <div><strong>Date:</strong> ${escapeHTML(pDate)}</div>
+      <div><strong>Date:</strong> ${pDate}</div>
       <div style="grid-column: span 2;"><strong>Address:</strong> ${escapeHTML(pAddress)}</div>
       <div><strong>Weight:</strong> ${escapeHTML(pWeight)}</div>
       <div><strong>Phone:</strong> ${escapeHTML(pPhone)}</div>
     </div>
-    
-    <div style="border-bottom: 1px solid #e2e8f0; margin-bottom: 1.5rem;"></div>
-    
-    <!-- Body -->
-    <div class="prescription-body-layout">
+
+    <!-- Body Layout -->
+    <div style="display: grid; grid-template-columns: 200px 1fr; gap: 1.5rem; min-height: 400px;">
       <!-- Sidebar -->
-      <div>
-        <div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem;">OBSERVATIONS & SYMPTOMS</div>
-        <p style="font-size: 0.85rem; line-height: 1.5; color: #334155; margin-top: 0;">${escapeHTML(obs)}</p>
-        
+      <div style="border-right: 1.5px solid #cbd5e1; padding-right: 1rem;">
+        <div style="font-size: 0.75rem; font-weight: 700; color: #0d9488; letter-spacing: 0.5px; margin-bottom: 0.5rem; text-transform: uppercase;">OBSERVATIONS & SYMPTOMS</div>
+        <p style="font-size: 0.85rem; line-height: 1.4; color: #334155; white-space: pre-line; margin: 0 0 1rem 0;">${escapeHTML(obs)}</p>
+
+        <div style="margin-top: 1.2rem;">
+          <div style="font-size: 0.75rem; font-weight: 700; color: #0d9488; letter-spacing: 0.5px; margin-bottom: 0.5rem; text-transform: uppercase;">INVESTIGATION FINDINGS</div>
+          <p style="font-size: 0.85rem; color: #334155; margin: 0;">${escapeHTML(visit.findings || 'None')}</p>
+        </div>
+
         ${vitalsHtml}
-        
-        <div style="font-weight: 700; font-size: 0.9rem; margin-top: 1.5rem; margin-bottom: 0.25rem;">RECOMMENDED DIAGNOSTICS</div>
-        <ul style="font-size: 0.85rem; line-height: 1.5; color: #334155; padding-left: 1.2rem; margin-top: 0;">
+
+        <div style="font-size: 0.75rem; font-weight: 700; color: #0d9488; letter-spacing: 0.5px; margin-top: 1.5rem; margin-bottom: 0.5rem; text-transform: uppercase;">RECOMMENDED DIAGNOSTICS</div>
+        <ul style="padding-left: 1.25rem; font-size: 0.85rem; color: #334155; margin: 0;">
           ${diagsHtml}
         </ul>
       </div>
-      
-      <!-- Main -->
+
+      <!-- Main Column -->
       <div>
-        <div style="font-size: 2rem; font-weight: 700; color: #0d9488; margin-bottom: 1rem;">Rx</div>
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+        <div style="font-size: 1.8rem; font-weight: 800; font-style: italic; color: #0d9488; margin-bottom: 0.5rem;">Rx</div>
+        <table style="width: 100%; border-collapse: collapse;">
           <thead>
-            <tr style="border-bottom: 2px solid #e2e8f0;">
-              <th style="padding: 0.5rem; text-align: left;">Medicine Name</th>
-              <th style="padding: 0.5rem; text-align: left;">Dosage</th>
-              <th style="padding: 0.5rem; text-align: left;">Instructions</th>
-              <th style="padding: 0.5rem; text-align: left;">Duration</th>
+            <tr style="border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 0.75rem; color: #64748b; text-transform: uppercase;">
+              <th style="padding: 0.5rem;">Medicine Name</th>
+              <th style="padding: 0.5rem;">Dosage</th>
+              <th style="padding: 0.5rem;">Instructions</th>
+              <th style="padding: 0.5rem;">Duration</th>
             </tr>
           </thead>
           <tbody>
@@ -218,12 +254,12 @@ function renderPrescription(visit) {
         </table>
       </div>
     </div>
-    
+
     <!-- Footer -->
-    <div style="display: flex; justify-content: flex-end; margin-top: 4rem;">
-      <div style="display: flex; flex-direction: column; align-items: center; width: 200px; text-align: center;">
+    <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
+      <div style="display: flex; flex-direction: column; align-items: center;">
         ${sigImg}
-        <div style="border-top: 1px solid #475569; width: 100%; padding-top: 0.25rem; font-size: 0.85rem; font-weight: 600; color: #475569;">
+        <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">
           Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}
         </div>
       </div>
