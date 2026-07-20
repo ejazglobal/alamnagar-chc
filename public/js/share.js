@@ -3,19 +3,6 @@ const appointmentId = urlParams.get('id');
 
 if (!appointmentId) {
   document.getElementById('auth-wall').innerHTML = '<h2>Invalid Link</h2><p>No prescription ID found.</p>';
-} else {
-  // Check if this prescription is already verified and saved locally
-  const cachedPrescription = localStorage.getItem(`prescription_data_${appointmentId}`);
-  if (cachedPrescription) {
-    try {
-      const prescription = JSON.parse(cachedPrescription);
-      document.getElementById('auth-wall').style.display = 'none';
-      renderPrescription(prescription);
-      document.getElementById('prescription-view').style.display = 'block';
-    } catch (e) {
-      console.warn('Error loading cached prescription:', e);
-    }
-  }
 }
 
 async function requestPrescriptionOTP() {
@@ -64,14 +51,6 @@ async function verifyPrescriptionOTP() {
     
     if (res.ok) {
       const data = await res.json();
-      
-      // Save prescription data locally to bypass OTP on next visits
-      try {
-        localStorage.setItem(`prescription_data_${appointmentId}`, JSON.stringify(data.prescription));
-      } catch (e) {
-        console.warn('Error caching prescription:', e);
-      }
-
       document.getElementById('auth-wall').style.display = 'none';
       renderPrescription(data.prescription);
       document.getElementById('prescription-view').style.display = 'block';
