@@ -25,6 +25,14 @@ function startResendTimer() {
   }, 1000);
 }
 
+function normalizeDigits(phone) {
+  if (!phone) return '';
+  let d = phone.replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('01')) return d;
+  if (d.length === 13 && d.startsWith('8801')) return d.substring(2);
+  return d;
+}
+
 async function resendOTP() {
   if (!currentPhone) return;
   const status = document.getElementById('otp-verify-status');
@@ -58,6 +66,30 @@ async function requestOTP() {
   const phone = document.getElementById('patient-phone').value.trim();
   if (!phone) return alert('Please enter your mobile number.');
   
+  // Check if this mobile number was ALREADY verified on this browser/device!
+  const cleanInputDigits = normalizeDigits(phone);
+  let verifiedPhones = {};
+  try {
+    verifiedPhones = JSON.parse(localStorage.getItem('verified_patient_phones') || '{}');
+  } catch(e) {}
+
+  const activePhone = localStorage.getItem('patient_portal_phone') || localStorage.getItem('chc_user_phone');
+  const activeToken = localStorage.getItem('patient_portal_token') || localStorage.getItem('chc_token');
+
+  const existingToken = verifiedPhones[cleanInputDigits] || (activePhone && normalizeDigits(activePhone) === cleanInputDigits ? activeToken : null);
+
+  if (existingToken) {
+    // AUTO-BYPASS OTP! Phone was previously verified on this device.
+    currentPhone = phone;
+    portalToken = existingToken;
+    
+    document.getElementById('step-1').classList.remove('active');
+    document.getElementById('step-3').classList.add('active');
+    loadMyReports();
+    loadMyPrescriptions();
+    return; // Do NOT send SMS OTP!
+  }
+
   const status = document.getElementById('otp-request-status');
   status.textContent = 'Requesting OTP...';
   status.style.color = '#475569';
@@ -111,7 +143,16 @@ async function verifyOTP() {
       const data = await res.json();
       portalToken = data.token;
       
-      // Persist portal session in localStorage to bypass OTP on future visits
+      // Save to verified_patient_phones map for smart auto-bypass
+      const cleanDigits = normalizeDigits(currentPhone);
+      let verifiedPhones = {};
+      try {
+        verifiedPhones = JSON.parse(localStorage.getItem('verified_patient_phones') || '{}');
+      } catch(e) {}
+      verifiedPhones[cleanDigits] = data.token;
+      localStorage.setItem('verified_patient_phones', JSON.stringify(verifiedPhones));
+
+      // Persist portal session in localStorage
       localStorage.setItem('patient_portal_token', data.token);
       localStorage.setItem('patient_portal_phone', currentPhone);
 
