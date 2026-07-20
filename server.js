@@ -163,6 +163,14 @@ function isValidTime(timeStr) {
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(timeStr);
 }
 
+// Google Play Review Test Account OTP Helper
+function isTestAccountOTP(phone, otp) {
+  if (otp !== '123456') return false;
+  if (!phone) return false;
+  const digits = phone.toString().replace(/\D/g, '');
+  return digits === '01711111111' || digits === '8801711111111' || digits === '1711111111' || digits === '01700000000' || digits === '8801700000000';
+}
+
 // --- AUTH API ENDPOINTS ---
 
 // 1. Patient Registration
@@ -1152,7 +1160,7 @@ app.post('/api/auth/reset-forgotten-password', async (req, res) => {
     const email = user.email || '';
     const phone = user.phone || '';
 
-    const verified = (otp === 'bypass' || otp === '123456') || await db.verifyOTP(email, phone, otp);
+    const verified = isTestAccountOTP(phone, otp) || await db.verifyOTP(email, phone, otp);
     if (!verified) {
       return res.status(400).json({ error: 'Invalid or expired reset code. Please try again.' });
     }
@@ -1205,7 +1213,7 @@ app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async 
   const normalizedPhone = normalizePhone(phone);
 
   try {
-    const verified = (otp === 'bypass' || otp === '123456') || await db.verifyOTP(email ? email.trim().toLowerCase() : '', normalizedPhone, otp);
+    const verified = isTestAccountOTP(normalizedPhone, otp) || await db.verifyOTP(email ? email.trim().toLowerCase() : '', normalizedPhone, otp);
     if (!verified) {
       return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
     }
@@ -1270,7 +1278,7 @@ app.post('/api/patient/verify-otp', async (req, res) => {
   }
 
   try {
-    const verified = (otp === 'bypass' || otp === '123456') || await db.verifyOTP('', digits, otp);
+    const verified = isTestAccountOTP(digits, otp) || await db.verifyOTP('', digits, otp);
     if (!verified) {
       return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
     }
@@ -1475,7 +1483,7 @@ app.post('/api/share/prescription/:id/verify', async (req, res) => {
     if (apptRes.rows.length === 0) return res.status(404).json({ error: 'Not found.' });
     
     const visit = apptRes.rows[0];
-    const verified = (otp === 'bypass' || otp === '123456') || await db.verifyOTP('', visit.phone, otp);
+    const verified = isTestAccountOTP(visit.phone, otp) || await db.verifyOTP('', visit.phone, otp);
     if (!verified) {
       return res.status(401).json({ error: 'Invalid or expired OTP.' });
     }
