@@ -111,6 +111,10 @@ async function verifyOTP() {
       const data = await res.json();
       portalToken = data.token;
       
+      // Persist portal session in localStorage to bypass OTP on future visits
+      localStorage.setItem('patient_portal_token', data.token);
+      localStorage.setItem('patient_portal_phone', currentPhone);
+
       // Update local storage if we are linking phone to an active session
       if (sessionToken) {
         localStorage.setItem('chc_token', data.token);
@@ -218,7 +222,8 @@ function logout() {
   portalToken = '';
   currentPhone = '';
   
-  // Clear main app session keys if the user logged in via password/credentials
+  localStorage.removeItem('patient_portal_token');
+  localStorage.removeItem('patient_portal_phone');
   localStorage.removeItem('chc_token');
   localStorage.removeItem('chc_user_role');
   localStorage.removeItem('chc_user_name');
@@ -639,11 +644,11 @@ window.printPortalPrescription = function() {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  const token = localStorage.getItem('chc_token');
+  const token = localStorage.getItem('chc_token') || localStorage.getItem('patient_portal_token');
   const role = localStorage.getItem('chc_user_role');
-  const phone = localStorage.getItem('chc_user_phone');
+  const phone = localStorage.getItem('chc_user_phone') || localStorage.getItem('patient_portal_phone');
 
-  if (token && role === 'Patient') {
+  if (token) {
     if (phone && phone.trim().length > 0) {
       // Auto-bypass OTP verification!
       portalToken = token;
@@ -657,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadMyReports();
         loadMyPrescriptions();
       }
-    } else {
+    } else if (role === 'Patient') {
       // Prompt patient to link a mobile number
       const step1Div = document.getElementById('step-1');
       if (step1Div) {
