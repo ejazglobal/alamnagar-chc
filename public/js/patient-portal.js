@@ -119,6 +119,13 @@ async function requestOTP() {
 }
 
 async function verifyOTP() {
+  if (!currentPhone) {
+    const phoneInput = document.getElementById('patient-phone');
+    if (phoneInput && phoneInput.value) {
+      currentPhone = phoneInput.value.trim();
+    }
+  }
+
   const otp = document.getElementById('patient-otp').value.trim();
   if (!otp) return alert('Please enter the OTP.');
 
@@ -126,7 +133,7 @@ async function verifyOTP() {
   status.textContent = 'Verifying...';
   status.style.color = '#475569';
 
-  const sessionToken = localStorage.getItem('chc_token');
+  const sessionToken = localStorage.getItem('chc_token') || localStorage.getItem('patient_portal_token');
   const headers = { 'Content-Type': 'application/json' };
   if (sessionToken) {
     headers['Authorization'] = `Bearer ${sessionToken}`;
@@ -149,20 +156,17 @@ async function verifyOTP() {
       try {
         verifiedPhones = JSON.parse(localStorage.getItem('verified_patient_phones') || '{}');
       } catch(e) {}
-      verifiedPhones[cleanDigits] = data.token;
-      localStorage.setItem('verified_patient_phones', JSON.stringify(verifiedPhones));
+      if (cleanDigits) {
+        verifiedPhones[cleanDigits] = data.token;
+        localStorage.setItem('verified_patient_phones', JSON.stringify(verifiedPhones));
+      }
 
-      // Persist portal session in localStorage
+      // Persist portal session unconditionally across all localStorage keys
       localStorage.setItem('patient_portal_token', data.token);
       localStorage.setItem('patient_portal_phone', currentPhone);
-
-      // Update local storage if we are linking phone to an active session
-      if (sessionToken) {
-        localStorage.setItem('chc_token', data.token);
-        if (data.user && data.user.phone) {
-          localStorage.setItem('chc_user_phone', data.user.phone);
-        }
-      }
+      localStorage.setItem('chc_token', data.token);
+      localStorage.setItem('chc_user_phone', currentPhone);
+      localStorage.setItem('chc_user_role', 'Patient');
 
       if (resendTimerInterval) clearInterval(resendTimerInterval);
       document.getElementById('step-2').classList.remove('active');
