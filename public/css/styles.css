@@ -534,17 +534,20 @@ textarea.form-control {
 
 /* Admin Dashboard CSS */
 .admin-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1350px;
+  width: 95%;
+  margin: 1.5rem auto;
+  padding: 0 0.5rem;
 }
 
 @media (min-width: 992px) {
   .admin-grid {
-    grid-template-columns: 4fr 8fr;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
   }
 }
 
