@@ -52,12 +52,20 @@ async function initializeDatabase() {
         email VARCHAR(255),
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
-        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer')),
+        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist')),
         phone VARCHAR(50) UNIQUE,
         doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Drop old constraint if exists and re-add to allow Pharmacist role
+    try {
+      await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
+      await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist'))`);
+    } catch (cErr) {
+      console.log('Role check constraint update note:', cErr.message);
+    }
 
     // 3. Create appointments table
     await pool.query(`
@@ -134,9 +142,16 @@ async function initializeDatabase() {
         manufacturer VARCHAR(255),
         package_container TEXT,
         package_size TEXT,
-        image_url TEXT
+        image_url TEXT,
+        is_active BOOLEAN DEFAULT TRUE
       )
     `);
+
+    try {
+      await pool.query(`ALTER TABLE medicines ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`);
+    } catch (mErr) {
+      console.log('Medicines table update note:', mErr.message);
+    }
 
     // 9. Create prescriptions table
     await pool.query(`

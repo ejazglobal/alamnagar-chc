@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const role = localStorage.getItem('chc_user_role');
   const token = localStorage.getItem('chc_token');
 
-  if (!token || (role !== 'Admin' && role !== 'Staff' && role !== 'Observer')) {
+  if (!token || (role !== 'Admin' && role !== 'Staff' && role !== 'Observer' && role !== 'Pharmacist')) {
     // Access denied: redirect to login
     window.location.href = 'login.html';
   } else {
@@ -52,6 +52,7 @@ async function unlockDashboard(role) {
   renderNewsManageTable();
   renderDoctorsManageTable();
   renderGalleryManageTable();
+  await loadAdminMedicines(1);
   
   if (role === 'Admin') {
     const staffSec = document.getElementById('admin-staff-section');
@@ -1149,6 +1150,27 @@ function applyStaffPermissionsFilter() {
     if (heroP) heroP.textContent = 'Browse patient appointments, view clinical prescriptions, and read investigation reports.';
     const heroH1 = document.querySelector('.hero-content h1');
     if (heroH1) heroH1.textContent = 'Healthcare Observer Console';
+  } else if (role === 'Pharmacist') {
+    const panelsToHide = [
+      'news-post-form',
+      'news-manage-tbody',
+      'doctor-post-form',
+      'doctors-manage-tbody',
+      'gallery-upload-form',
+      'gallery-manage-tbody',
+      'admin-staff-section'
+    ];
+    panelsToHide.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        const panel = el.closest('.panel') || el.closest('section');
+        if (panel) panel.style.display = 'none';
+      }
+    });
+    const heroP = document.querySelector('.hero-content p');
+    if (heroP) heroP.textContent = 'Manage medicine inventories, brand pricing, generic strengths, and import bulk dataset CSV files.';
+    const heroH1 = document.querySelector('.hero-content h1');
+    if (heroH1) heroH1.textContent = 'Pharmacy & Medicine Master Console';
   } else if (role === 'Staff') {
     if (permissions === 'news') {
       const docForm = document.getElementById('doctor-post-form');
@@ -1990,3 +2012,318 @@ window.deleteUserAccount = async function(id, username) {
     showBanner(banner, err.message || 'Error deleting user.', 'error');
   }
 };
+
+// --- MEDICINE MANAGEMENT JS LOGIC ---
+let currentMedicinePage = 1;
+let currentMedicineTotalPages = 1;
+let medicineSearchDebounceTimer = null;
+
+async function loadAdminMedicines(page = 1) {
+  const tbody = document.getElementById('medicines-tbody');
+  const pageInfo = document.getElementById('medicine-pagination-info');
+  const prevBtn = document.getElementById('med-prev-btn');
+  const nextBtn = document.getElementById('med-next-btn');
+  const searchInput = document.getElementById('medicine-search-input');
+
+  if (!tbody) return;
+
+  const searchQuery = searchInput ? searchInput.value.trim() : '';
+  currentMedicinePage = page;
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading medicines list...</td>
+    </tr>
+  `;
+
+  if (isFallbackMode) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Live database required for medicine master. (Offline demo mode)</td>
+      </tr>
+    `;
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const url = `/api/admin/medicines?page=${page}&limit=20&search=${encodeURIComponent(searchQuery)}`;
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1.5rem 0;">${escapeHTML(err.error || 'Failed to load medicines.')}</td></tr>`;
+      return;
+    }
+
+    const data = await res.json();
+    currentMedicineTotalPages = data.totalPages || 1;
+
+    renderAdminMedicinesTable(data.medicines);
+
+    if (pageInfo) {
+      pageInfo.textContent = `Page ${data.page} of ${data.totalPages} (${data.totalCount} total medicines)`;
+    }
+    if (prevBtn) prevBtn.disabled = page <= 1;
+    if (nextBtn) nextBtn.disabled = page >= currentMedicineTotalPages;
+
+  } catch (err) {
+    console.error('Error fetching admin medicines:', err);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Server error loading medicines.</td></tr>`;
+  }
+}
+
+function renderAdminMedicinesTable(medicines) {
+  const tbody = document.getElementById('medicines-tbody');
+  if (!tbody) return;
+
+  if (!medicines || medicines.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No medicines found. Click "+ Add New Medicine" or "Upload CSV File" to populate.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = medicines.map(m => {
+    const isActive = m.is_active === undefined || m.is_active === true;
+    const statusBadge = isActive 
+      ? `<span class="badge" style="background: #dcfce7; color: #166534;">Active</span>`
+      : `<span class="badge" style="background: #fee2e2; color: #991b1b;">Inactive</span>`;
+
+    return `
+      <tr>
+        <td>
+          <strong style="color: var(--primary-color);">${escapeHTML(m.brand_name)}</strong>
+        </td>
+        <td>
+          <div>${escapeHTML(m.generic || '-')}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHTML(m.strength || '')}</div>
+        </td>
+        <td>${escapeHTML(m.dosage_form || '-')}</td>
+        <td><span style="font-size: 0.85rem;">${escapeHTML(m.manufacturer || '-')}</span></td>
+        <td>
+          <div style="font-size: 0.85rem; font-weight: 500;">${escapeHTML(m.package_container || m.package_size || '-')}</div>
+        </td>
+        <td>${statusBadge}</td>
+        <td style="text-align: center;">
+          <div style="display: flex; gap: 0.25rem; justify-content: center;">
+            <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; width: auto;" onclick="openEditMedicineModal(${m.id}, ${JSON.stringify(m).replace(/"/g, '&quot;')})">Edit</button>
+            <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; width: auto; background-color: ${isActive ? 'var(--danger)' : '#0d9488'}; color: white;" onclick="toggleMedicineActiveStatus(${m.id}, ${isActive})">${isActive ? 'Disable' : 'Enable'}</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function changeMedicinePage(delta) {
+  const newPage = currentMedicinePage + delta;
+  if (newPage >= 1 && newPage <= currentMedicineTotalPages) {
+    loadAdminMedicines(newPage);
+  }
+}
+
+function debounceMedicineSearch() {
+  if (medicineSearchDebounceTimer) clearTimeout(medicineSearchDebounceTimer);
+  medicineSearchDebounceTimer = setTimeout(() => {
+    loadAdminMedicines(1);
+  }, 350);
+}
+
+function openAddMedicineModal() {
+  const modal = document.getElementById('admin-medicine-modal');
+  const title = document.getElementById('medicine-modal-title');
+  const status = document.getElementById('medicine-modal-status');
+  const form = document.getElementById('medicine-modal-form');
+
+  if (!modal) return;
+  if (title) title.textContent = 'Add New Medicine';
+  if (status) status.style.display = 'none';
+  if (form) form.reset();
+
+  document.getElementById('med-id').value = '';
+  modal.style.display = 'flex';
+}
+
+function openEditMedicineModal(id, medObj) {
+  const modal = document.getElementById('admin-medicine-modal');
+  const title = document.getElementById('medicine-modal-title');
+  const status = document.getElementById('medicine-modal-status');
+
+  if (!modal) return;
+  if (title) title.textContent = 'Edit Medicine Details & Price';
+  if (status) status.style.display = 'none';
+
+  document.getElementById('med-id').value = medObj.id;
+  document.getElementById('med-brand-name').value = medObj.brand_name || '';
+  document.getElementById('med-generic').value = medObj.generic || '';
+  document.getElementById('med-strength').value = medObj.strength || '';
+  document.getElementById('med-dosage-form').value = medObj.dosage_form || '';
+  document.getElementById('med-manufacturer').value = medObj.manufacturer || '';
+  document.getElementById('med-package-container').value = medObj.package_container || '';
+  document.getElementById('med-package-size').value = medObj.package_size || '';
+
+  modal.style.display = 'flex';
+}
+
+function closeMedicineModal(event) {
+  if (event) event.stopPropagation();
+  const modal = document.getElementById('admin-medicine-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function saveMedicineForm(event) {
+  event.preventDefault();
+  const medId = document.getElementById('med-id').value;
+  const brandName = document.getElementById('med-brand-name').value.trim();
+  const generic = document.getElementById('med-generic').value.trim();
+  const strength = document.getElementById('med-strength').value.trim();
+  const dosageForm = document.getElementById('med-dosage-form').value.trim();
+  const manufacturer = document.getElementById('med-manufacturer').value.trim();
+  const packageContainer = document.getElementById('med-package-container').value.trim();
+  const packageSize = document.getElementById('med-package-size').value.trim();
+  const saveBtn = document.getElementById('med-save-btn');
+  const statusBanner = document.getElementById('medicine-modal-status');
+
+  if (!brandName) {
+    if (statusBanner) {
+      statusBanner.className = 'status-banner banner-error';
+      statusBanner.textContent = 'Brand name is required.';
+      statusBanner.style.display = 'block';
+    }
+    return;
+  }
+
+  if (saveBtn) saveBtn.disabled = true;
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const method = medId ? 'PUT' : 'POST';
+    const url = medId ? `/api/admin/medicines/${medId}` : '/api/admin/medicines';
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        brand_name: brandName,
+        generic,
+        strength,
+        dosage_form: dosageForm,
+        manufacturer,
+        package_container: packageContainer,
+        package_size: packageSize
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to save medicine');
+    }
+
+    closeMedicineModal();
+    showMedicineMainStatus(`Medicine "${escapeHTML(brandName)}" ${medId ? 'updated' : 'added'} successfully!`, 'success');
+    loadAdminMedicines(currentMedicinePage);
+  } catch (err) {
+    console.error('Error saving medicine:', err);
+    if (statusBanner) {
+      statusBanner.className = 'status-banner banner-error';
+      statusBanner.textContent = err.message || 'Failed to save medicine.';
+      statusBanner.style.display = 'block';
+    }
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function toggleMedicineActiveStatus(id, currentIsActive) {
+  const token = localStorage.getItem('chc_token');
+  const actionText = currentIsActive ? 'disable' : 'enable';
+  if (!confirm(`Are you sure you want to ${actionText} this medicine?`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/medicines/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ is_active: !currentIsActive })
+    });
+
+    if (res.ok) {
+      showMedicineMainStatus(`Medicine status updated successfully.`, 'success');
+      loadAdminMedicines(currentMedicinePage);
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Failed to update medicine status.');
+    }
+  } catch (err) {
+    console.error('Error toggling medicine status:', err);
+    alert('Server error updating status.');
+  }
+}
+
+function handleMedicineCSVUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const csvText = e.target.result;
+    if (!csvText || !csvText.trim()) {
+      alert('Selected file is empty.');
+      return;
+    }
+
+    if (!confirm(`Import medicine dataset from "${file.name}"? Existing brand records will be appended/updated.`)) {
+      event.target.value = '';
+      return;
+    }
+
+    showMedicineMainStatus('Uploading & importing medicine CSV dataset... Please wait...', 'info');
+
+    try {
+      const token = localStorage.getItem('chc_token');
+      const res = await fetch('/api/admin/medicines/upload-csv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ csvText, mode: 'append' })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to import CSV.');
+      }
+
+      showMedicineMainStatus(data.message || `Successfully imported medicines!`, 'success');
+      loadAdminMedicines(1);
+    } catch (err) {
+      console.error('CSV upload error:', err);
+      showMedicineMainStatus(err.message || 'Failed to process CSV file.', 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showMedicineMainStatus(msg, type = 'info') {
+  const banner = document.getElementById('medicine-status-banner');
+  if (!banner) return;
+  banner.className = `status-banner banner-${type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info')}`;
+  banner.textContent = msg;
+  banner.style.display = 'block';
+  setTimeout(() => {
+    banner.style.display = 'none';
+  }, 5000);
+}

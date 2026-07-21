@@ -930,6 +930,12 @@ app.post('/api/admin/staff', authenticateToken, async (req, res) => {
       const query = `INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Observer', $5) RETURNING id`;
       const resDb = await db.pool.query(query, [username.trim(), cleanEmail, hash, salt, cleanPhone]);
       res.status(201).json({ id: resDb.rows[0].id, username: username.trim(), email: cleanEmail, role: 'Observer', permissions: 'observer', phone: cleanPhone });
+    } else if (permissions === 'pharmacist') {
+      const salt = db.generateSalt();
+      const hash = db.hashPassword(password, salt);
+      const query = `INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Pharmacist', $5) RETURNING id`;
+      const resDb = await db.pool.query(query, [username.trim(), cleanEmail, hash, salt, cleanPhone]);
+      res.status(201).json({ id: resDb.rows[0].id, username: username.trim(), email: cleanEmail, role: 'Pharmacist', permissions: 'pharmacist', phone: cleanPhone });
     } else {
       const newStaff = await db.createStaffWithPermissions({
         username: username.trim(),
@@ -1613,29 +1619,284 @@ app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
   }
 });
 
+// --- MEDICINE MANAGEMENT ENDPOINTS (ADMIN & PHARMACIST) ---
+function canManageMedicines(user) {
+  if (!user || !user.role) return false;
+  const role = user.role.toLowerCase();
+  return role === 'admin' || role === 'pharmacist' || role === 'staff';
+}
+
+app.get('/api/admin/medicines', authenticateToken, async (req, res) => {
+  if (!canManageMedicines(req.user)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Pharmacist permissions required.' });
+  }
+
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 25;
+  const offset = (page - 1) * limit;
+  const search = req.query.search ? req.query.search.trim() : '';
+
+  try {
+    let countQuery = "SELECT COUNT(*) FROM medicines";
+    let dataQuery = "SELECT * FROM medicines";
+    const queryParams = [];
+
+    if (search) {
+      countQuery += " WHERE (brand_name ILIKE $1 OR generic ILIKE $1 OR manufacturer ILIKE $1)";
+      dataQuery += " WHERE (brand_name ILIKE $1 OR generic ILIKE $1 OR manufacturer ILIKE $1)";
+      queryParams.push(`%${search}%`);
+    }
+
+    const countRes = await db.pool.query(countQuery, queryParams);
+    const totalCount = parseInt(countRes.rows[0].count, 10);
+
+    dataQuery += ` ORDER BY id DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryParams.push(limit, offset);
+
+    const dataRes = await db.pool.query(dataQuery, queryParams);
+
+    res.json({
+      medicines: dataRes.rows,
+      totalCount,
+      page,
+      totalPages: Math.ceil(totalCount / limit) || 1
+    });
+  } catch (err) {
+    console.error('Error fetching admin medicines:', err);
+    res.status(500).json({ error: 'Database error fetching medicines.' });
+  }
+});
+
+app.post('/api/admin/medicines', authenticateToken, async (req, res) => {
+  if (!canManageMedicines(req.user)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Pharmacist permissions required.' });
+  }
+
+  const {
+    brand_name,
+    generic,
+    dosage_form,
+    strength,
+    manufacturer,
+    package_container,
+    package_size,
+    image_url,
+    type,
+    slug
+  } = req.body;
+
+  if (!brand_name || !brand_name.trim()) {
+    return res.status(400).json({ error: 'Brand name is required.' });
+  }
+
+  try {
+    const query = `
+      INSERT INTO medicines (brand_name, generic, dosage_form, strength, manufacturer, package_container, package_size, image_url, type, slug, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
+      RETURNING *
+    `;
+    const values = [
+      brand_name.trim(),
+      generic ? generic.trim() : null,
+      dosage_form ? dosage_form.trim() : null,
+      strength ? strength.trim() : null,
+      manufacturer ? manufacturer.trim() : null,
+      package_container ? package_container.trim() : null,
+      package_size ? package_size.trim() : null,
+      image_url ? image_url.trim() : null,
+      type ? type.trim() : 'allopathic',
+      slug ? slug.trim() : brand_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    ];
+
+    const result = await db.pool.query(query, values);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error adding medicine:', err);
+    res.status(500).json({ error: 'Failed to add medicine.' });
+  }
+});
+
+app.put('/api/admin/medicines/:id', authenticateToken, async (req, res) => {
+  if (!canManageMedicines(req.user)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Pharmacist permissions required.' });
+  }
+
+  const medId = parseInt(req.params.id, 10);
+  if (!medId) return res.status(400).json({ error: 'Invalid medicine ID.' });
+
+  const {
+    brand_name,
+    generic,
+    dosage_form,
+    strength,
+    manufacturer,
+    package_container,
+    package_size,
+    image_url,
+    is_active
+  } = req.body;
+
+  try {
+    const query = `
+      UPDATE medicines
+      SET brand_name = COALESCE($1, brand_name),
+          generic = COALESCE($2, generic),
+          dosage_form = COALESCE($3, dosage_form),
+          strength = COALESCE($4, strength),
+          manufacturer = COALESCE($5, manufacturer),
+          package_container = COALESCE($6, package_container),
+          package_size = COALESCE($7, package_size),
+          image_url = COALESCE($8, image_url),
+          is_active = COALESCE($9, is_active)
+      WHERE id = $10
+      RETURNING *
+    `;
+    const values = [
+      brand_name ? brand_name.trim() : null,
+      generic ? generic.trim() : null,
+      dosage_form ? dosage_form.trim() : null,
+      strength ? strength.trim() : null,
+      manufacturer ? manufacturer.trim() : null,
+      package_container ? package_container.trim() : null,
+      package_size ? package_size.trim() : null,
+      image_url ? image_url.trim() : null,
+      is_active !== undefined ? is_active : null,
+      medId
+    ];
+
+    const result = await db.pool.query(query, values);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Medicine not found.' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating medicine:', err);
+    res.status(500).json({ error: 'Failed to update medicine.' });
+  }
+});
+
+app.delete('/api/admin/medicines/:id', authenticateToken, async (req, res) => {
+  if (!canManageMedicines(req.user)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Pharmacist permissions required.' });
+  }
+
+  const medId = parseInt(req.params.id, 10);
+  if (!medId) return res.status(400).json({ error: 'Invalid medicine ID.' });
+
+  try {
+    const result = await db.pool.query("UPDATE medicines SET is_active = FALSE WHERE id = $1 RETURNING *", [medId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Medicine not found.' });
+    }
+    res.json({ message: 'Medicine deactivated successfully', medicine: result.rows[0] });
+  } catch (err) {
+    console.error('Error deactivating medicine:', err);
+    res.status(500).json({ error: 'Failed to deactivate medicine.' });
+  }
+});
+
+app.post('/api/admin/medicines/upload-csv', authenticateToken, async (req, res) => {
+  if (!canManageMedicines(req.user)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Pharmacist permissions required.' });
+  }
+
+  const { csvText, mode } = req.body;
+  if (!csvText || typeof csvText !== 'string' || !csvText.trim()) {
+    return res.status(400).json({ error: 'CSV content string is required.' });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    const lines = csvText.split(/\r?\n/).filter(line => line.trim().length > 0);
+    if (lines.length <= 1) {
+      return res.status(400).json({ error: 'CSV file contains no data rows.' });
+    }
+
+    lines.shift(); // Remove header row
+
+    await client.query('BEGIN');
+
+    if (mode === 'replace') {
+      await client.query('TRUNCATE TABLE medicines');
+    }
+
+    const batchSize = 200;
+    let insertedCount = 0;
+
+    for (let i = 0; i < lines.length; i += batchSize) {
+      const batchLines = lines.slice(i, i + batchSize);
+      const placeholders = [];
+      const values = [];
+      let valIdx = 1;
+
+      batchLines.forEach(line => {
+        const fields = parseCSVLine(line);
+        if (fields.length < 2 || !fields[1]) return;
+
+        const brandId = parseInt(fields[0], 10) || null;
+        const brandName = fields[1];
+        const type = fields[2] || 'allopathic';
+        const slug = fields[3] || brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const dosageForm = fields[4] || null;
+        const generic = fields[5] || null;
+        const strength = fields[6] || null;
+        const manufacturer = fields[7] || null;
+        const packageContainer = fields[8] || null;
+        const packageSize = fields[9] || null;
+        const imageUrl = fields[10] || null;
+
+        placeholders.push(`($${valIdx}, $${valIdx+1}, $${valIdx+2}, $${valIdx+3}, $${valIdx+4}, $${valIdx+5}, $${valIdx+6}, $${valIdx+7}, $${valIdx+8}, $${valIdx+9}, $${valIdx+10}, TRUE)`);
+        values.push(brandId, brandName, type, slug, dosageForm, generic, strength, manufacturer, packageContainer, packageSize, imageUrl);
+        valIdx += 11;
+        insertedCount++;
+      });
+
+      if (values.length > 0) {
+        const query = `
+          INSERT INTO medicines (brand_id, brand_name, type, slug, dosage_form, generic, strength, manufacturer, package_container, package_size, image_url, is_active)
+          VALUES ${placeholders.join(', ')}
+        `;
+        await client.query(query, values);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: `Successfully processed ${insertedCount} medicines!`, count: insertedCount });
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch(rollbackErr) {}
+    console.error('Error importing CSV medicines:', err);
+    res.status(500).json({ error: 'Failed to import CSV: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/medicines', authenticateToken, async (req, res) => {
   const search = req.query.q || '';
   try {
     let list;
     if (search) {
       const query = `
-        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer, package_container, package_size,
+        SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer, package_container, package_size
+        FROM medicines
+        WHERE (is_active IS NULL OR is_active = TRUE) AND (brand_name ILIKE $1 OR generic ILIKE $1)
+        ORDER BY
           CASE
             WHEN brand_name ILIKE $2 THEN 1
             WHEN brand_name ILIKE $1 THEN 2
             ELSE 3
-          END AS rank
-        FROM medicines
-        WHERE brand_name ILIKE $1 OR generic ILIKE $1
-        ORDER BY rank ASC, brand_name ASC
+          END ASC, brand_name ASC
         LIMIT 60
       `;
       const resDb = await db.pool.query(query, [`%${search}%`, `${search}%`]);
-      list = resDb.rows.map(({ rank, ...rest }) => rest);
+      list = resDb.rows;
     } else {
       const query = `
         SELECT id, brand_name AS name, generic, strength, dosage_form, manufacturer, package_container, package_size
         FROM medicines
+        WHERE (is_active IS NULL OR is_active = TRUE)
         ORDER BY brand_name ASC
         LIMIT 100
       `;

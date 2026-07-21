@@ -1,0 +1,4 @@
+brand_id,brand_name,type,slug,dosage_form,generic,strength,manufacturer,package_container,package_size,image_url
+1,Celofen,allopathic,celofentablet100-mg,Tablet,Aceclofenac,100 mg,ACI Limited,"Unit Price: ৳ 4.01, (50's pack: ৳ 200.50)",(50's pack: ৳ 200.50),
+2,Napa,allopathic,napatablet500-mg,Tablet,Paracetamol,500 mg,Beximco Pharmaceuticals Ltd.,"Unit Price: ৳ 1.20, (500's pack: ৳ 600.00)",(500's pack: ৳ 600.00),
+3,Merolab 1gm,allopathic,merolab1gmvial,Injection,Meropenem Trihydrate,1 gm/vial,Labaid Pharma Ltd.,"Unit Price: ৳ 1200.00, (1's vial: ৳ 1200.00)",1 gm vial: ৳ 1200.00,
