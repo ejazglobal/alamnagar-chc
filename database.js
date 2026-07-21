@@ -59,12 +59,33 @@ async function initializeDatabase() {
       )
     `);
 
-    // Drop old constraint if exists and re-add to allow Pharmacist role
+    // Dynamic cleanup of old check constraints on users and staff_permissions tables
     try {
-      await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
+      await pool.query(`
+        DO $$
+        DECLARE r RECORD;
+        BEGIN
+          FOR r IN (
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE table_name = 'users' AND constraint_type = 'CHECK'
+          ) LOOP
+            EXECUTE 'ALTER TABLE users DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name);
+          END LOOP;
+
+          FOR r IN (
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE table_name = 'staff_permissions' AND constraint_type = 'CHECK'
+          ) LOOP
+            EXECUTE 'ALTER TABLE staff_permissions DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name);
+          END LOOP;
+        END $$;
+      `);
       await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist'))`);
+      await pool.query(`ALTER TABLE staff_permissions ADD CONSTRAINT staff_permissions_check CHECK(permissions IN ('news', 'doctors', 'all', 'pharmacist'))`);
     } catch (cErr) {
-      console.log('Role check constraint update note:', cErr.message);
+      console.log('Role/Permissions check constraint update note:', cErr.message);
     }
 
     // 3. Create appointments table
@@ -112,7 +133,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS staff_permissions (
         id SERIAL PRIMARY KEY,
         user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-        permissions VARCHAR(50) NOT NULL CHECK(permissions IN ('news', 'doctors', 'all'))
+        permissions VARCHAR(50) NOT NULL CHECK(permissions IN ('news', 'doctors', 'all', 'pharmacist'))
       )
     `);
 
@@ -699,11 +720,12 @@ module.exports = {
       SELECT users.id, users.username, users.email, 
              CASE 
                WHEN users.role = 'Observer' THEN 'observer'
-               ELSE staff_permissions.permissions 
+               WHEN users.role = 'Pharmacist' THEN 'pharmacist'
+               ELSE COALESCE(staff_permissions.permissions, 'pharmacist')
              END as permissions 
       FROM users 
       LEFT JOIN staff_permissions ON users.id = staff_permissions.user_id 
-      WHERE users.role IN ('Staff', 'Observer')
+      WHERE users.role IN ('Staff', 'Observer', 'Pharmacist')
       ORDER BY users.username ASC
     `);
     return res.rows;
@@ -718,9 +740,10 @@ module.exports = {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      const userRole = permissions === 'pharmacist' ? 'Pharmacist' : 'Staff';
       const userRes = await client.query(
-        "INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Staff', $5) RETURNING id",
-        [username, email || null, hash, salt, normalizedPhone]
+        "INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+        [username, email || null, hash, salt, userRole, normalizedPhone]
       );
       const userId = userRes.rows[0].id;
       await client.query(
@@ -728,7 +751,7 @@ module.exports = {
         [userId, permissions]
       );
       await client.query('COMMIT');
-      return { id: userId, username, email: email || null, role: 'Staff', permissions, phone: normalizedPhone };
+      return { id: userId, username, email: email || null, role: userRole, permissions, phone: normalizedPhone };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
@@ -742,7 +765,7 @@ module.exports = {
     try {
       await client.query('BEGIN');
       await client.query("DELETE FROM staff_permissions WHERE user_id = $1", [userId]);
-      const res = await client.query("DELETE FROM users WHERE id = $1 AND role IN ('Staff', 'Observer')", [userId]);
+      const res = await client.query("DELETE FROM users WHERE id = $1 AND role IN ('Staff', 'Observer', 'Pharmacist')", [userId]);
       await client.query('COMMIT');
       return { changes: res.rowCount };
     } catch (e) {
