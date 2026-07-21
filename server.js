@@ -930,12 +930,6 @@ app.post('/api/admin/staff', authenticateToken, async (req, res) => {
       const query = `INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Observer', $5) RETURNING id`;
       const resDb = await db.pool.query(query, [username.trim(), cleanEmail, hash, salt, cleanPhone]);
       res.status(201).json({ id: resDb.rows[0].id, username: username.trim(), email: cleanEmail, role: 'Observer', permissions: 'observer', phone: cleanPhone });
-    } else if (permissions === 'pharmacist') {
-      const salt = db.generateSalt();
-      const hash = db.hashPassword(password, salt);
-      const query = `INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Pharmacist', $5) RETURNING id`;
-      const resDb = await db.pool.query(query, [username.trim(), cleanEmail, hash, salt, cleanPhone]);
-      res.status(201).json({ id: resDb.rows[0].id, username: username.trim(), email: cleanEmail, role: 'Pharmacist', permissions: 'pharmacist', phone: cleanPhone });
     } else {
       const newStaff = await db.createStaffWithPermissions({
         username: username.trim(),

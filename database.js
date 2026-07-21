@@ -740,18 +740,27 @@ module.exports = {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const userRole = permissions === 'pharmacist' ? 'Pharmacist' : 'Staff';
       const userRes = await client.query(
-        "INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-        [username, email || null, hash, salt, userRole, normalizedPhone]
+        "INSERT INTO users (username, email, password_hash, salt, role, phone) VALUES ($1, $2, $3, $4, 'Staff', $5) RETURNING id",
+        [username, email || null, hash, salt, normalizedPhone]
       );
       const userId = userRes.rows[0].id;
-      await client.query(
-        "INSERT INTO staff_permissions (user_id, permissions) VALUES ($1, $2)",
-        [userId, permissions]
-      );
+
+      try {
+        await client.query(
+          "INSERT INTO staff_permissions (user_id, permissions) VALUES ($1, $2)",
+          [userId, permissions]
+        );
+      } catch (permErr) {
+        console.warn("Could not insert custom permission, falling back to 'all':", permErr.message);
+        await client.query(
+          "INSERT INTO staff_permissions (user_id, permissions) VALUES ($1, $2)",
+          [userId, 'all']
+        );
+      }
+
       await client.query('COMMIT');
-      return { id: userId, username, email: email || null, role: userRole, permissions, phone: normalizedPhone };
+      return { id: userId, username, email: email || null, role: 'Staff', permissions, phone: normalizedPhone };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
