@@ -915,9 +915,15 @@ function setupEventListeners() {
         showBookingSuccess(newAppt);
       } else {
         // Direct appointment booking without showing OTP modal (temporarily bypassed)
+        const headers = { 'Content-Type': 'application/json' };
+        const token = localStorage.getItem('chc_token');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch('/api/appointments/confirm-with-otp', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             otp: 'bypass',
             appointment: payload
@@ -1005,6 +1011,11 @@ function renderAuthNav() {
     const nameField = document.getElementById('patient-name');
     if (nameField && !nameField.value) {
       nameField.value = name || '';
+    }
+    const phoneField = document.getElementById('patient-phone');
+    if (phoneField && !phoneField.value) {
+      const savedPhone = localStorage.getItem('chc_user_phone');
+      if (savedPhone) phoneField.value = savedPhone;
     }
   } else {
     navMenu.innerHTML = `

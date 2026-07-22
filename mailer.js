@@ -23,6 +23,13 @@ function normalizeBDPhoneNumber(phone) {
 
 // Helper to send real SMS via Shiram System API or MiMSMS API V2
 function sendSMS(to, message) {
+  if (!to) return;
+  const cleanDigits = to.toString().replace(/\D/g, '');
+  if (cleanDigits.endsWith('01711111111') || cleanDigits.endsWith('01700000000')) {
+    console.log(`[SMS BYPASS] Skipping real SMS send to test account number: ${to}`);
+    return;
+  }
+
   const smsProvider = (process.env.SMS_PROVIDER || 'shiram').toLowerCase();
   const normalizedPhone = normalizeBDPhoneNumber(to);
 
