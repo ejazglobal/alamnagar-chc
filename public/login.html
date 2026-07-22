@@ -427,7 +427,7 @@
     });
 
     function redirect(role) {
-      if (role === 'Admin' || role === 'Staff') {
+      if (role === 'Admin' || role === 'Staff' || role === 'Observer' || role === 'Pharmacist') {
         window.location.href = 'admin.html';
       } else if (role === 'Doctor') {
         window.location.href = 'doctor.html';
