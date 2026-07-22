@@ -180,7 +180,7 @@ function renderPrescription(visit) {
           <span style="font-weight: 600; color: #0d9488;">Advice:</span> <em>${escapeHTML(m.advice)}</em>
         </td>
       </tr>` : ''}
-    `.join('') ;
+    `).join('') ;
   } else {
     medsHtml = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: #64748b;">No medicines prescribed</td></tr>';
   }
