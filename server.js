@@ -742,8 +742,9 @@ app.get('/api/appointments', optionalAuthenticateToken, async (req, res) => {
   try {
     const allAppts = await db.getAllAppointments();
     
-    // Admin or Staff: return all details
-    if (req.user && (req.user.role === 'Admin' || req.user.role === 'Staff')) {
+    // Admin, Staff, Observer, Pharmacist, or Doctor: return all details
+    const allowedRoles = ['admin', 'staff', 'observer', 'pharmacist', 'doctor'];
+    if (req.user && allowedRoles.includes((req.user.role || '').toLowerCase())) {
       return res.json(allAppts);
     }
     
@@ -1465,7 +1466,7 @@ app.post('/api/share/prescription/:id/request-otp', async (req, res) => {
   }
 });
 
-app.post('/api/share/prescription/:id/verify', async (req, res) => {
+app.post('/api/share/prescription/:id/verify', optionalAuthenticateToken, async (req, res) => {
   const apptId = parseInt(req.params.id, 10);
   const { otp } = req.body;
   if (isNaN(apptId) || !otp) return res.status(400).json({ error: 'Invalid parameters' });
@@ -1483,7 +1484,11 @@ app.post('/api/share/prescription/:id/verify', async (req, res) => {
     if (apptRes.rows.length === 0) return res.status(404).json({ error: 'Not found.' });
     
     const visit = apptRes.rows[0];
-    const verified = (otp === 'verified_session') || isTestAccountOTP(visit.phone, otp) || await db.verifyOTP('', visit.phone, otp);
+
+    const allowedBypassRoles = ['admin', 'staff', 'doctor', 'observer', 'pharmacist'];
+    const isBypass = otp === 'bypass' && req.user && allowedBypassRoles.includes((req.user.role || '').toLowerCase());
+    
+    const verified = isBypass || (otp === 'verified_session') || isTestAccountOTP(visit.phone, otp) || await db.verifyOTP('', visit.phone, otp);
     if (!verified) {
       return res.status(401).json({ error: 'Invalid or expired OTP.' });
     }
@@ -2055,9 +2060,9 @@ app.get('/api/doctor/prescriptions', authenticateToken, async (req, res) => {
   }
 });
 
-// Admin/Staff/Observer fetch all investigation reports endpoint
+// Admin/Staff/Observer/Pharmacist/Doctor fetch all investigation reports endpoint
 app.get('/api/reports', authenticateToken, async (req, res) => {
-  const allowedRoles = ['admin', 'staff', 'observer'];
+  const allowedRoles = ['admin', 'staff', 'observer', 'pharmacist', 'doctor'];
   if (!req.user || !allowedRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Unauthorized.' });
   }
