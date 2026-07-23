@@ -1137,7 +1137,8 @@ function applyStaffPermissionsFilter() {
       'gallery-upload-form',
       'gallery-manage-tbody',
       'admin-staff-section',
-      'change-password-form'
+      'change-password-form',
+      'admin-medicine-section'
     ];
     panelsToHide.forEach(id => {
       const el = document.getElementById(id);
@@ -1183,6 +1184,10 @@ function applyStaffPermissionsFilter() {
         const panel = docTable.closest('.panel');
         if (panel) panel.style.display = 'none';
       }
+      const medSec = document.getElementById('admin-medicine-section');
+      if (medSec) {
+        medSec.style.display = 'none';
+      }
     } else if (permissions === 'doctors') {
       const newsForm = document.getElementById('news-post-form');
       if (newsForm) {
@@ -1199,6 +1204,31 @@ function applyStaffPermissionsFilter() {
         const panel = galleryForm.closest('.panel');
         if (panel) panel.style.display = 'none';
       }
+      const medSec = document.getElementById('admin-medicine-section');
+      if (medSec) {
+        medSec.style.display = 'none';
+      }
+    } else if (permissions === 'pharmacist') {
+      const panelsToHide = [
+        'news-post-form',
+        'news-manage-tbody',
+        'doctor-post-form',
+        'doctors-manage-tbody',
+        'gallery-upload-form',
+        'gallery-manage-tbody',
+        'admin-staff-section'
+      ];
+      panelsToHide.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          const panel = el.closest('.panel') || el.closest('section');
+          if (panel) panel.style.display = 'none';
+        }
+      });
+      const heroP = document.querySelector('.hero-content p');
+      if (heroP) heroP.textContent = 'Manage medicine inventories, brand pricing, generic strengths, and import bulk dataset CSV files.';
+      const heroH1 = document.querySelector('.hero-content h1');
+      if (heroH1) heroH1.textContent = 'Pharmacy & Medicine Master Console';
     }
   }
 }

@@ -1622,7 +1622,11 @@ app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
 function canManageMedicines(user) {
   if (!user || !user.role) return false;
   const role = user.role.toLowerCase();
-  return role === 'admin' || role === 'pharmacist' || role === 'staff';
+  if (role === 'admin' || role === 'pharmacist') return true;
+  if (role === 'staff') {
+    return user.permissions === 'pharmacist' || user.permissions === 'all';
+  }
+  return false;
 }
 
 app.get('/api/admin/medicines', authenticateToken, async (req, res) => {
