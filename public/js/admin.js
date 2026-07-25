@@ -1621,7 +1621,7 @@ window.printAdminPrescription = function() {
         <link rel="icon" type="image/png" href="favicon.png">
         <style>
           @page { size: A4 portrait; margin: 10mm 12mm 10mm 12mm; }
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; margin: 0; line-height: 1.5; color: #0f172a; width: 100%; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; margin: 0; line-height: 1.5; color: #0f172a; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; min-height: 262mm; }
           .print-header { display: flex; justify-content: space-between; border-bottom: 2px solid #0d9488; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
           .print-logo-section { display: flex; align-items: center; gap: 0.75rem; }
           .print-clinic-meta { display: flex; flex-direction: column; }
@@ -1642,7 +1642,7 @@ window.printAdminPrescription = function() {
           .print-med-table { width: 100%; border-collapse: collapse; }
           .print-med-table th, .print-med-table td { border-bottom: 1px solid #e2e8f0; padding: 0.5rem; text-align: left; font-size: 0.85rem; }
           .print-med-table th { color: #64748b; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; }
-          .print-footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 3rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem; }
+          .print-footer-section { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
           .print-signature-area { display: flex; flex-direction: column; align-items: center; }
         </style>
       </head>
@@ -1723,17 +1723,25 @@ window.printAdminPrescription = function() {
           </div>
         </div>
 
+        <!-- Doctor Signature Section -->
         <div class="print-footer-section">
-          <div style="font-size: 0.72rem; color: #64748b; text-align: left; max-width: 65%; line-height: 1.4; margin-bottom: 0.25rem;">
-            <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.5px; display: block; margin-bottom: 3px;">Digital Verification Link</span>
-            To view or download this prescription digitally, scan the SMS code sent to your phone or visit:<br>
-            <span style="color: #0f172a; font-weight: 600; word-break: break-all;">${baseOrigin}/share.html?id=${p.appointment_id}</span>
-          </div>
           <div class="print-signature-area">
             ${signatureHtml}
             <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">
               Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}
             </div>
+          </div>
+        </div>
+
+        <!-- Absolute Bottom Page Footer with Digital Link and QR Code -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #cbd5e1; padding-top: 0.5rem; margin-top: auto;">
+          <div style="font-size: 0.72rem; color: #64748b; text-align: left; max-width: 75%; line-height: 1.4;">
+            <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Digital Prescription Link (Secure OTP Required)</span>
+            To view, download, or verify this prescription online, scan the QR code on the right or visit:<br>
+            <span style="color: #0f172a; font-weight: 600; word-break: break-all;">${baseOrigin}/share.html?id=${p.appointment_id}</span>
+          </div>
+          <div style="text-align: right;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(baseOrigin + '/share.html?id=' + p.appointment_id)}" alt="QR Code" style="width: 50px; height: 50px; display: block;">
           </div>
         </div>
         <script>
