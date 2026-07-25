@@ -678,15 +678,13 @@ window.printPortalPrescription = function() {
           </div>
         </div>
         <script>
-          window.onload = function() { window.print(); window.close(); }
+          window.onload = function() { window.focus(); window.print(); }
         </script>
       </body>
     </html>
   `;
 
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-  if (window.AndroidPrint || isMobile) {
+  if (window.AndroidPrint) {
     let printContainer = document.getElementById('android-print-container');
     if (!printContainer) {
       printContainer = document.createElement('div');
@@ -701,9 +699,25 @@ window.printPortalPrescription = function() {
     return;
   }
 
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(content);
-  printWindow.document.close();
+  // Use a hidden iframe for print isolation in all standard web browsers (desktop & mobile)
+  let iframe = document.getElementById('print-prescription-iframe');
+  if (iframe) {
+    iframe.parentNode.removeChild(iframe);
+  }
+  
+  iframe = document.createElement('iframe');
+  iframe.id = 'print-prescription-iframe';
+  iframe.style.position = 'fixed';
+  iframe.style.width = '0px';
+  iframe.style.height = '0px';
+  iframe.style.border = 'none';
+  iframe.style.visibility = 'hidden';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(content);
+  doc.close();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
