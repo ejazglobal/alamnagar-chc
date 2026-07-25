@@ -488,6 +488,8 @@ window.printPortalPrescription = function() {
   const p = window.currentPortalPrescription;
   if (!p) return alert('No prescription loaded to print.');
 
+  const baseOrigin = window.Capacitor ? (window.API_BASE_URL || 'https://ashiana.online') : window.location.origin;
+
   let medsList = [];
   try {
     medsList = typeof p.medicines === 'string' ? JSON.parse(p.medicines) : p.medicines;
@@ -549,6 +551,7 @@ window.printPortalPrescription = function() {
     <html>
       <head>
         <title>Prescription Print</title>
+        <link rel="icon" type="image/png" href="favicon.png">
         <style>
           @page { size: A4 portrait; margin: 10mm 12mm 10mm 12mm; }
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; margin: 0; line-height: 1.5; color: #0f172a; width: 100%; box-sizing: border-box; }
@@ -572,7 +575,7 @@ window.printPortalPrescription = function() {
           .print-med-table { width: 100%; border-collapse: collapse; }
           .print-med-table th, .print-med-table td { border-bottom: 1px solid #e2e8f0; padding: 0.5rem; text-align: left; font-size: 0.85rem; }
           .print-med-table th { color: #64748b; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; }
-          .print-footer-section { display: flex; justify-content: flex-end; margin-top: 2rem; }
+          .print-footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 3rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem; }
           .print-signature-area { display: flex; flex-direction: column; align-items: center; }
         </style>
       </head>
@@ -654,6 +657,11 @@ window.printPortalPrescription = function() {
         </div>
 
         <div class="print-footer-section">
+          <div style="font-size: 0.72rem; color: #64748b; text-align: left; max-width: 65%; line-height: 1.4; margin-bottom: 0.25rem;">
+            <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.5px; display: block; margin-bottom: 3px;">Digital Verification Link</span>
+            To view or download this prescription digitally, scan the SMS code sent to your phone or visit:<br>
+            <span style="color: #0f172a; font-weight: 600; word-break: break-all;">${baseOrigin}/share.html?id=${p.appointment_id}</span>
+          </div>
           <div class="print-signature-area">
             ${signatureHtml}
             <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">
