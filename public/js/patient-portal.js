@@ -232,7 +232,7 @@ async function loadMyReports() {
     let digits = currentPhone.replace(/\D/g, '');
     if (digits.startsWith('0') && digits.length === 11) digits = '88' + digits;
 
-    const res = await fetch(`/api/reports/${digits}`, {
+    const res = await fetch(`/api/reports/${digits}?t=${Date.now()}`, {
       headers: { 'Authorization': `Bearer ${portalToken}` }
     });
     
@@ -334,7 +334,7 @@ async function loadMyPrescriptions() {
   container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading prescriptions...</div>';
 
   try {
-    const res = await fetch('/api/patient/prescriptions', {
+    const res = await fetch(`/api/patient/prescriptions?t=${Date.now()}`, {
       headers: { 'Authorization': `Bearer ${portalToken}` }
     });
 
@@ -378,7 +378,7 @@ window.viewPrescriptionDetails = async function(appointmentId) {
   modal.style.display = 'flex';
 
   try {
-    const res = await fetch(`/api/prescriptions/${appointmentId}`, {
+    const res = await fetch(`/api/prescriptions/${appointmentId}?t=${Date.now()}`, {
       headers: { 'Authorization': `Bearer ${portalToken}` }
     });
 
@@ -684,7 +684,9 @@ window.printPortalPrescription = function() {
     </html>
   `;
 
-  if (window.AndroidPrint) {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  if (window.AndroidPrint || isMobile) {
     let printContainer = document.getElementById('android-print-container');
     if (!printContainer) {
       printContainer = document.createElement('div');

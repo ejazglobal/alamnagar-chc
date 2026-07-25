@@ -1751,7 +1751,9 @@ window.printAdminPrescription = function() {
     </html>
   `;
 
-  if (window.AndroidPrint) {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  if (window.AndroidPrint || isMobile) {
     let printContainer = document.getElementById('android-print-container');
     if (!printContainer) {
       printContainer = document.createElement('div');

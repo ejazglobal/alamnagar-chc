@@ -48,8 +48,6 @@
   });
 
   window.runAndroidPrintFlow = function(targetElement, cleanupCallback) {
-    if (!window.AndroidPrint) return;
-
     // Add android-printing class to body
     document.body.classList.add('android-printing');
 
@@ -110,9 +108,13 @@
     if (btn) btn.onclick = exitPrintMode;
     window.addEventListener('afterprint', exitPrintMode);
 
-    // Call print bridge after a short delay
+    // Call print bridge or standard print after a short delay
     setTimeout(() => {
-      window.AndroidPrint.printPage();
+      if (window.AndroidPrint) {
+        window.AndroidPrint.printPage();
+      } else {
+        window.print();
+      }
     }, 500);
   };
 })();
