@@ -132,6 +132,7 @@
     }
 
     @media print {
+      @page { size: A4 portrait; margin: 10mm 12mm 10mm 12mm; }
       body { background: white; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 262mm; }
       .no-print { display: none !important; }
       #prescription-view { box-shadow: none; padding: 0; margin: 0; max-width: 100%; flex: 1; display: flex; flex-direction: column; }
