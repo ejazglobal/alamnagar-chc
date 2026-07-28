@@ -2141,10 +2141,10 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
     });
 
     if (appointment_id !== 'walkin') {
-      // Update appointment demographics (Age, Gender, Weight, and Address)
+      // Update appointment demographics (Patient Name, Age, Gender, Weight, and Address)
       await db.pool.query(
-        "UPDATE appointments SET age = $1, gender = $2, weight = $3, address = $4 WHERE id = $5",
-        [age || '', gender || '', weight || '', address || '', targetApptId]
+        "UPDATE appointments SET age = $1, gender = $2, weight = $3, address = $4, patient_name = $5 WHERE id = $6",
+        [age || '', gender || '', weight || '', address || '', patient_name || '', targetApptId]
       );
 
       // If this appointment is linked to a registered user, also save address to their profile

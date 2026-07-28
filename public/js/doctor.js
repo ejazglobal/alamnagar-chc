@@ -497,6 +497,7 @@ async function selectPatient(appointment) {
   });
   
   // Populate demographics inputs
+  document.getElementById('patient-name-input').value = appointment.patient_name || '';
   document.getElementById('patient-age').value = appointment.age || '';
   document.getElementById('patient-gender').value = appointment.gender || 'Male';
   document.getElementById('patient-weight').value = appointment.weight || '';
@@ -960,7 +961,7 @@ window.savePrescription = async function() {
     return;
   }
 
-  let patient_name = '';
+  let patient_name = document.getElementById('patient-name-input') ? document.getElementById('patient-name-input').value.trim() : '';
   let phone = '';
 
   if (activeAppointment.id === 'walkin') {
@@ -972,6 +973,12 @@ window.savePrescription = async function() {
     }
     if (!phone || !/^\+?[0-9\s\-]{8,15}$/.test(phone)) {
       alert('Please enter a valid mobile number.');
+      return;
+    }
+  } else {
+    phone = activeAppointment.phone;
+    if (!patient_name) {
+      alert('Please enter patient name.');
       return;
     }
   }
@@ -1201,7 +1208,8 @@ window.printPrescription = function() {
   const weight = document.getElementById('patient-weight').value.trim() || 'N/A';
   const address = document.getElementById('patient-address').value.trim() || 'N/A';
   
-  document.getElementById('print-patient-name').textContent = activeAppointment.patient_name;
+  const patientNameVal = document.getElementById('patient-name-input') ? document.getElementById('patient-name-input').value.trim() : activeAppointment.patient_name;
+  document.getElementById('print-patient-name').textContent = patientNameVal;
   document.getElementById('print-patient-age').textContent = age;
   document.getElementById('print-patient-gender').textContent = gender;
   document.getElementById('print-patient-date').textContent = new Date(activeAppointment.appointment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -2043,10 +2051,13 @@ window.modifyPrescription = function(appointmentId) {
   if (typeof state === 'string') state = JSON.parse(state);
   
   if (state) {
+    document.getElementById('patient-name-input').value = state.patient_name || activeAppointment.patient_name || '';
     if (state.age) document.getElementById('patient-age').value = state.age;
     if (state.gender) document.getElementById('patient-gender').value = state.gender;
     if (state.weight) document.getElementById('patient-weight').value = state.weight;
     if (state.address) document.getElementById('patient-address').value = state.address;
+  } else {
+    document.getElementById('patient-name-input').value = activeAppointment.patient_name || '';
   }
   
   const adviceVal = visit.general_advice || state?.general_advice || '';
@@ -2441,6 +2452,7 @@ window.startWalkInPrescription = function() {
   document.getElementById('findings-input').value = '';
   document.getElementById('diag-custom').value = '';
   document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.getElementById('patient-name-input').value = '';
   document.getElementById('patient-age').value = '';
   document.getElementById('patient-gender').value = 'Male';
   document.getElementById('patient-weight').value = '';

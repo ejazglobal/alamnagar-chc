@@ -268,10 +268,11 @@ function renderPrescription(visit) {
     <!-- Footer & Next Visit Section -->
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 2rem; page-break-inside: avoid;">
       <!-- Next Visit Instructions -->
+      ${nextVisitVal ? `
       <div style="font-size: 0.85rem; color: #1e293b; max-width: 60%; line-height: 1.5; text-align: left; padding-bottom: 0.5rem;">
-        ${nextVisitVal ? `আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন পর দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।` : ''}
-      </div>
-      <div style="display: flex; flex-direction: column; align-items: center;">
+        আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন পর দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।
+      </div>` : ''}
+      <div style="display: flex; flex-direction: column; align-items: center; margin-left: auto;">
         ${sigImg}
         <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">
           Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}
