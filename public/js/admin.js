@@ -1580,8 +1580,21 @@ window.printAdminPrescription = function() {
     diagsHtml = '<li>None recommended</li>';
   }
 
+  const pHeight = p.height || rich.height || '';
+  const pAllergies = p.allergies || rich.allergies || '';
+  const pGlucose = p.blood_glucose || rich.blood_glucose || '';
+  const pWeight = p.weight || rich.weight || '';
+  let pBmi = '';
+  if (pHeight && pWeight) {
+    const h = parseFloat(pHeight);
+    const w = parseFloat(pWeight);
+    if (h > 0 && w > 0) {
+      pBmi = (w / ((h / 100) * (h / 100))).toFixed(1);
+    }
+  }
+
   let vitalsHtml = '';
-  if (p.bp || p.temperature || p.pulse) {
+  if (p.bp || p.temperature || p.pulse || pGlucose) {
     let items = [];
     if (p.bp) {
       const bpFormatted = p.bp.toLowerCase().includes('mmhg') ? p.bp : `${p.bp} mmHg`;
@@ -1594,6 +1607,10 @@ window.printAdminPrescription = function() {
     if (p.pulse) {
       const pulseFormatted = p.pulse.toLowerCase().includes('bpm') ? p.pulse : `${p.pulse} bpm`;
       items.push(`<div><strong>Pulse:</strong> ${escapeHTML(pulseFormatted)}</div>`);
+    }
+    if (pGlucose) {
+      const glucoseFormatted = pGlucose.toLowerCase().includes('mmol') || pGlucose.toLowerCase().includes('rbs') || pGlucose.toLowerCase().includes('fbs') ? pGlucose : `RBS: ${pGlucose} mmol/L`;
+      items.push(`<div><strong>Blood Glucose:</strong> ${escapeHTML(glucoseFormatted)}</div>`);
     }
     vitalsHtml = `
       <div style="margin-top: 1.2rem;">
@@ -1673,8 +1690,17 @@ window.printAdminPrescription = function() {
           <div><strong>Gender:</strong> ${escapeHTML(p.gender || 'N/A')}</div>
           <div><strong>Date:</strong> ${formattedDate}</div>
           <div style="grid-column: span 2;"><strong>Address:</strong> ${escapeHTML(p.address || 'N/A')}</div>
-          <div><strong>Weight:</strong> ${escapeHTML(p.weight || 'N/A')}</div>
           <div><strong>Phone:</strong> ${escapeHTML(p.patient_phone || p.phone || 'N/A')}</div>
+          <div>
+            <strong>Weight:</strong> ${escapeHTML(pWeight || 'N/A')} kg
+            ${pHeight ? ` | <strong>Height:</strong> ${escapeHTML(pHeight)} cm` : ''}
+            ${pBmi ? ` | <strong>BMI:</strong> ${escapeHTML(pBmi)}` : ''}
+          </div>
+          ${pAllergies && pAllergies.toLowerCase() !== 'none' ? `
+          <div style="grid-column: span 4; color: #dc2626; font-weight: 700; margin-top: 2px;">
+            <strong>ALLERGIES:</strong> ${escapeHTML(pAllergies)}
+          </div>
+          ` : ''}
         </div>
 
         <div class="print-body-layout">

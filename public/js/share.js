@@ -132,8 +132,21 @@ function renderPrescription(visit) {
   const bpVal = state?.bp || visit.bp || '';
   const temp = state?.temperature || visit.temperature || '';
   const pulse = state?.pulse || visit.pulse || '';
+  const glucose = visit.blood_glucose || state?.blood_glucose || '';
+
+  const pHeight = visit.height || state?.height || '';
+  const pAllergies = visit.allergies || state?.allergies || '';
+  let pBmi = '';
+  if (pHeight && pWeight) {
+    const h = parseFloat(pHeight);
+    const w = parseFloat(pWeight);
+    if (h > 0 && w > 0) {
+      pBmi = (w / ((h / 100) * (h / 100))).toFixed(1);
+    }
+  }
+
   let vitalsHtml = '';
-  if (bpVal || temp || pulse) {
+  if (bpVal || temp || pulse || glucose) {
     let items = [];
     if (bpVal) {
       const bpFormatted = bpVal.toLowerCase().includes('mmhg') ? bpVal : `${bpVal} mmHg`;
@@ -146,6 +159,10 @@ function renderPrescription(visit) {
     if (pulse) {
       const pulseFormatted = pulse.toLowerCase().includes('bpm') ? pulse : `${pulse} bpm`;
       items.push(`<div><strong>Pulse:</strong> ${escapeHTML(pulseFormatted)}</div>`);
+    }
+    if (glucose) {
+      const glucoseFormatted = glucose.toLowerCase().includes('mmol') || glucose.toLowerCase().includes('rbs') || glucose.toLowerCase().includes('fbs') ? glucose : `RBS: ${glucose} mmol/L`;
+      items.push(`<div><strong>Blood Glucose:</strong> ${escapeHTML(glucoseFormatted)}</div>`);
     }
     vitalsHtml = `
       <div style="margin-top: 1.2rem;">
@@ -214,8 +231,17 @@ function renderPrescription(visit) {
       <div><strong>Gender:</strong> ${escapeHTML(pGender)}</div>
       <div><strong>Date:</strong> ${pDate}</div>
       <div style="grid-column: span 2;"><strong>Address:</strong> ${escapeHTML(pAddress)}</div>
-      <div><strong>Weight:</strong> ${escapeHTML(pWeight)}</div>
       <div><strong>Phone:</strong> ${escapeHTML(pPhone)}</div>
+      <div>
+        <strong>Weight:</strong> ${escapeHTML(pWeight)} kg
+        ${pHeight ? ` | <strong>Height:</strong> ${escapeHTML(pHeight)} cm` : ''}
+        ${pBmi ? ` | <strong>BMI:</strong> ${escapeHTML(pBmi)}` : ''}
+      </div>
+      ${pAllergies && pAllergies.toLowerCase() !== 'none' ? `
+      <div style="grid-column: span 4; color: #dc2626; font-weight: 700; margin-top: 2px;">
+        <strong>ALLERGIES:</strong> ${escapeHTML(pAllergies)}
+      </div>
+      ` : ''}
     </div>
 
     <!-- Body Layout -->

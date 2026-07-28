@@ -735,30 +735,49 @@
 
 
         <!-- Patient Demographics and Clinical Metrics Form -->
-        <div class="patient-metrics-form" style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1.5fr; gap: 0.75rem; background: #f8fafc; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Patient Name *</label>
-            <input type="text" id="patient-name-input" class="form-control" placeholder="Patient Name" style="background: white;" required>
+        <div class="patient-metrics-form" style="display: flex; flex-direction: column; gap: 0.75rem; background: #f8fafc; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+          <!-- Demographics Row 1 -->
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.5fr; gap: 0.75rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Patient Name *</label>
+              <input type="text" id="patient-name-input" class="form-control" placeholder="Patient Name" style="background: white;" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Age *</label>
+              <input type="text" id="patient-age" class="form-control" placeholder="e.g. 28 Yrs" style="background: white;" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Gender *</label>
+              <select id="patient-gender" class="form-control" style="background: white;" required>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Patient Address</label>
+              <input type="text" id="patient-address" class="form-control" placeholder="e.g. Dhaka, Bangladesh" style="background: white;">
+            </div>
           </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Age *</label>
-            <input type="text" id="patient-age" class="form-control" placeholder="e.g. 28 Yrs" style="background: white;" required>
-          </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Gender *</label>
-            <select id="patient-gender" class="form-control" style="background: white;" required>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Weight</label>
-            <input type="text" id="patient-weight" class="form-control" placeholder="e.g. 68 kg" style="background: white;">
-          </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Patient Address</label>
-            <input type="text" id="patient-address" class="form-control" placeholder="e.g. Dhaka, Bangladesh" style="background: white;">
+          
+          <!-- Demographics Row 2 -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 0.75rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Height (cm)</label>
+              <input type="number" id="patient-height" class="form-control" placeholder="e.g. 170" style="background: white;" oninput="if(window.calculateBMI) window.calculateBMI();">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Weight (kg)</label>
+              <input type="number" id="patient-weight" class="form-control" placeholder="e.g. 65" style="background: white;" oninput="if(window.calculateBMI) window.calculateBMI();">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Calculated BMI</label>
+              <input type="text" id="patient-bmi" class="form-control" placeholder="BMI (auto)" style="background: #e2e8f0; font-weight: 600;" readonly>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: var(--primary-hover);">Allergies</label>
+              <input type="text" id="patient-allergies" class="form-control" placeholder="e.g. None, or Penicillin, Sulfa" style="background: white;">
+            </div>
           </div>
         </div>
 
@@ -806,6 +825,13 @@
                   <div class="vital-input-row">
                     <input type="text" id="vital-pulse" class="vital-input" placeholder="e.g. 88">
                     <span class="vital-unit">bpm</span>
+                  </div>
+                </div>
+                <div class="vital-field">
+                  <label class="vital-label">Blood Glucose</label>
+                  <div class="vital-input-row">
+                    <input type="text" id="vital-glucose" class="vital-input" placeholder="e.g. RBS 6.8">
+                    <span class="vital-unit">mmol/L</span>
                   </div>
                 </div>
               </div>
@@ -1200,8 +1226,14 @@
       <div><strong>Date:</strong> <span id="print-patient-date">...</span></div>
       
       <div style="grid-column: span 2;"><strong>Address:</strong> <span id="print-patient-address">...</span></div>
-      <div><strong>Weight:</strong> <span id="print-patient-weight">...</span></div>
       <div><strong>Phone:</strong> <span id="print-patient-phone">...</span></div>
+      <div>
+        <strong>Weight:</strong> <span id="print-patient-weight">...</span> kg<span id="print-patient-height-wrapper" style="display: none;"> | <strong>Height:</strong> <span id="print-patient-height">...</span> cm</span><span id="print-patient-bmi-wrapper" style="display: none;"> | <strong>BMI:</strong> <span id="print-patient-bmi">...</span></span>
+      </div>
+      
+      <div id="print-patient-allergies-wrapper" style="display: none; grid-column: span 4; color: #dc2626; font-weight: 700; margin-top: 2px;">
+        <strong>ALLERGIES:</strong> <span id="print-patient-allergies">...</span>
+      </div>
     </div>
     
     <div class="print-divider"></div>

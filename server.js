@@ -1473,7 +1473,7 @@ app.post('/api/share/prescription/:id/verify', optionalAuthenticateToken, async 
 
   try {
     const apptRes = await db.pool.query(`
-      SELECT a.*, p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.doctor_signature, p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit, p.created_at,
+      SELECT a.*, p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.doctor_signature, p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit, p.blood_glucose, p.created_at,
              d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_visiting_hours, d.visiting_hours_en as doctor_hours
       FROM appointments a
       LEFT JOIN prescriptions p ON a.id = p.appointment_id
@@ -1600,9 +1600,9 @@ app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
   }
   try {
     const query = `
-      SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints,
+      SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints, a.height, a.allergies, a.patient_name, a.phone as patient_phone,
              p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
-             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit,
+             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit, p.blood_glucose,
              d.name_en as doctor_name
       FROM appointments a
       LEFT JOIN prescriptions p ON a.id = p.appointment_id
@@ -1980,7 +1980,7 @@ app.get('/api/prescriptions/:appointmentId', authenticateToken, async (req, res)
     const query = `
       SELECT p.*,
              a.patient_name, a.phone as patient_phone, a.appointment_date, a.appointment_time, a.notes as past_complaints,
-             a.age, a.gender, a.address, a.weight,
+             a.age, a.gender, a.address, a.weight, a.height, a.allergies,
              d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_visiting_hours
       FROM prescriptions p
       JOIN appointments a ON p.appointment_id = a.id
@@ -2009,9 +2009,9 @@ app.get('/api/patient/prescriptions', authenticateToken, async (req, res) => {
   }
   try {
     const query = `
-      SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints, a.patient_name,
+      SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints, a.patient_name, a.height, a.allergies,
              p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
-             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit,
+             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit, p.blood_glucose,
              d.name_en as doctor_name
       FROM appointments a
       JOIN prescriptions p ON a.id = p.appointment_id
@@ -2037,8 +2037,8 @@ app.get('/api/doctor/prescriptions', authenticateToken, async (req, res) => {
   try {
     let query = `
       SELECT p.id as prescription_id, p.appointment_id, p.observations, p.diagnostics, p.medicines, p.created_at,
-             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit,
-             a.patient_name, a.phone as patient_phone, a.appointment_date, a.appointment_time,
+             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit, p.blood_glucose,
+             a.patient_name, a.phone as patient_phone, a.appointment_date, a.appointment_time, a.height, a.allergies,
              d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_visiting_hours
       FROM prescriptions p
       JOIN appointments a ON p.appointment_id = a.id
@@ -2091,7 +2091,7 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
   if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
-  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone, bp, temperature, pulse, rich_state, general_advice, next_visit } = req.body;
+  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone, bp, temperature, pulse, rich_state, general_advice, next_visit, blood_glucose, height, allergies } = req.body;
   if (!appointment_id || !medicines) {
     return res.status(400).json({ error: 'Appointment ID and medicines list are required.' });
   }
@@ -2105,8 +2105,8 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       }
       
       const walkinApptRes = await db.pool.query(
-        `INSERT INTO appointments (patient_name, phone, email, appointment_date, appointment_time, status, doctor_id, age, gender, weight, address, notes)
-         VALUES ($1, $2, $3, $4, $5, 'completed', $6, $7, $8, $9, $10, 'Walk-In Consultation') RETURNING id`,
+        `INSERT INTO appointments (patient_name, phone, email, appointment_date, appointment_time, status, doctor_id, age, gender, weight, address, notes, height, allergies)
+         VALUES ($1, $2, $3, $4, $5, 'completed', $6, $7, $8, $9, $10, 'Walk-In Consultation', $11, $12) RETURNING id`,
         [
           patient_name.trim(),
           phone.trim(),
@@ -2117,7 +2117,9 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
           age || '',
           gender || 'Male',
           weight || '',
-          address || ''
+          address || '',
+          height || '',
+          allergies || ''
         ]
       );
       targetApptId = walkinApptRes.rows[0].id;
@@ -2137,14 +2139,15 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       pulse,
       rich_state,
       general_advice,
-      next_visit
+      next_visit,
+      blood_glucose
     });
 
     if (appointment_id !== 'walkin') {
-      // Update appointment demographics (Patient Name, Age, Gender, Weight, and Address)
+      // Update appointment demographics (Patient Name, Age, Gender, Weight, Address, Height, and Allergies)
       await db.pool.query(
-        "UPDATE appointments SET age = $1, gender = $2, weight = $3, address = $4, patient_name = $5 WHERE id = $6",
-        [age || '', gender || '', weight || '', address || '', patient_name || '', targetApptId]
+        "UPDATE appointments SET age = $1, gender = $2, weight = $3, address = $4, patient_name = $5, height = $6, allergies = $7 WHERE id = $8",
+        [age || '', gender || '', weight || '', address || '', patient_name || '', height || '', allergies || '', targetApptId]
       );
 
       // If this appointment is linked to a registered user, also save address to their profile

@@ -6,6 +6,19 @@ let prescribedMedicines = [];
 let signatureBase64 = localStorage.getItem('chc_doctor_sig') || ''; // Cache doctor's signature in localStorage for convenience
 let isFallbackMode = false;
 
+window.calculateBMI = function() {
+  const heightVal = parseFloat(document.getElementById('patient-height').value);
+  const weightVal = parseFloat(document.getElementById('patient-weight').value);
+  const bmiInput = document.getElementById('patient-bmi');
+  if (heightVal > 0 && weightVal > 0) {
+    const heightM = heightVal / 100;
+    const bmi = weightVal / (heightM * heightM);
+    bmiInput.value = bmi.toFixed(1);
+  } else {
+    bmiInput.value = '';
+  }
+};
+
 // DOM Elements
 const queueList = document.getElementById('queue-list');
 const queueCount = document.getElementById('queue-count');
@@ -492,7 +505,7 @@ async function selectPatient(appointment) {
   if (window.renderAdviceChecklist) window.renderAdviceChecklist();
   
   // Clear vitals
-  ['vital-bp-sys','vital-temp','vital-pulse'].forEach(id => {
+  ['vital-bp-sys','vital-temp','vital-pulse','vital-glucose'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   
@@ -502,6 +515,9 @@ async function selectPatient(appointment) {
   document.getElementById('patient-gender').value = appointment.gender || 'Male';
   document.getElementById('patient-weight').value = appointment.weight || '';
   document.getElementById('patient-address').value = appointment.address || appointment.user_profile_address || '';
+  document.getElementById('patient-height').value = appointment.height || '';
+  document.getElementById('patient-allergies').value = appointment.allergies || '';
+  if (window.calculateBMI) window.calculateBMI();
 
   prescribedMedicines = [];
   renderMedRows();
@@ -955,6 +971,8 @@ window.savePrescription = async function() {
   const gender = document.getElementById('patient-gender').value;
   const weight = document.getElementById('patient-weight').value.trim();
   const address = document.getElementById('patient-address').value.trim();
+  const height = document.getElementById('patient-height') ? document.getElementById('patient-height').value.trim() : '';
+  const allergies = document.getElementById('patient-allergies') ? document.getElementById('patient-allergies').value.trim() : '';
 
   if (!age) {
     alert('Please enter patient age.');
@@ -986,6 +1004,7 @@ window.savePrescription = async function() {
   const bpVal  = document.getElementById('vital-bp-sys').value.trim();
   const temp   = document.getElementById('vital-temp').value.trim();
   const pulse  = document.getElementById('vital-pulse').value.trim();
+  const glucose = document.getElementById('vital-glucose') ? document.getElementById('vital-glucose').value.trim() : '';
 
   const generalAdvice = document.getElementById('general-advice-input').value.trim();
   const nextVisit = document.getElementById('next-visit-days').value.trim();
@@ -1007,6 +1026,9 @@ window.savePrescription = async function() {
     pulse: pulse || null,
     general_advice: generalAdvice || null,
     next_visit: nextVisit || null,
+    blood_glucose: glucose || null,
+    height,
+    allergies,
     rich_state: {
       diagnostics,
       observations,
@@ -1020,7 +1042,10 @@ window.savePrescription = async function() {
       weight,
       address,
       general_advice: generalAdvice || null,
-      next_visit: nextVisit || null
+      next_visit: nextVisit || null,
+      blood_glucose: glucose || null,
+      height,
+      allergies
     }
   };
 
@@ -1209,6 +1234,10 @@ window.printPrescription = function() {
   const address = document.getElementById('patient-address').value.trim() || 'N/A';
   
   const patientNameVal = document.getElementById('patient-name-input') ? document.getElementById('patient-name-input').value.trim() : activeAppointment.patient_name;
+  const height = document.getElementById('patient-height') ? document.getElementById('patient-height').value.trim() : '';
+  const bmi = document.getElementById('patient-bmi') ? document.getElementById('patient-bmi').value.trim() : '';
+  const allergies = document.getElementById('patient-allergies') ? document.getElementById('patient-allergies').value.trim() : '';
+
   document.getElementById('print-patient-name').textContent = patientNameVal;
   document.getElementById('print-patient-age').textContent = age;
   document.getElementById('print-patient-gender').textContent = gender;
@@ -1216,6 +1245,35 @@ window.printPrescription = function() {
   document.getElementById('print-patient-address').textContent = address;
   document.getElementById('print-patient-weight').textContent = weight;
   document.getElementById('print-patient-phone').textContent = activeAppointment.phone;
+
+  // Height & BMI wrappers
+  const heightWrapper = document.getElementById('print-patient-height-wrapper');
+  const heightSpan = document.getElementById('print-patient-height');
+  if (height && heightWrapper && heightSpan) {
+    heightSpan.textContent = height;
+    heightWrapper.style.display = 'inline';
+  } else if (heightWrapper) {
+    heightWrapper.style.display = 'none';
+  }
+
+  const bmiWrapper = document.getElementById('print-patient-bmi-wrapper');
+  const bmiSpan = document.getElementById('print-patient-bmi');
+  if (bmi && bmiWrapper && bmiSpan) {
+    bmiSpan.textContent = bmi;
+    bmiWrapper.style.display = 'inline';
+  } else if (bmiWrapper) {
+    bmiWrapper.style.display = 'none';
+  }
+
+  // Allergies wrapper
+  const allergiesWrapper = document.getElementById('print-patient-allergies-wrapper');
+  const allergiesSpan = document.getElementById('print-patient-allergies');
+  if (allergies && allergies !== 'None' && allergies.toLowerCase() !== 'none' && allergiesWrapper && allergiesSpan) {
+    allergiesSpan.textContent = allergies;
+    allergiesWrapper.style.display = 'block';
+  } else if (allergiesWrapper) {
+    allergiesWrapper.style.display = 'none';
+  }
 
   // 3. Observations and Diagnostics
   const obsText = document.getElementById('obs-input').value.trim();
@@ -1238,10 +1296,11 @@ window.printPrescription = function() {
   const bpVal  = document.getElementById('vital-bp-sys').value.trim();
   const temp   = document.getElementById('vital-temp').value.trim();
   const pulse  = document.getElementById('vital-pulse').value.trim();
+  const glucoseVal = document.getElementById('vital-glucose') ? document.getElementById('vital-glucose').value.trim() : '';
 
   const vitalsBlock = document.getElementById('print-vitals-block');
   const vitalsList = document.getElementById('print-vitals-list');
-  if (bpVal || temp || pulse) {
+  if (bpVal || temp || pulse || glucoseVal) {
     let items = [];
     if (bpVal) {
       const bpFormatted = bpVal.toLowerCase().includes('mmhg') ? bpVal : `${bpVal} mmHg`;
@@ -1254,6 +1313,10 @@ window.printPrescription = function() {
     if (pulse) {
       const pulseFormatted = pulse.toLowerCase().includes('bpm') ? pulse : `${pulse} bpm`;
       items.push(`<div><strong>Pulse:</strong> ${escapeHTML(pulseFormatted)}</div>`);
+    }
+    if (glucoseVal) {
+      const glucoseFormatted = glucoseVal.toLowerCase().includes('mmol') || glucoseVal.toLowerCase().includes('rbs') || glucoseVal.toLowerCase().includes('fbs') ? glucoseVal : `RBS: ${glucoseVal} mmol/L`;
+      items.push(`<div><strong>Blood Glucose:</strong> ${escapeHTML(glucoseFormatted)}</div>`);
     }
     vitalsList.innerHTML = items.join('');
     vitalsBlock.style.display = 'block';
@@ -2056,8 +2119,14 @@ window.modifyPrescription = function(appointmentId) {
     if (state.gender) document.getElementById('patient-gender').value = state.gender;
     if (state.weight) document.getElementById('patient-weight').value = state.weight;
     if (state.address) document.getElementById('patient-address').value = state.address;
+    document.getElementById('patient-height').value = state.height || visit.height || '';
+    document.getElementById('patient-allergies').value = state.allergies || visit.allergies || '';
+    if (window.calculateBMI) window.calculateBMI();
   } else {
     document.getElementById('patient-name-input').value = activeAppointment.patient_name || '';
+    document.getElementById('patient-height').value = visit.height || '';
+    document.getElementById('patient-allergies').value = visit.allergies || '';
+    if (window.calculateBMI) window.calculateBMI();
   }
   
   const adviceVal = visit.general_advice || state?.general_advice || '';
@@ -2081,6 +2150,7 @@ window.modifyPrescription = function(appointmentId) {
   document.getElementById('vital-bp-sys').value = state?.bp || visit.bp || '';
   document.getElementById('vital-temp').value = state?.temperature || visit.temperature || '';
   document.getElementById('vital-pulse').value = state?.pulse || visit.pulse || '';
+  document.getElementById('vital-glucose').value = state?.blood_glucose || visit.blood_glucose || '';
   
   const diags = state?.diagnostics || visit.diagnostics || '';
   if (diags) {
@@ -2457,8 +2527,11 @@ window.startWalkInPrescription = function() {
   document.getElementById('patient-gender').value = 'Male';
   document.getElementById('patient-weight').value = '';
   document.getElementById('patient-address').value = '';
+  document.getElementById('patient-height').value = '';
+  document.getElementById('patient-bmi').value = '';
+  document.getElementById('patient-allergies').value = '';
   // Clear vitals
-  ['vital-bp-sys','vital-temp','vital-pulse'].forEach(id => {
+  ['vital-bp-sys','vital-temp','vital-pulse','vital-glucose'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
 
