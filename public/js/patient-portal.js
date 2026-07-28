@@ -480,7 +480,7 @@ window.viewPrescriptionDetails = async function(appointmentId) {
         <!-- Next Visit Follow-up Section -->
         ${nextVisitVal ? `
         <div style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem; font-size: 0.85rem; font-weight: 600; color: #0d9488; text-align: left;">
-          আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।
+          আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন পর দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।
         </div>
         ` : ''}
 
@@ -693,7 +693,7 @@ window.printPortalPrescription = function() {
         <div class="print-footer-section" style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 1.5rem; page-break-inside: avoid;">
           <!-- Next Visit Instructions -->
           <div style="font-size: 0.85rem; color: #1e293b; max-width: 60%; line-height: 1.5; text-align: left; padding-bottom: 0.5rem;">
-            ${nextVisitVal ? `আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।` : ''}
+            ${nextVisitVal ? `আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন পর দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।` : ''}
           </div>
           <div class="print-signature-area">
             ${signatureHtml}

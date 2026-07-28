@@ -269,7 +269,7 @@ function renderPrescription(visit) {
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 2rem; page-break-inside: avoid;">
       <!-- Next Visit Instructions -->
       <div style="font-size: 0.85rem; color: #1e293b; max-width: 60%; line-height: 1.5; text-align: left; padding-bottom: 0.5rem;">
-        ${nextVisitVal ? `আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।` : ''}
+        ${nextVisitVal ? `আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন পর দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।` : ''}
       </div>
       <div style="display: flex; flex-direction: column; align-items: center;">
         ${sigImg}

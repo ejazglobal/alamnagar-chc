@@ -1285,7 +1285,7 @@ window.printPrescription = function() {
   const nextVisitDays = document.getElementById('next-visit-days').value.trim();
   const nextVisitContainer = document.getElementById('print-next-visit-container');
   if (nextVisitDays && nextVisitContainer) {
-    nextVisitContainer.innerHTML = `আবার <strong>${escapeHTML(nextVisitDays)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।`;
+    nextVisitContainer.innerHTML = `আবার <strong>${escapeHTML(nextVisitDays)}</strong> দিন পর দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।`;
     nextVisitContainer.style.display = 'block';
   } else if (nextVisitContainer) {
     nextVisitContainer.style.display = 'none';
