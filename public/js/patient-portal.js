@@ -386,6 +386,9 @@ window.viewPrescriptionDetails = async function(appointmentId) {
       const p = await res.json();
       
       window.currentPortalPrescription = p;
+      const rich = typeof p.rich_state === 'string' ? JSON.parse(p.rich_state) : p.rich_state || {};
+      const adviceVal = p.general_advice || rich.general_advice || '';
+      const nextVisitVal = p.next_visit || rich.next_visit || '';
 
       let medsList = [];
       try {
@@ -463,6 +466,24 @@ window.viewPrescriptionDetails = async function(appointmentId) {
         </div>
 
         ${vitalsHtml}
+        
+        <!-- General Advice (সাধারন পরামর্শ) Section -->
+        ${adviceVal ? `
+        <div style="margin-bottom: 1rem;">
+          <h5 style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">সাধারন পরামর্শ (General Advice)</h5>
+          <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem; white-space: pre-wrap; font-size: 0.9rem; color: #1e293b; text-align: left;">
+            ${escapeHTML(adviceVal)}
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Next Visit Follow-up Section -->
+        ${nextVisitVal ? `
+        <div style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem; font-size: 0.85rem; font-weight: 600; color: #0d9488; text-align: left;">
+          আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।
+        </div>
+        ` : ''}
+
         ${signatureHtml}
       `;
     } else {
@@ -487,6 +508,10 @@ window.printPortalPrescription = function() {
   }
   const p = window.currentPortalPrescription;
   if (!p) return alert('No prescription loaded to print.');
+
+  const rich = typeof p.rich_state === 'string' ? JSON.parse(p.rich_state) : p.rich_state || {};
+  const adviceVal = p.general_advice || rich.general_advice || '';
+  const nextVisitVal = p.next_visit || rich.next_visit || '';
 
   const baseOrigin = window.Capacitor ? (window.API_BASE_URL || 'https://ashiana.online') : window.location.origin;
 
@@ -653,11 +678,23 @@ window.printPortalPrescription = function() {
                 `).join('')}
               </tbody>
             </table>
+
+            <!-- General Advice (সাধারন পরামর্শ) Section -->
+            ${adviceVal ? `
+            <div style="margin-top: 1.5rem; border: 1px solid #cbd5e1; padding: 0.75rem; border-radius: 6px; page-break-inside: avoid;">
+              <div style="font-weight: 700; color: #0d9488; font-size: 0.85rem; margin-bottom: 0.4rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 0.25rem;">সাধারন পরামর্শ (General Advice)</div>
+              <div style="font-size: 0.82rem; line-height: 1.4; color: #1e293b; white-space: pre-wrap; margin: 0; padding-left: 0.25rem;">${escapeHTML(adviceVal)}</div>
+            </div>
+            ` : ''}
           </div>
         </div>
 
-        <!-- Doctor Signature Section -->
-        <div class="print-footer-section">
+        <!-- Doctor Signature Section & Next Visit -->
+        <div class="print-footer-section" style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 1.5rem; page-break-inside: avoid;">
+          <!-- Next Visit Instructions -->
+          <div style="font-size: 0.85rem; color: #1e293b; max-width: 60%; line-height: 1.5; text-align: left; padding-bottom: 0.5rem;">
+            ${nextVisitVal ? `আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।` : ''}
+          </div>
           <div class="print-signature-area">
             ${signatureHtml}
             <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">

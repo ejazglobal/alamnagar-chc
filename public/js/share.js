@@ -185,7 +185,9 @@ function renderPrescription(visit) {
     medsHtml = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: #64748b;">No medicines prescribed</td></tr>';
   }
 
-  const sigImg = visit.doctor_signature ? `<img src="${visit.doctor_signature}" alt="Signature" style="max-height: 50px; display: block; margin-bottom: 0.5rem;">` : '';
+  const adviceVal = visit.general_advice || state?.general_advice || '';
+  const nextVisitVal = visit.next_visit || state?.next_visit || '';
+  const baseOrigin = window.location.origin;
 
   container.innerHTML = `
     <!-- Header -->
@@ -237,7 +239,7 @@ function renderPrescription(visit) {
       </div>
 
       <!-- Main Column -->
-      <div>
+      <div style="display: flex; flex-direction: column;">
         <div style="font-size: 1.8rem; font-weight: 800; font-style: italic; color: #0d9488; margin-bottom: 0.5rem;">Rx</div>
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
@@ -252,16 +254,40 @@ function renderPrescription(visit) {
             ${medsHtml}
           </tbody>
         </table>
+
+        <!-- General Advice (সাধারন পরামর্শ) Section -->
+        ${adviceVal ? `
+        <div style="margin-top: 1.5rem; border: 1px solid #cbd5e1; padding: 0.75rem; border-radius: 6px; page-break-inside: avoid;">
+          <div style="font-weight: 700; color: #0d9488; font-size: 0.85rem; margin-bottom: 0.4rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 0.25rem; text-align: left;">সাধারন পরামর্শ (General Advice)</div>
+          <div style="font-size: 0.82rem; line-height: 1.4; color: #1e293b; white-space: pre-wrap; margin: 0; padding-left: 0.25rem; text-align: left;">${escapeHTML(adviceVal)}</div>
+        </div>
+        ` : ''}
       </div>
     </div>
 
-    <!-- Footer -->
-    <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
+    <!-- Footer & Next Visit Section -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 2rem; page-break-inside: avoid;">
+      <!-- Next Visit Instructions -->
+      <div style="font-size: 0.85rem; color: #1e293b; max-width: 60%; line-height: 1.5; text-align: left; padding-bottom: 0.5rem;">
+        ${nextVisitVal ? `আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।` : ''}
+      </div>
       <div style="display: flex; flex-direction: column; align-items: center;">
         ${sigImg}
         <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">
           Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}
         </div>
+      </div>
+    </div>
+
+    <!-- Absolute Bottom Page Footer with Digital Link and QR Code -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #cbd5e1; padding-top: 0.5rem; margin-top: auto; page-break-inside: avoid;">
+      <div style="font-size: 0.72rem; color: #64748b; text-align: left; max-width: 75%; line-height: 1.4;">
+        <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Digital Prescription Link (Secure OTP Required)</span>
+        To view, download, or verify this prescription online, scan the QR code on the right or visit:<br>
+        <span style="color: #0f172a; font-weight: 600; word-break: break-all;">${baseOrigin}/share.html?id=${visit.appointment_id}</span>
+      </div>
+      <div style="text-align: right;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(baseOrigin + '/share.html?id=' + visit.appointment_id)}" alt="QR Code" style="width: 50px; height: 50px; display: block;">
       </div>
     </div>
   `;

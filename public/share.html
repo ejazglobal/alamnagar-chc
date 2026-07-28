@@ -132,9 +132,10 @@
     }
 
     @media print {
-      body { background: white; margin: 0; padding: 0; display: block; }
+      body { background: white; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 262mm; }
       .no-print { display: none !important; }
-      #prescription-view { box-shadow: none; padding: 0; margin: 0; max-width: 100%; }
+      #prescription-view { box-shadow: none; padding: 0; margin: 0; max-width: 100%; flex: 1; display: flex; flex-direction: column; }
+      #print-prescription-template { display: flex; flex-direction: column; flex: 1; }
       .prescription-body-layout { grid-template-columns: 200px 1fr; gap: 1.5rem; }
     }
   </style>

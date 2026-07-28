@@ -374,11 +374,13 @@
         display: none !important;
       }
       #print-prescription-template {
-        display: block !important;
+        display: flex !important;
+        flex-direction: column;
         width: 100%;
         max-width: 100%;
         padding-top: 0; /* Remove top margin for pre-printed pads */
         box-sizing: border-box;
+        min-height: 262mm;
       }
       .print-header {
         display: flex;
@@ -893,6 +895,34 @@
               Estimated Total Cost: ৳<span id="total-price-val">0.00</span>
             </div>
 
+            <!-- General Advice & Next Visit Section -->
+            <div style="margin-top: 1rem; margin-bottom: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+              <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-dark); margin-bottom: 1rem;">সাধারন পরামর্শ ও ফলো-আপ (General Advice & Follow-Up)</h3>
+              
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem; color: var(--primary-hover);">Bangla General Advice Suggestion (Type to search)</label>
+                <input type="text" id="advice-search-input" class="form-control" placeholder="🔍 পরামর্শ খুঁজুন... (Type to search advice)" style="font-size: 0.85rem; background: white;" oninput="filterAdvices()" autocomplete="off">
+                <div id="advice-checkboxes-container" style="max-height: 160px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; background: var(--bg-main);">
+                  <!-- Pre-defined advices checklist will be dynamically rendered here -->
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem; color: var(--primary-hover);">General Advice / Suggestions (সাধারন পরামর্শ)</label>
+                <textarea id="general-advice-input" class="form-control" style="height: 100px; font-size: 0.9rem;" placeholder="পছন্দকৃত পরামর্শ এখানে আসবে অথবা নিজে লিখুন..."></textarea>
+              </div>
+
+              <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem; color: var(--primary-hover);">Next Visit (পরবর্তী সাক্ষাৎ)</label>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <span style="font-size: 0.9rem; color: var(--text-dark); font-weight: 600;">আবার</span>
+                  <input type="text" id="next-visit-days" class="form-control" placeholder="যেমন: ৭/১৪/৩০" style="width: 100px; text-align: center; background: white;" autocomplete="off">
+                  <span style="font-size: 0.9rem; color: var(--text-dark); font-weight: 600;">দিন দেখা করবেন।</span>
+                  <span style="font-size: 0.85rem; color: var(--text-muted); font-style: italic; margin-left: 0.5rem;">(জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন)</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Signature and Save Section -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; align-items: flex-end;">
               
@@ -1214,16 +1244,38 @@
             <!-- Populated dynamically -->
           </tbody>
         </table>
+
+        <!-- General Advice (সাধারন পরামর্শ) Section -->
+        <div id="print-advice-container" style="display: none; margin-top: 1.5rem; border: 1.5px solid #cbd5e1; padding: 0.75rem; border-radius: 6px; page-break-inside: avoid;">
+          <div style="font-weight: 700; color: #0d9488; font-size: 0.85rem; margin-bottom: 0.4rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 0.25rem;">সাধারন পরামর্শ (General Advice)</div>
+          <div id="print-general-advice" style="font-size: 0.82rem; line-height: 1.4; color: #1e293b; white-space: pre-wrap; margin: 0; padding-left: 0.25rem;"></div>
+        </div>
       </div>
     </div>
     
     <!-- Footer -->
-    <div class="print-footer-section">
+    <div class="print-footer-section" style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 1.5rem; page-break-inside: avoid;">
+      <!-- Next Visit Instructions -->
+      <div id="print-next-visit-container" style="display: none; font-size: 0.85rem; color: #1e293b; max-width: 60%; line-height: 1.5; text-align: left; padding-bottom: 0.5rem;">
+        <!-- Filled dynamically -->
+      </div>
       <div class="print-signature-area">
         <img class="print-sig-img" id="print-doctor-signature" src="" alt="Signature" style="display: none;">
         <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;" id="print-sig-doc-name">
           Authorized Signature
         </div>
+      </div>
+    </div>
+
+    <!-- Absolute Bottom Page Footer with Digital Link and QR Code -->
+    <div id="print-digital-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #cbd5e1; padding-top: 0.5rem; margin-top: auto; page-break-inside: avoid;">
+      <div style="font-size: 0.72rem; color: #64748b; text-align: left; max-width: 75%; line-height: 1.4;">
+        <span style="font-weight: 700; color: #0d9488; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Digital Prescription Link (Secure OTP Required)</span>
+        To view, download, or verify this prescription online, scan the QR code on the right or visit:<br>
+        <span id="print-digital-footer-link" style="color: #0f172a; font-weight: 600; word-break: break-all;"></span>
+      </div>
+      <div style="text-align: right;">
+        <img id="print-digital-footer-qr" src="" alt="QR Code" style="width: 50px; height: 50px; display: block;">
       </div>
     </div>
   </div>

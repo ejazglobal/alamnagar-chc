@@ -277,6 +277,8 @@ async function initializeDatabase() {
       await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS bp VARCHAR(100)");
       await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS temperature VARCHAR(100)");
       await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS pulse VARCHAR(100)");
+      await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS general_advice TEXT");
+      await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS next_visit TEXT");
 
       // Registration Refactor constraints
       try {
@@ -826,15 +828,15 @@ module.exports = {
   },
 
   createPrescription: async (prescription) => {
-    const { appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse, rich_state } = prescription;
+    const { appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse, rich_state, general_advice, next_visit } = prescription;
     
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       
       const query = `
-        INSERT INTO prescriptions (appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse, rich_state)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO prescriptions (appointment_id, doctor_id, diagnostics, observations, medicines, doctor_signature, bp, temperature, pulse, rich_state, general_advice, next_visit)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT (appointment_id) DO UPDATE 
         SET diagnostics = EXCLUDED.diagnostics,
             observations = EXCLUDED.observations,
@@ -843,7 +845,9 @@ module.exports = {
             bp = EXCLUDED.bp,
             temperature = EXCLUDED.temperature,
             pulse = EXCLUDED.pulse,
-            rich_state = EXCLUDED.rich_state
+            rich_state = EXCLUDED.rich_state,
+            general_advice = EXCLUDED.general_advice,
+            next_visit = EXCLUDED.next_visit
         RETURNING id
       `;
       const res = await client.query(query, [
@@ -856,7 +860,9 @@ module.exports = {
         bp || null,
         temperature || null,
         pulse || null,
-        rich_state ? JSON.stringify(rich_state) : null
+        rich_state ? JSON.stringify(rich_state) : null,
+        general_advice || null,
+        next_visit || null
       ]);
 
       // Set appointment status to completed

@@ -94,6 +94,7 @@ async function verifyBackendAndLoad() {
   renderQueue();
   setupMedicineAutocomplete();
   setupPatientSearch();
+  if (window.renderAdviceChecklist) window.renderAdviceChecklist();
 }
 
 async function loadData() {
@@ -485,6 +486,11 @@ async function selectPatient(appointment) {
   document.getElementById('findings-input').value = '';
   document.getElementById('diag-custom').value = '';
   document.querySelectorAll('#diag-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.getElementById('general-advice-input').value = '';
+  document.getElementById('next-visit-days').value = '';
+  document.getElementById('advice-search-input').value = '';
+  if (window.renderAdviceChecklist) window.renderAdviceChecklist();
+  
   // Clear vitals
   ['vital-bp-sys','vital-temp','vital-pulse'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
@@ -547,6 +553,13 @@ async function loadPrescription(appointmentId) {
     document.getElementById('vital-bp-sys').value = prescription.bp || '';
     document.getElementById('vital-temp').value = prescription.temperature || '';
     document.getElementById('vital-pulse').value = prescription.pulse || '';
+    
+    // Load general advice & next visit
+    const adviceVal = prescription.general_advice || rich.general_advice || '';
+    const nextVisitVal = prescription.next_visit || rich.next_visit || '';
+    document.getElementById('general-advice-input').value = adviceVal;
+    document.getElementById('next-visit-days').value = nextVisitVal;
+    if (window.renderAdviceChecklist) window.renderAdviceChecklist();
     
     // Parse diagnostics
     if (prescription.diagnostics) {
@@ -967,6 +980,9 @@ window.savePrescription = async function() {
   const temp   = document.getElementById('vital-temp').value.trim();
   const pulse  = document.getElementById('vital-pulse').value.trim();
 
+  const generalAdvice = document.getElementById('general-advice-input').value.trim();
+  const nextVisit = document.getElementById('next-visit-days').value.trim();
+
   const payload = {
     appointment_id: activeAppointment.id,
     diagnostics,
@@ -982,6 +998,8 @@ window.savePrescription = async function() {
     bp: bpVal || null,
     temperature: temp || null,
     pulse: pulse || null,
+    general_advice: generalAdvice || null,
+    next_visit: nextVisit || null,
     rich_state: {
       diagnostics,
       observations,
@@ -993,7 +1011,9 @@ window.savePrescription = async function() {
       age,
       gender,
       weight,
-      address
+      address,
+      general_advice: generalAdvice || null,
+      next_visit: nextVisit || null
     }
   };
 
@@ -1248,6 +1268,37 @@ window.printPrescription = function() {
   }
   if (diagList.children.length === 0) {
     diagList.innerHTML = '<li>None recommended</li>';
+  }
+
+  // General Advice (সাধারন পরামর্শ)
+  const adviceVal = document.getElementById('general-advice-input').value.trim();
+  const adviceContainer = document.getElementById('print-advice-container');
+  const printAdvice = document.getElementById('print-general-advice');
+  if (adviceVal && adviceContainer && printAdvice) {
+    printAdvice.textContent = adviceVal;
+    adviceContainer.style.display = 'block';
+  } else if (adviceContainer) {
+    adviceContainer.style.display = 'none';
+  }
+
+  // Next Visit
+  const nextVisitDays = document.getElementById('next-visit-days').value.trim();
+  const nextVisitContainer = document.getElementById('print-next-visit-container');
+  if (nextVisitDays && nextVisitContainer) {
+    nextVisitContainer.innerHTML = `আবার <strong>${escapeHTML(nextVisitDays)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।`;
+    nextVisitContainer.style.display = 'block';
+  } else if (nextVisitContainer) {
+    nextVisitContainer.style.display = 'none';
+  }
+
+  // Digital Page-Bottom Footer (Rule 2)
+  const printFooterLink = document.getElementById('print-digital-footer-link');
+  const printFooterQr = document.getElementById('print-digital-footer-qr');
+  if (printFooterLink && printFooterQr) {
+    const baseOrigin = window.Capacitor ? (window.API_BASE_URL || 'https://ashiana.online') : window.location.origin;
+    const shareLink = `${baseOrigin}/share.html?id=${activeAppointment.id}`;
+    printFooterLink.textContent = shareLink;
+    printFooterQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(shareLink)}`;
   }
 
   // 4. Medicines
@@ -1974,6 +2025,12 @@ window.modifyPrescription = function(appointmentId) {
     if (state.address) document.getElementById('patient-address').value = state.address;
   }
   
+  const adviceVal = visit.general_advice || state?.general_advice || '';
+  const nextVisitVal = visit.next_visit || state?.next_visit || '';
+  document.getElementById('general-advice-input').value = adviceVal;
+  document.getElementById('next-visit-days').value = nextVisitVal;
+  if (window.renderAdviceChecklist) window.renderAdviceChecklist();
+  
   const meds = state?.medicines || (typeof visit.medicines === 'string' ? JSON.parse(visit.medicines) : visit.medicines);
   if (meds && Array.isArray(meds)) {
     prescribedMedicines = JSON.parse(JSON.stringify(meds));
@@ -2692,5 +2749,99 @@ window.modifyPrescriptionFromTable = function(appointmentId) {
   pastVisits = [visit];
   switchDoctorTab('consult');
   modifyPrescription(appointmentId);
+};
+
+// General Advice Checklists Data and Handlers
+const predefinedAdvices = [
+  { id: 1, text: "পাতে কাঁচা লবণ খাবেন না।" },
+  { id: 2, text: "প্রতিদিন অন্তত ২০ থেকে ৩০ মিনিট নিয়মিত হাঁটবেন।" },
+  { id: 3, text: "আপততঃ কোনো ভারী জিনিস তুলবেন না বা ভারী কাজ করবেন না।" },
+  { id: 4, text: "তৈলাক্ত, চর্বিজাতীয় এবং ভাজাপোড়া খাবার খাওয়া পুরোপুরি বন্ধ করুন।" },
+  { id: 5, text: "প্রতিদিন পর্যাপ্ত পরিমাণে (কমপক্ষে ৮-১০ গ্লাস) নিরাপদ পানি পান করবেন।" },
+  { id: 6, text: "রাতে ঘুমানোর অন্তত দুই ঘণ্টা আগে রাতের খাবার শেষ করবেন।" },
+  { id: 7, text: "দৈনিক ৭ থেকে ৮ ঘণ্টা নিবিড়ভাবে ঘুমানোর চেষ্টা করুন।" },
+  { id: 8, text: "খাবারে চিনির পরিমাণ কমিয়ে দিন এবং মিষ্টিজাতীয় খাবার পরিহার করুন।" },
+  { id: 9, text: "চা বা কফিতে অতিরিক্ত চিনি খাওয়া বন্ধ করুন এবং দৈনিক পানের পরিমাণ সীমিত করুন।" },
+  { id: 10, text: "ধূমপান, জর্দা বা যেকোনো ধরণের তামাকজাতীয় দ্রব্য বর্জন করুন।" },
+  { id: 11, text: "অতিরিক্ত মানসিক চাপ বা দুশ্চিন্তা থেকে দূরে থাকার চেষ্টা করুন।" },
+  { id: 12, text: "যেকোনো ওষুধ ডাক্তারের পরামর্শ ছাড়া হুট করে বন্ধ করবেন না বা ডোজ বদলাবেন না।" },
+  { id: 13, text: "অ্যান্টিবায়োটিক সেবনের ক্ষেত্রে অবশ্যই পুরো কোর্স সম্পূর্ণ করবেন।" },
+  { id: 14, text: "প্রতিদিনের খাদ্যতালিকায় পর্যাপ্ত পরিমাণে সবুজ শাকসবজি এবং তাজা ফলমূল রাখুন।" },
+  { id: 15, text: "ফাস্টফুড, কোমল পানীয় (soft drinks) এবং প্রক্রিয়াজাত খাবার (processed food) এড়িয়ে চলুন।" },
+  { id: 16, text: "ডায়াবেটিস বা প্রেসার থাকলে নিয়মিত বিরতিতে তা ঘরে বা ফার্মেসিতে মেপে নোট করে রাখুন।" },
+  { id: 17, text: "দীর্ঘ সময় এক জায়গায় টানা বসে না থেকে মাঝে মাঝে একটু উঠে দাঁড়ান বা হাঁটাহাঁটি করুন।" },
+  { id: 18, text: "খাবারের ঠিক পরপরই সাথে সাথে শুয়ে পড়বেন না।" },
+  { id: 19, text: "ব্যথানাশক ওষুধ (painkiller) খালি পেটে বা ডাক্তারের পরামর্শ ছাড়া খাবেন না।" },
+  { id: 20, text: "ওজন নিয়ন্ত্রণে রাখুন এবং উচ্চতা অনুযায়ী আদর্শ ওজন বজায় রাখার চেষ্টা করুন।" },
+  { id: 21, text: "কৃত্রিম উপায়ে তৈরি জুস বা ক্যানজাত খাবারের চেয়ে সরাসরি ফল চিবিয়ে খাওয়ার অভ্যাস করুন।" },
+  { id: 22, text: "খাবারে অতিরিক্ত মসলা এবং ঝাল পরিহার করে চলুন।" },
+  { id: 23, text: "যেকোনো নতুন শারীরিক উপসর্গ দেখা দিলে নিজে নিজে ওষুধ না কিনে রেজিস্টার্ড চিকিৎসকের শরণাপন্ন হোন।" },
+  { id: 24, text: "বাইরের খোলা বা বাসি খাবার খাওয়া থেকে বিরত থাকুন।" },
+  { id: 25, text: "প্রেসার, ডায়াবেটিস বা হার্টের রোগীরা নির্দিষ্ট সময় পর পর রুটিন চেকআপের জন্য ডাক্তারের কাছে আসবেন।" },
+  { id: 26, text: "নিয়মিত দাঁত ব্রাশ করুন এবং মুখের স্বাস্থ্য বজায় রাখুন।" },
+  { id: 27, text: "বাইরে বের হওয়ার সময় মাস্ক ব্যবহার করুন এবং ধুলোবালি এড়িয়ে চলুন।" },
+  { id: 28, text: "প্রস্রাব দীর্ঘক্ষণ আটকে রাখবেন না, পর্যাপ্ত বেগ হলে সাথে সাথে প্রস্রাব করুন।" },
+  { id: 29, text: "প্রসূতি মায়েরা নিয়মিত গর্ভকালীন স্বাস্থ্য পরীক্ষা (ANC) করাবেন।" },
+  { id: 30, text: "শিশুদের সময়মতো সকল টিকা নিশ্চিত করুন।" },
+  { id: 31, text: "কাশির সময় মুখে রুমাল বা কনুই ব্যবহার করুন।" },
+  { id: 32, text: "খাবার খাওয়ার আগে এবং টয়লেট ব্যবহারের পরে সাবান দিয়ে ভালো করে হাত ধুয়ে নিন।" }
+];
+
+window.renderAdviceChecklist = function(filteredList) {
+  const container = document.getElementById('advice-checkboxes-container');
+  if (!container) return;
+  
+  const list = filteredList || predefinedAdvices;
+  
+  const textarea = document.getElementById('general-advice-input');
+  const currentVal = textarea ? textarea.value : '';
+  
+  container.innerHTML = list.map(item => {
+    const isChecked = currentVal.includes(item.text) ? 'checked' : '';
+    return `
+      <label style="display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.85rem; color: var(--text-dark); cursor: pointer; user-select: none;">
+        <input type="checkbox" value="${escapeHTML(item.text)}" ${isChecked} onchange="handleAdviceCheckboxChange(this)" style="margin-top: 0.2rem;">
+        <span>${item.id}. ${escapeHTML(item.text)}</span>
+      </label>
+    `;
+  }).join('');
+};
+
+window.filterAdvices = function() {
+  const query = document.getElementById('advice-search-input').value.trim().toLowerCase();
+  if (!query) {
+    renderAdviceChecklist(predefinedAdvices);
+    return;
+  }
+  
+  const filtered = predefinedAdvices.filter(item => 
+    item.text.toLowerCase().includes(query) || 
+    String(item.id).includes(query)
+  );
+  renderAdviceChecklist(filtered);
+};
+
+window.handleAdviceCheckboxChange = function(cb) {
+  const textarea = document.getElementById('general-advice-input');
+  if (!textarea) return;
+  
+  const text = cb.value;
+  let val = textarea.value;
+  
+  if (cb.checked) {
+    if (val.trim() === '') {
+      textarea.value = text;
+    } else {
+      if (!val.includes(text)) {
+        textarea.value = val.trim() + '\n' + text;
+      }
+    }
+  } else {
+    if (val.includes(text)) {
+      val = val.replace(text, '');
+      val = val.split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+      textarea.value = val;
+    }
+  }
 };
 

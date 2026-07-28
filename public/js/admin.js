@@ -1614,6 +1614,10 @@ window.printAdminPrescription = function() {
   const docSpecialty = p.doctor_specialty || 'General Physician';
   const docHours = p.doctor_visiting_hours || p.doctor_hours || 'Sat, Mon, Wed (03:00 PM - 07:00 PM)';
 
+  const rich = typeof p.rich_state === 'string' ? JSON.parse(p.rich_state) : p.rich_state || {};
+  const adviceVal = p.general_advice || rich.general_advice || '';
+  const nextVisitVal = p.next_visit || rich.next_visit || '';
+
   const content = `
     <html>
       <head>
@@ -1720,11 +1724,23 @@ window.printAdminPrescription = function() {
                 `).join('')}
               </tbody>
             </table>
+
+            <!-- General Advice (সাধারন পরামর্শ) Section -->
+            ${adviceVal ? `
+            <div style="margin-top: 1.5rem; border: 1px solid #cbd5e1; padding: 0.75rem; border-radius: 6px; page-break-inside: avoid;">
+              <div style="font-weight: 700; color: #0d9488; font-size: 0.85rem; margin-bottom: 0.4rem; border-bottom: 1px solid #cbd5e1; padding-bottom: 0.25rem;">সাধারন পরামর্শ (General Advice)</div>
+              <div style="font-size: 0.82rem; line-height: 1.4; color: #1e293b; white-space: pre-wrap; margin: 0; padding-left: 0.25rem;">${escapeHTML(adviceVal)}</div>
+            </div>
+            ` : ''}
           </div>
         </div>
 
-        <!-- Doctor Signature Section -->
-        <div class="print-footer-section">
+        <!-- Doctor Signature Section & Next Visit -->
+        <div class="print-footer-section" style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 1.5rem; page-break-inside: avoid;">
+          <!-- Next Visit Instructions -->
+          <div style="font-size: 0.85rem; color: #1e293b; max-width: 60%; line-height: 1.5; text-align: left; padding-bottom: 0.5rem;">
+            ${nextVisitVal ? `আবার <strong>${escapeHTML(nextVisitVal)}</strong> দিন দেখা করবেন । জরুরী যে কোন পরিস্থিতিতে নিকটস্থ হাসপাতালের সহায়তা নিন।` : ''}
+          </div>
           <div class="print-signature-area">
             ${signatureHtml}
             <div style="border-top: 1px solid #475569; width: 200px; margin-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600;">

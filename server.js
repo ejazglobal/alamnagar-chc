@@ -1473,7 +1473,7 @@ app.post('/api/share/prescription/:id/verify', optionalAuthenticateToken, async 
 
   try {
     const apptRes = await db.pool.query(`
-      SELECT a.*, p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.doctor_signature, p.bp, p.temperature, p.pulse, p.rich_state, p.created_at,
+      SELECT a.*, p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.doctor_signature, p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit, p.created_at,
              d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_visiting_hours, d.visiting_hours_en as doctor_hours
       FROM appointments a
       LEFT JOIN prescriptions p ON a.id = p.appointment_id
@@ -1602,7 +1602,7 @@ app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
     const query = `
       SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints,
              p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
-             p.bp, p.temperature, p.pulse,
+             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit,
              d.name_en as doctor_name
       FROM appointments a
       LEFT JOIN prescriptions p ON a.id = p.appointment_id
@@ -2011,7 +2011,7 @@ app.get('/api/patient/prescriptions', authenticateToken, async (req, res) => {
     const query = `
       SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints, a.patient_name,
              p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
-             p.bp, p.temperature, p.pulse,
+             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit,
              d.name_en as doctor_name
       FROM appointments a
       JOIN prescriptions p ON a.id = p.appointment_id
@@ -2037,7 +2037,7 @@ app.get('/api/doctor/prescriptions', authenticateToken, async (req, res) => {
   try {
     let query = `
       SELECT p.id as prescription_id, p.appointment_id, p.observations, p.diagnostics, p.medicines, p.created_at,
-             p.bp, p.temperature, p.pulse,
+             p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit,
              a.patient_name, a.phone as patient_phone, a.appointment_date, a.appointment_time,
              d.name_en as doctor_name, d.specialty_en as doctor_specialty, d.visiting_hours_en as doctor_visiting_hours
       FROM prescriptions p
@@ -2091,7 +2091,7 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
   if (!req.user || !validRoles.includes((req.user.role || '').toLowerCase())) {
     return res.status(403).json({ error: 'Access Denied: Doctor only.' });
   }
-  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone, bp, temperature, pulse, rich_state } = req.body;
+  const { appointment_id, diagnostics, observations, medicines, doctor_signature, age, gender, weight, address, patient_name, phone, bp, temperature, pulse, rich_state, general_advice, next_visit } = req.body;
   if (!appointment_id || !medicines) {
     return res.status(400).json({ error: 'Appointment ID and medicines list are required.' });
   }
@@ -2135,7 +2135,9 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       bp,
       temperature,
       pulse,
-      rich_state
+      rich_state,
+      general_advice,
+      next_visit
     });
 
     if (appointment_id !== 'walkin') {
