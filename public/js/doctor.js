@@ -1067,7 +1067,8 @@ window.savePrescription = async function() {
           gender,
           weight,
           address,
-          notes: 'Walk-In Consultation'
+          notes: 'Walk-In Consultation',
+          created_at: new Date().toISOString()
         };
         localAppts.push(newApptObj);
         localStorage.setItem('chc_appointments', JSON.stringify(localAppts));
@@ -1169,7 +1170,8 @@ window.savePrescription = async function() {
           age: age,
           gender: gender,
           weight: weight,
-          address: address
+          address: address,
+          created_at: new Date().toISOString()
         };
         
         // Reset details view to static
@@ -1241,7 +1243,12 @@ window.printPrescription = function() {
   document.getElementById('print-patient-name').textContent = patientNameVal;
   document.getElementById('print-patient-age').textContent = age;
   document.getElementById('print-patient-gender').textContent = gender;
-  document.getElementById('print-patient-date').textContent = new Date(activeAppointment.appointment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  let printDate = new Date();
+  if (activeAppointment && activeAppointment.created_at) {
+    printDate = new Date(activeAppointment.created_at);
+  }
+  document.getElementById('print-patient-date').textContent = printDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   document.getElementById('print-patient-address').textContent = address;
   document.getElementById('print-patient-weight').textContent = weight;
   document.getElementById('print-patient-phone').textContent = activeAppointment.phone;
@@ -2106,7 +2113,8 @@ window.modifyPrescription = function(appointmentId) {
     phone: document.getElementById('history-patient-phone').textContent.replace('Mob: ', ''),
     status: 'completed',
     appointment_date: visit.appointment_date,
-    appointment_time: visit.appointment_time
+    appointment_time: visit.appointment_time,
+    created_at: visit.created_at
   };
 
   // Populate rich state if available

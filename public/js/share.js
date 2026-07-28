@@ -124,7 +124,7 @@ function renderPrescription(visit) {
   const pGender = state?.gender || visit.gender || 'N/A';
   const pWeight = state?.weight || visit.weight || 'N/A';
   const pAddress = state?.address || visit.address || 'N/A';
-  const pDate = new Date(visit.appointment_date || visit.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const pDate = new Date(visit.created_at || visit.appointment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const pPhone = visit.phone || '';
   
   const obs = state?.observations || visit.observations || 'None';
