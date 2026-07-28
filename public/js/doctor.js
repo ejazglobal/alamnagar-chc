@@ -1294,11 +1294,27 @@ window.printPrescription = function() {
   // Digital Page-Bottom Footer (Rule 2)
   const printFooterLink = document.getElementById('print-digital-footer-link');
   const printFooterQr = document.getElementById('print-digital-footer-qr');
+  let qrLoadPromise = null;
   if (printFooterLink && printFooterQr) {
     const baseOrigin = window.Capacitor ? (window.API_BASE_URL || 'https://ashiana.online') : window.location.origin;
     const shareLink = `${baseOrigin}/share.html?id=${activeAppointment.id}`;
     printFooterLink.textContent = shareLink;
-    printFooterQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(shareLink)}`;
+    
+    // Create a promise to wait for QR load
+    qrLoadPromise = new Promise((resolve) => {
+      let isResolved = false;
+      const done = () => {
+        if (!isResolved) {
+          isResolved = true;
+          resolve();
+        }
+      };
+      printFooterQr.onload = done;
+      printFooterQr.onerror = done;
+      // Safety timeout of 800ms
+      setTimeout(done, 800);
+      printFooterQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(shareLink)}`;
+    });
   }
 
   // 4. Medicines
@@ -1341,13 +1357,21 @@ window.printPrescription = function() {
   }
   printSigName.innerHTML = `<span style="text-decoration:overline; font-size: 0.8rem; color:#475569;">Dr. ${docName.replace(/^Dr\.\s+/i, '')}</span>`;
 
-  if (window.AndroidPrint) {
-    const template = document.getElementById('print-prescription-template');
-    if (template) {
-      window.runAndroidPrintFlow(template);
+  const doPrint = () => {
+    if (window.AndroidPrint) {
+      const template = document.getElementById('print-prescription-template');
+      if (template) {
+        window.runAndroidPrintFlow(template);
+      }
+    } else {
+      window.print();
     }
+  };
+
+  if (qrLoadPromise) {
+    qrLoadPromise.then(doPrint);
   } else {
-    window.print();
+    doPrint();
   }
 };
 
