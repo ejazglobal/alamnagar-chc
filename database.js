@@ -870,8 +870,10 @@ module.exports = {
         blood_glucose || null
       ]);
 
-      // Set appointment status to completed
-      await client.query("UPDATE appointments SET status = 'completed' WHERE id = $1", [appointment_id]);
+      // Set appointment status to completed and update date/time of visit
+      const visitDate = new Date().toISOString().split('T')[0];
+      const visitTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      await client.query("UPDATE appointments SET status = 'completed', appointment_date = $2, appointment_time = $3 WHERE id = $1", [appointment_id, visitDate, visitTime]);
 
       await client.query('COMMIT');
       return { id: res.rows[0].id, ...prescription };

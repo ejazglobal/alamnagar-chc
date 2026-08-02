@@ -1107,7 +1107,11 @@ window.savePrescription = async function() {
         const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
         const apptIdx = localAppts.findIndex(a => a.id === activeAppointment.id);
         if (apptIdx !== -1) {
+          const visitDate = new Date().toISOString().split('T')[0];
+          const visitTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
           localAppts[apptIdx].status = 'completed';
+          localAppts[apptIdx].appointment_date = visitDate;
+          localAppts[apptIdx].appointment_time = visitTime;
           localStorage.setItem('chc_appointments', JSON.stringify(localAppts));
         }
       }
@@ -1115,9 +1119,17 @@ window.savePrescription = async function() {
       showStatusBanner(banner, 'Prescription saved successfully (Offline fallback). Visit marked COMPLETED.', 'success');
       
       // Update local state
+      const visitDate = new Date().toISOString().split('T')[0];
+      const visitTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
       activeAppointment.status = 'completed';
+      activeAppointment.appointment_date = visitDate;
+      activeAppointment.appointment_time = visitTime;
       const stateIdx = appointments.findIndex(a => a.id === activeAppointment.id);
-      if (stateIdx !== -1) appointments[stateIdx].status = 'completed';
+      if (stateIdx !== -1) {
+        appointments[stateIdx].status = 'completed';
+        appointments[stateIdx].appointment_date = visitDate;
+        appointments[stateIdx].appointment_time = visitTime;
+      }
       
       renderQueue();
       selectPatient(activeAppointment);
@@ -1188,6 +1200,8 @@ window.savePrescription = async function() {
         statusBadge.className = 'badge completed';
       } else {
         activeAppointment.status = 'completed';
+        activeAppointment.appointment_date = new Date().toISOString().split('T')[0];
+        activeAppointment.appointment_time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
       }
 
       // Update status and reload lists
@@ -1245,8 +1259,8 @@ window.printPrescription = function() {
   document.getElementById('print-patient-gender').textContent = gender;
 
   let printDate = new Date();
-  if (activeAppointment && activeAppointment.created_at) {
-    printDate = new Date(activeAppointment.created_at);
+  if (activeAppointment && activeAppointment.appointment_date) {
+    printDate = new Date(activeAppointment.appointment_date);
   }
   document.getElementById('print-patient-date').textContent = printDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   document.getElementById('print-patient-address').textContent = address;
