@@ -1124,11 +1124,25 @@ window.savePrescription = async function() {
       activeAppointment.status = 'completed';
       activeAppointment.appointment_date = visitDate;
       activeAppointment.appointment_time = visitTime;
+      activeAppointment.patient_name = patient_name;
+      activeAppointment.age = age;
+      activeAppointment.gender = gender;
+      activeAppointment.weight = weight;
+      activeAppointment.address = address;
+      activeAppointment.height = height;
+      activeAppointment.allergies = allergies;
       const stateIdx = appointments.findIndex(a => a.id === activeAppointment.id);
       if (stateIdx !== -1) {
         appointments[stateIdx].status = 'completed';
         appointments[stateIdx].appointment_date = visitDate;
         appointments[stateIdx].appointment_time = visitTime;
+        appointments[stateIdx].patient_name = patient_name;
+        appointments[stateIdx].age = age;
+        appointments[stateIdx].gender = gender;
+        appointments[stateIdx].weight = weight;
+        appointments[stateIdx].address = address;
+        appointments[stateIdx].height = height;
+        appointments[stateIdx].allergies = allergies;
       }
       
       renderQueue();
@@ -1183,6 +1197,8 @@ window.savePrescription = async function() {
           gender: gender,
           weight: weight,
           address: address,
+          height: height,
+          allergies: allergies,
           created_at: new Date().toISOString()
         };
         
@@ -1202,6 +1218,13 @@ window.savePrescription = async function() {
         activeAppointment.status = 'completed';
         activeAppointment.appointment_date = new Date().toISOString().split('T')[0];
         activeAppointment.appointment_time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+        activeAppointment.patient_name = patient_name;
+        activeAppointment.age = age;
+        activeAppointment.gender = gender;
+        activeAppointment.weight = weight;
+        activeAppointment.address = address;
+        activeAppointment.height = height;
+        activeAppointment.allergies = allergies;
       }
 
       // Update status and reload lists
@@ -1953,7 +1976,14 @@ async function loadPatientHistory(phone) {
           observations: pres.observations || '',
           diagnostics: pres.diagnostics || '',
           medicines: pres.medicines || [],
-          doctor_name: localStorage.getItem('chc_user_name') || 'Sarah Rahman'
+          doctor_name: localStorage.getItem('chc_user_name') || 'Sarah Rahman',
+          patient_name: appt.patient_name,
+          age: appt.age,
+          gender: appt.gender,
+          weight: appt.weight,
+          address: appt.address,
+          height: appt.height,
+          allergies: appt.allergies
         };
       });
     } else {
@@ -2395,13 +2425,54 @@ function printPastPrescription(visit) {
   printDocSpecialty.textContent = visit.doctor_specialty || (doctorProfile ? doctorProfile.specialty_en : 'Clinical Specialist');
   printDocHours.textContent = visit.doctor_visiting_hours || visit.doctor_hours || (doctorProfile ? doctorProfile.visiting_hours_en : 'Regular Hours');
   
-  printPatientName.textContent = activeAppointment ? activeAppointment.patient_name : (document.getElementById('patient-banner-name').textContent || 'Patient');
-  printPatientAge.textContent = document.getElementById('patient-age').value.trim() || 'N/A';
-  printPatientGender.textContent = document.getElementById('patient-gender').value || 'Male';
+  printPatientName.textContent = visit.patient_name || (activeAppointment ? activeAppointment.patient_name : (document.getElementById('patient-banner-name').textContent || 'Patient'));
+  printPatientAge.textContent = visit.age || 'N/A';
+  printPatientGender.textContent = visit.gender || 'Male';
   printPatientDate.textContent = new Date(visit.appointment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  printPatientAddress.textContent = document.getElementById('patient-address').value.trim() || 'N/A';
-  printPatientWeight.textContent = document.getElementById('patient-weight').value.trim() || 'N/A';
-  printPatientPhone.textContent = visit.phone || (activeAppointment ? activeAppointment.phone : '');
+  printPatientAddress.textContent = visit.address || 'N/A';
+  printPatientWeight.textContent = visit.weight || 'N/A';
+  printPatientPhone.textContent = visit.phone || visit.patient_phone || (activeAppointment ? activeAppointment.phone : '');
+
+  // Height & BMI wrappers for past prescription
+  const height = visit.height || '';
+  const weight = visit.weight || '';
+  const allergies = visit.allergies || '';
+  let bmi = '';
+  if (height && weight) {
+    const h = parseFloat(height);
+    const w = parseFloat(weight);
+    if (h > 0 && w > 0) {
+      bmi = (w / ((h / 100) * (h / 100))).toFixed(1);
+    }
+  }
+
+  const heightWrapper = document.getElementById('print-patient-height-wrapper');
+  const heightSpan = document.getElementById('print-patient-height');
+  if (height && heightWrapper && heightSpan) {
+    heightSpan.textContent = height;
+    heightWrapper.style.display = 'inline';
+  } else if (heightWrapper) {
+    heightWrapper.style.display = 'none';
+  }
+
+  const bmiWrapper = document.getElementById('print-patient-bmi-wrapper');
+  const bmiSpan = document.getElementById('print-patient-bmi');
+  if (bmi && bmiWrapper && bmiSpan) {
+    bmiSpan.textContent = bmi;
+    bmiWrapper.style.display = 'inline';
+  } else if (bmiWrapper) {
+    bmiWrapper.style.display = 'none';
+  }
+
+  // Allergies wrapper for past prescription
+  const allergiesWrapper = document.getElementById('print-patient-allergies-wrapper');
+  const allergiesSpan = document.getElementById('print-patient-allergies');
+  if (allergies && allergies !== 'None' && allergies.toLowerCase() !== 'none' && allergiesWrapper && allergiesSpan) {
+    allergiesSpan.textContent = allergies;
+    allergiesWrapper.style.display = 'block';
+  } else if (allergiesWrapper) {
+    allergiesWrapper.style.display = 'none';
+  }
   
   printObs.textContent = visit.observations || 'None';
   

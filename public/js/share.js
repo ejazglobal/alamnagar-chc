@@ -124,7 +124,24 @@ function renderPrescription(visit) {
   const pGender = state?.gender || visit.gender || 'N/A';
   const pWeight = state?.weight || visit.weight || 'N/A';
   const pAddress = state?.address || visit.address || 'N/A';
-  const pDate = new Date(visit.created_at || visit.appointment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  let printDate = new Date();
+  try {
+    const dateToParse = visit.created_at || visit.appointment_date;
+    if (dateToParse) {
+      if (typeof dateToParse === 'string') {
+        const isoStr = dateToParse.trim().replace(/\s+/, 'T');
+        printDate = new Date(isoStr);
+        if (isNaN(printDate.getTime())) {
+          printDate = new Date(dateToParse);
+        }
+      } else {
+        printDate = new Date(dateToParse);
+      }
+    }
+  } catch(err) {
+    console.error(err);
+  }
+  const pDate = !isNaN(printDate.getTime()) ? printDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A';
   const pPhone = visit.phone || '';
   
   const obs = state?.observations || visit.observations || 'None';

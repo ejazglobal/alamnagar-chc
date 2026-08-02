@@ -541,9 +541,24 @@ window.printPortalPrescription = function() {
     console.warn(e);
   }
 
-  const formattedDate = new Date(p.appointment_date || p.created_at).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'long', year: 'numeric'
-  });
+  let printDate = new Date();
+  try {
+    const dateToParse = p.appointment_date || p.created_at;
+    if (dateToParse) {
+      if (typeof dateToParse === 'string') {
+        const isoStr = dateToParse.trim().replace(/\s+/, 'T');
+        printDate = new Date(isoStr);
+        if (isNaN(printDate.getTime())) {
+          printDate = new Date(dateToParse);
+        }
+      } else {
+        printDate = new Date(dateToParse);
+      }
+    }
+  } catch(err) {
+    console.error(err);
+  }
+  const formattedDate = !isNaN(printDate.getTime()) ? printDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A';
 
   const obs = p.observations || 'None';
   const diags = p.diagnostics || 'None';

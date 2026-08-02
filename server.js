@@ -1601,6 +1601,7 @@ app.get('/api/doctor/patient-history', authenticateToken, async (req, res) => {
   try {
     const query = `
       SELECT a.id as appointment_id, a.appointment_date, a.appointment_time, a.notes as past_complaints, a.height, a.allergies, a.patient_name, a.phone as patient_phone,
+             a.age, a.gender, a.weight, a.address,
              p.id as prescription_id, p.observations, p.diagnostics, p.medicines, p.created_at,
              p.bp, p.temperature, p.pulse, p.rich_state, p.general_advice, p.next_visit, p.blood_glucose,
              d.name_en as doctor_name
