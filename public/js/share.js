@@ -223,6 +223,11 @@ function renderPrescription(visit) {
   const nextVisitVal = visit.next_visit || state?.next_visit || '';
   const baseOrigin = window.location.origin;
 
+  let sigImg = '';
+  if (visit.doctor_signature) {
+    sigImg = `<img src="${visit.doctor_signature}" alt="Doctor Signature" style="max-height: 50px; display: inline-block;">`;
+  }
+
   container.innerHTML = `
     <!-- Header -->
     <div class="prescription-header" style="display: flex; justify-content: space-between; border-bottom: 2px solid #0d9488; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
