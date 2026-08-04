@@ -622,6 +622,19 @@ window.printPortalPrescription = function() {
   const docSpecialty = p.doctor_specialty || 'General Physician';
   const docHours = p.doctor_visiting_hours || p.doctor_hours || 'Sat, Mon, Wed (03:00 PM - 07:00 PM)';
 
+  let qrCodeDataUrl = '';
+  const shareLink = `${baseOrigin}/share.html?id=${p.appointment_id}`;
+  try {
+    const qr = new QRious({
+      value: shareLink,
+      size: 150
+    });
+    qrCodeDataUrl = qr.toDataURL();
+  } catch (e) {
+    console.warn("Local QR generation failed, falling back to network API:", e);
+    qrCodeDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(shareLink)}`;
+  }
+
   const content = `
     <html>
       <head>
@@ -771,7 +784,7 @@ window.printPortalPrescription = function() {
             <span style="color: #0f172a; font-weight: 600; word-break: break-all;">${baseOrigin}/share.html?id=${p.appointment_id}</span>
           </div>
           <div style="text-align: right;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(baseOrigin + '/share.html?id=' + p.appointment_id)}" alt="QR Code" style="width: 50px; height: 50px; display: block;">
+            <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 50px; height: 50px; display: block;">
           </div>
         </div>
         <script>

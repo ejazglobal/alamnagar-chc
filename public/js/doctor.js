@@ -1426,9 +1426,20 @@ window.printPrescription = function() {
       };
       printFooterQr.onload = done;
       printFooterQr.onerror = done;
-      // Safety timeout of 800ms
-      setTimeout(done, 800);
-      printFooterQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(shareLink)}`;
+      
+      try {
+        // Local generation using QRious
+        const qr = new QRious({
+          value: shareLink,
+          size: 150
+        });
+        printFooterQr.src = qr.toDataURL();
+      } catch (e) {
+        console.warn("Local QR generation failed, falling back to network API:", e);
+        // Safety timeout of 800ms for fallback network image
+        setTimeout(done, 800);
+        printFooterQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=60x60&margin=0&data=${encodeURIComponent(shareLink)}`;
+      }
     });
   }
 
