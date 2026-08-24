@@ -1360,13 +1360,14 @@ app.post('/api/reports', optionalAuthenticateToken, upload.single('report_file')
   }
 
   let { patient_phone, description } = req.body;
-  if (!patient_phone && req.user.role === 'Patient') {
-    patient_phone = req.user.phone;
+  if (!patient_phone && req.user && (req.user.role || '').toLowerCase() === 'patient') {
+    patient_phone = req.user.phone || req.user.email;
   }
 
   if (!patient_phone) {
-    return res.status(400).json({ error: 'Patient phone number is required' });
+    return res.status(400).json({ error: 'Patient contact (phone or email) is required' });
   }
+
 
   try {
     // Generate a unique filename for Supabase Storage

@@ -148,7 +148,7 @@ async function requestOTP() {
 
   const status = document.getElementById('otp-request-status');
   if (status) {
-    status.textContent = 'Requesting OTP...';
+    status.textContent = 'Sending OTP...';
     status.style.color = '#475569';
   }
 
@@ -166,6 +166,7 @@ async function requestOTP() {
       document.getElementById('step-1').classList.remove('active');
       document.getElementById('step-2').classList.add('active');
       startResendTimer();
+      if (status) status.textContent = '';
     } else {
       if (status) {
         status.textContent = data.error || 'Failed to request OTP';
@@ -249,41 +250,56 @@ async function verifyOTP() {
 
 async function uploadReport() {
   const fileInput = document.getElementById('report-file');
-  const file = fileInput.files[0];
+  const file = fileInput ? fileInput.files[0] : null;
   if (!file) return alert('Please select a file to upload.');
 
-  const desc = document.getElementById('report-desc').value.trim();
+  const descInput = document.getElementById('report-desc');
+  const desc = descInput ? descInput.value.trim() : '';
   const status = document.getElementById('upload-status');
-  status.textContent = 'Uploading...';
-  status.style.color = '#475569';
+  if (status) {
+    status.textContent = 'Uploading...';
+    status.style.color = '#475569';
+  }
+
+  const activeToken = portalToken || localStorage.getItem('patient_portal_token') || localStorage.getItem('chc_token');
+  const activeContact = currentPhone || currentEmail || localStorage.getItem('patient_portal_phone') || localStorage.getItem('patient_portal_email') || localStorage.getItem('chc_user_phone') || localStorage.getItem('chc_user_email');
 
   const formData = new FormData();
   formData.append('report_file', file);
   formData.append('description', desc);
+  if (activeContact) {
+    formData.append('patient_phone', activeContact);
+  }
 
   try {
     const res = await fetch('/api/reports', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${portalToken}` },
+      headers: { 'Authorization': `Bearer ${activeToken}` },
       body: formData
     });
     
     if (res.ok) {
-      status.textContent = 'Upload successful!';
-      status.style.color = 'green';
-      fileInput.value = '';
-      document.getElementById('report-desc').value = '';
+      if (status) {
+        status.textContent = 'Upload successful!';
+        status.style.color = 'green';
+      }
+      if (fileInput) fileInput.value = '';
+      if (descInput) descInput.value = '';
       loadMyReports();
-      setTimeout(() => status.textContent = '', 3000);
+      setTimeout(() => { if (status) status.textContent = ''; }, 3000);
     } else {
       const err = await res.json();
-      status.textContent = err.error || 'Upload failed.';
-      status.style.color = 'var(--danger)';
+      if (status) {
+        status.textContent = err.error || 'Upload failed.';
+        status.style.color = 'var(--danger)';
+      }
     }
   } catch (err) {
     console.error(err);
-    status.textContent = 'Network error during upload.';
-    status.style.color = 'var(--danger)';
+    if (status) {
+      status.textContent = 'Network error during upload.';
+      status.style.color = 'var(--danger)';
+    }
   }
 }
 
