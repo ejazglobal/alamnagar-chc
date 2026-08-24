@@ -192,8 +192,11 @@ app.post('/api/auth/register', async (req, res) => {
   }
 
   if (cleanPhone && !isValidPhone(cleanPhone)) {
-    return res.status(400).json({ error: 'Invalid mobile number. Must be exactly 11 digits starting with 01.' });
+    if (!cleanEmail) {
+      return res.status(400).json({ error: 'SMS verification is optimized for Bangladeshi (+880) numbers. For international registration, please select "Email Address" to receive your instant OTP.' });
+    }
   }
+
 
   if (cleanEmail && !isValidEmail(cleanEmail)) {
     return res.status(400).json({ error: 'A valid email address is required.' });

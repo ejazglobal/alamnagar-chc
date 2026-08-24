@@ -128,6 +128,14 @@
 
       <!-- Register Form (Initially Hidden) -->
       <form id="register-form" style="display: none;">
+        <!-- International Registration Notice Banner -->
+        <div id="intl-user-notice" style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 0.75rem; font-size: 0.8rem; color: #1e40af; margin-bottom: 1rem;">
+          <div style="font-weight: 700; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem;">
+            🌐 International Registration
+          </div>
+          <span>SMS OTP is optimized for Bangladeshi (+880) mobile numbers. Users registering outside Bangladesh can use <strong>Email Address</strong> for instant OTP delivery.</span>
+        </div>
+
         <div class="form-group">
           <label class="form-label" for="reg-username">Username *</label>
           <input type="text" id="reg-username" class="form-control" placeholder="Choose a username" required autocomplete="username">
@@ -136,19 +144,21 @@
         <div class="form-group">
           <label class="form-label">Register With *</label>
           <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-            <button type="button" id="reg-method-phone" class="btn" onclick="setRegisterMethod('phone')" style="flex: 1; padding: 0.5rem; margin: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--primary-color); color: white; transition: all 0.2s; font-weight: 600;">Mobile Number</button>
-            <button type="button" id="reg-method-email" class="btn" onclick="setRegisterMethod('email')" style="flex: 1; padding: 0.5rem; margin: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-muted); transition: all 0.2s; font-weight: 600;">Email Address</button>
+            <button type="button" id="reg-method-phone" class="btn" onclick="setRegisterMethod('phone')" style="flex: 1; padding: 0.5rem; margin: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--primary-color); color: white; transition: all 0.2s; font-weight: 600;">Mobile Number (BD)</button>
+            <button type="button" id="reg-method-email" class="btn" onclick="setRegisterMethod('email')" style="flex: 1; padding: 0.5rem; margin: 0; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-muted); transition: all 0.2s; font-weight: 600;">Email Address (Global)</button>
           </div>
         </div>
 
         <div class="form-group" id="reg-phone-group">
           <label class="form-label" for="reg-phone">Mobile Number *</label>
           <input type="tel" id="reg-phone" class="form-control" placeholder="e.g. 01712345678" required autocomplete="tel">
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Bangladeshi numbers (01XXXXXXXXX) receive SMS OTP.</span>
         </div>
 
         <div class="form-group" id="reg-email-group" style="display: none;">
           <label class="form-label" for="reg-email">Email Address *</label>
-          <input type="email" id="reg-email" class="form-control" placeholder="e.g. email@example.com" autocomplete="email">
+          <input type="email" id="reg-email" class="form-control" placeholder="e.g. name@example.com" autocomplete="email">
+          <span style="font-size: 0.75rem; color: var(--primary-color); display: block; margin-top: 0.25rem; font-weight: 500;">🌐 International & Local: Instant verification code (OTP) will be sent to this email.</span>
         </div>
 
         <div class="form-group">
@@ -160,6 +170,7 @@
         </div>
         <button type="submit" class="btn" style="margin-top: 1rem;">Register Account</button>
       </form>
+
 
       <!-- Forgot Password Request Form (Initially Hidden) -->
       <form id="forgot-password-request-form" style="display: none;" onsubmit="handleRequestResetOTP(event)">

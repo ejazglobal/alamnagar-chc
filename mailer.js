@@ -3,6 +3,15 @@ const path = require('path');
 const https = require('https');
 const querystring = require('querystring');
 
+// Check if phone number is a valid Bangladeshi telecom number
+function isBDPhoneNumber(phone) {
+  if (!phone) return false;
+  const digits = phone.toString().replace(/\D/g, '');
+  return (digits.length === 11 && digits.startsWith('01')) ||
+         (digits.length === 13 && digits.startsWith('8801')) ||
+         (digits.length === 10 && digits.startsWith('1'));
+}
+
 // Normalize Bangladeshi phone numbers to the 8801XXXXXXXXX format
 function normalizeBDPhoneNumber(phone) {
   let digits = phone.replace(/\D/g, '');
@@ -29,6 +38,13 @@ function sendSMS(to, message) {
     console.log(`[SMS BYPASS] Skipping real SMS send to test account number: ${to}`);
     return;
   }
+
+  // Gracefully skip non-BD / international numbers for SMS gateway (they use Email OTP)
+  if (!isBDPhoneNumber(to)) {
+    console.log(`[SMS NOTICE] Contact '${to}' is outside Bangladesh. Skipping local BD SMS gateway (Email OTP dispatches instead).`);
+    return;
+  }
+
 
   const smsProvider = (process.env.SMS_PROVIDER || 'shiram').toLowerCase();
   const normalizedPhone = normalizeBDPhoneNumber(to);
@@ -503,6 +519,7 @@ function sendPasswordResetOTP(email, phone, username, otp) {
 }
 
 module.exports = {
+  isBDPhoneNumber,
   sendAppointmentConfirmation,
   sendBookingOTP,
   sendSMS,
@@ -510,3 +527,4 @@ module.exports = {
   sendEmail,
   sendPasswordResetOTP
 };
+
