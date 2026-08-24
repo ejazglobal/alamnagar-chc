@@ -2287,7 +2287,96 @@ app.get('/api/test-sms', async (req, res) => {
 });
 
 
+// --- SYSTEM MAINTENANCE: CLEAN TEST DATA ENDPOINT ---
+app.post('/api/admin/clean-test-data', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized. Missing authorization token.' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = decryptToken(token);
+    if (!decoded || decoded.role !== 'Admin') {
+      return res.status(403).json({ error: 'Forbidden. Admin privileges required.' });
+    }
+
+    let deletedStorageFilesCount = 0;
+
+    // 1. Delete objects from Supabase Storage bucket 'patient-reports'
+    if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+      try {
+        const listUrl = `${SUPABASE_URL}/storage/v1/object/list/${SUPABASE_BUCKET}`;
+        const listRes = await fetch(listUrl, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ prefix: '', limit: 1000 })
+        });
+
+        if (listRes.ok) {
+          const files = await listRes.json();
+          if (Array.isArray(files) && files.length > 0) {
+            const filenames = files.map(f => f.name);
+            const deleteUrl = `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}`;
+            const delRes = await fetch(deleteUrl, {
+              method: 'DELETE',
+              headers: {
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ prefixes: filenames })
+            });
+            if (delRes.ok) {
+              deletedStorageFilesCount = filenames.length;
+              console.log(`[CLEANUP] Deleted ${deletedStorageFilesCount} files from Supabase Storage bucket '${SUPABASE_BUCKET}'.`);
+            } else {
+              console.warn('[CLEANUP WARNING] Supabase delete returned:', await delRes.text());
+            }
+          }
+        }
+      } catch (stErr) {
+        console.error('[CLEANUP WARNING] Supabase Storage file deletion error:', stErr.message);
+      }
+    }
+
+    // 2. Clean PostgreSQL database tables
+    const deletePatientUsers = req.body.deletePatientUsers !== false;
+    const dbSummary = await db.cleanTestData({ deletePatientUsers });
+
+    // 3. Clear local sent_emails directory
+    let deletedEmailsCount = 0;
+    const emailsDir = path.join(__dirname, 'sent_emails');
+    if (fs.existsSync(emailsDir)) {
+      const emailFiles = fs.readdirSync(emailsDir);
+      for (const file of emailFiles) {
+        if (file.endsWith('.html') || file.endsWith('.txt')) {
+          fs.unlinkSync(path.join(emailsDir, file));
+          deletedEmailsCount++;
+        }
+      }
+    }
+
+    console.log('[CLEANUP COMPLETE]', { dbSummary, deletedStorageFilesCount, deletedEmailsCount });
+    res.json({
+      success: true,
+      message: 'All test records, appointments, prescriptions, patient reports, and uploaded documents successfully deleted.',
+      dbSummary,
+      deletedStorageFilesCount,
+      deletedEmailsCount
+    });
+  } catch (err) {
+    console.error('[CLEANUP ERROR]', err);
+    res.status(500).json({ error: 'Failed to clean test data: ' + err.message });
+  }
+});
+
 // --- DOCTOR FALLBACK PATH ---
+
 app.get('/doctor', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'doctor.html'));
 });

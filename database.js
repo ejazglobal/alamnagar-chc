@@ -908,5 +908,35 @@ module.exports = {
     `;
     const res = await pool.query(query, [phone]);
     return res.rows;
+  },
+
+  // --- SYSTEM MAINTENANCE & CLEANUP HELPERS ---
+  cleanTestData: async (options = { deletePatientUsers: true }) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const delPrescriptions = await client.query('DELETE FROM prescriptions');
+      const delReports = await client.query('DELETE FROM patient_reports');
+      const delAppointments = await client.query('DELETE FROM appointments');
+      const delOtps = await client.query('DELETE FROM otp_verifications');
+      let delPatients = { rowCount: 0 };
+      if (options && options.deletePatientUsers !== false) {
+        delPatients = await client.query("DELETE FROM users WHERE role = 'Patient'");
+      }
+      await client.query('COMMIT');
+      return {
+        prescriptionsDeleted: delPrescriptions.rowCount,
+        reportsDeleted: delReports.rowCount,
+        appointmentsDeleted: delAppointments.rowCount,
+        otpsDeleted: delOtps.rowCount,
+        patientsDeleted: delPatients.rowCount
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 };
+
