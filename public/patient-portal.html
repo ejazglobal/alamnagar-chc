@@ -108,13 +108,34 @@
 
     <!-- Step 1: Request OTP -->
     <div id="step-1" class="step active">
-      <div class="form-group">
-        <label class="form-label">Mobile Number</label>
-        <input type="tel" id="patient-phone" class="form-control" placeholder="e.g. 017XXXXXXXX" required>
+      <div id="portal-welcome-msg" style="background: #f0fdfa; border: 1px solid var(--primary-light); border-radius: 6px; padding: 0.75rem; font-size: 0.85rem; color: var(--primary-color); margin-bottom: 1.5rem; text-align: center;">
+        👋 Welcome! Verify your mobile number or email address to access your prescriptions and upload investigation reports.
       </div>
-      <button class="btn" onclick="requestOTP()">Request OTP</button>
+      
+      <div class="form-group">
+        <label class="form-label">Verification Method</label>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <button type="button" id="portal-method-phone" onclick="setPortalMethod('phone')" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--primary-color); color: white; font-weight: 600; font-size: 0.85rem; cursor: pointer;">Mobile Number (BD)</button>
+          <button type="button" id="portal-method-email" onclick="setPortalMethod('email')" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; background: #f8fafc; color: var(--text-muted); font-weight: 600; font-size: 0.85rem; cursor: pointer;">Email Address (Global)</button>
+        </div>
+      </div>
+
+      <div class="form-group" id="portal-phone-group">
+        <label class="form-label" for="patient-phone">Mobile Number *</label>
+        <input type="tel" id="patient-phone" class="form-control" placeholder="e.g. 017XXXXXXXX">
+        <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Bangladeshi numbers (01XXXXXXXXX) receive SMS OTP.</span>
+      </div>
+
+      <div class="form-group" id="portal-email-group" style="display: none;">
+        <label class="form-label" for="patient-email">Email Address *</label>
+        <input type="email" id="patient-email" class="form-control" placeholder="e.g. name@example.com">
+        <span style="font-size: 0.75rem; color: var(--primary-color); display: block; margin-top: 0.25rem; font-weight: 500;">🌐 International & Local: Instant 6-digit verification code will be sent to this email.</span>
+      </div>
+
+      <button class="btn" onclick="requestOTP()">Request OTP Code</button>
       <div id="otp-request-status" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
     </div>
+
 
     <!-- Step 2: Verify OTP -->
     <div id="step-2" class="step">

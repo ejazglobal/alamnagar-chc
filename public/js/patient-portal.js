@@ -1,6 +1,42 @@
 let currentPhone = '';
+let currentEmail = '';
+let currentPortalMethod = 'phone';
 let portalToken = '';
 let resendTimerInterval = null;
+
+window.setPortalMethod = function(method) {
+  currentPortalMethod = method;
+  const phoneBtn = document.getElementById('portal-method-phone');
+  const emailBtn = document.getElementById('portal-method-email');
+  const phoneGroup = document.getElementById('portal-phone-group');
+  const emailGroup = document.getElementById('portal-email-group');
+  const phoneInput = document.getElementById('patient-phone');
+  const emailInput = document.getElementById('patient-email');
+
+  if (method === 'phone') {
+    if (phoneBtn) {
+      phoneBtn.style.backgroundColor = 'var(--primary-color)';
+      phoneBtn.style.color = 'white';
+    }
+    if (emailBtn) {
+      emailBtn.style.backgroundColor = '#f8fafc';
+      emailBtn.style.color = 'var(--text-muted)';
+    }
+    if (phoneGroup) phoneGroup.style.display = 'block';
+    if (emailGroup) emailGroup.style.display = 'none';
+  } else {
+    if (phoneBtn) {
+      phoneBtn.style.backgroundColor = '#f8fafc';
+      phoneBtn.style.color = 'var(--text-muted)';
+    }
+    if (emailBtn) {
+      emailBtn.style.backgroundColor = 'var(--primary-color)';
+      emailBtn.style.color = 'white';
+    }
+    if (phoneGroup) phoneGroup.style.display = 'none';
+    if (emailGroup) emailGroup.style.display = 'block';
+  }
+};
 
 function startResendTimer() {
   const timerText = document.getElementById('resend-timer-text');
@@ -10,17 +46,17 @@ function startResendTimer() {
   if (resendTimerInterval) clearInterval(resendTimerInterval);
 
   let timeLeft = 90;
-  timerText.style.display = 'inline';
-  btnResend.style.display = 'none';
-  timerCount.textContent = timeLeft;
+  if (timerText) timerText.style.display = 'inline';
+  if (btnResend) btnResend.style.display = 'none';
+  if (timerCount) timerCount.textContent = timeLeft;
 
   resendTimerInterval = setInterval(() => {
     timeLeft--;
-    timerCount.textContent = timeLeft;
+    if (timerCount) timerCount.textContent = timeLeft;
     if (timeLeft <= 0) {
       clearInterval(resendTimerInterval);
-      timerText.style.display = 'none';
-      btnResend.style.display = 'inline-block';
+      if (timerText) timerText.style.display = 'none';
+      if (btnResend) btnResend.style.display = 'inline-block';
     }
   }, 1000);
 }
@@ -34,104 +70,127 @@ function normalizeDigits(phone) {
 }
 
 async function resendOTP() {
-  if (!currentPhone) return;
+  if (!currentPhone && !currentEmail) return;
   const status = document.getElementById('otp-verify-status');
-  status.textContent = 'Resending OTP...';
-  status.style.color = '#475569';
+  if (status) {
+    status.textContent = 'Resending OTP...';
+    status.style.color = '#475569';
+  }
 
   try {
     const res = await fetch('/api/patient/request-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: currentPhone })
+      body: JSON.stringify({ phone: currentPhone, email: currentEmail })
     });
     
     if (res.ok) {
-      status.textContent = 'OTP resent successfully!';
-      status.style.color = 'green';
+      if (status) {
+        status.textContent = 'OTP resent successfully!';
+        status.style.color = 'green';
+      }
       startResendTimer();
     } else {
       const err = await res.json();
-      status.textContent = err.error || 'Failed to resend OTP';
-      status.style.color = 'var(--danger)';
+      if (status) {
+        status.textContent = err.error || 'Failed to resend OTP';
+        status.style.color = 'var(--danger)';
+      }
     }
   } catch (err) {
     console.error(err);
-    status.textContent = 'Network error. Try again.';
-    status.style.color = 'var(--danger)';
+    if (status) {
+      status.textContent = 'Network error. Try again.';
+      status.style.color = 'var(--danger)';
+    }
   }
 }
 
 async function requestOTP() {
-  const phone = document.getElementById('patient-phone').value.trim();
-  if (!phone) return alert('Please enter your mobile number.');
-  
-  // Check if this mobile number was ALREADY verified on this browser/device!
-  const cleanInputDigits = normalizeDigits(phone);
+  let phone = '';
+  let email = '';
+
+  if (currentPortalMethod === 'phone') {
+    const phoneInput = document.getElementById('patient-phone');
+    phone = phoneInput ? phoneInput.value.trim() : '';
+    if (!phone) return alert('Please enter your mobile number.');
+  } else {
+    const emailInput = document.getElementById('patient-email');
+    email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+    if (!email) return alert('Please enter your email address.');
+  }
+
+  // Check if contact was ALREADY verified on this browser/device!
+  const cleanInput = email || normalizeDigits(phone);
   let verifiedPhones = {};
   try {
     verifiedPhones = JSON.parse(localStorage.getItem('verified_patient_phones') || '{}');
   } catch(e) {}
 
   const activePhone = localStorage.getItem('patient_portal_phone') || localStorage.getItem('chc_user_phone');
+  const activeEmail = localStorage.getItem('patient_portal_email') || localStorage.getItem('chc_user_email');
   const activeToken = localStorage.getItem('patient_portal_token') || localStorage.getItem('chc_token');
 
-  const existingToken = verifiedPhones[cleanInputDigits] || (activePhone && normalizeDigits(activePhone) === cleanInputDigits ? activeToken : null);
+  const existingToken = verifiedPhones[cleanInput] || (activePhone && normalizeDigits(activePhone) === cleanInput ? activeToken : (activeEmail && activeEmail === cleanInput ? activeToken : null));
 
   if (existingToken) {
-    // AUTO-BYPASS OTP! Phone was previously verified on this device.
+    // AUTO-BYPASS OTP! Contact was previously verified on this device.
     currentPhone = phone;
+    currentEmail = email;
     portalToken = existingToken;
     
     document.getElementById('step-1').classList.remove('active');
     document.getElementById('step-3').classList.add('active');
     loadMyReports();
     loadMyPrescriptions();
-    return; // Do NOT send SMS OTP!
+    return;
   }
 
   const status = document.getElementById('otp-request-status');
-  status.textContent = 'Requesting OTP...';
-  status.style.color = '#475569';
+  if (status) {
+    status.textContent = 'Requesting OTP...';
+    status.style.color = '#475569';
+  }
 
   try {
     const res = await fetch('/api/patient/request-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone })
+      body: JSON.stringify({ phone, email })
     });
     
+    const data = await res.json();
     if (res.ok) {
       currentPhone = phone;
+      currentEmail = email;
       document.getElementById('step-1').classList.remove('active');
       document.getElementById('step-2').classList.add('active');
       startResendTimer();
     } else {
-      const err = await res.json();
-      status.textContent = err.error || 'Failed to request OTP';
-      status.style.color = 'var(--danger)';
+      if (status) {
+        status.textContent = data.error || 'Failed to request OTP';
+        status.style.color = 'var(--danger)';
+      }
     }
   } catch (err) {
     console.error(err);
-    status.textContent = 'Network error. Try again.';
-    status.style.color = 'var(--danger)';
+    if (status) {
+      status.textContent = 'Network error. Try again.';
+      status.style.color = 'var(--danger)';
+    }
   }
 }
 
 async function verifyOTP() {
-  if (!currentPhone) {
-    const phoneInput = document.getElementById('patient-phone');
-    if (phoneInput && phoneInput.value) {
-      currentPhone = phoneInput.value.trim();
-    }
-  }
-
-  const otp = document.getElementById('patient-otp').value.trim();
+  const otpInput = document.getElementById('patient-otp');
+  const otp = otpInput ? otpInput.value.trim() : '';
   if (!otp) return alert('Please enter the OTP.');
 
   const status = document.getElementById('otp-verify-status');
-  status.textContent = 'Verifying...';
-  status.style.color = '#475569';
+  if (status) {
+    status.textContent = 'Verifying...';
+    status.style.color = '#475569';
+  }
 
   const sessionToken = localStorage.getItem('chc_token') || localStorage.getItem('patient_portal_token');
   const headers = { 'Content-Type': 'application/json' };
@@ -143,29 +202,27 @@ async function verifyOTP() {
     const res = await fetch('/api/patient/verify-otp', {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify({ phone: currentPhone, otp })
+      body: JSON.stringify({ phone: currentPhone, email: currentEmail, otp })
     });
     
     if (res.ok) {
       const data = await res.json();
       portalToken = data.token;
       
-      // Save to verified_patient_phones map for smart auto-bypass
-      const cleanDigits = normalizeDigits(currentPhone);
+      const cleanContact = currentEmail || normalizeDigits(currentPhone);
       let verifiedPhones = {};
       try {
         verifiedPhones = JSON.parse(localStorage.getItem('verified_patient_phones') || '{}');
       } catch(e) {}
-      if (cleanDigits) {
-        verifiedPhones[cleanDigits] = data.token;
+      if (cleanContact) {
+        verifiedPhones[cleanContact] = data.token;
         localStorage.setItem('verified_patient_phones', JSON.stringify(verifiedPhones));
       }
 
-      // Persist portal session unconditionally across all localStorage keys
       localStorage.setItem('patient_portal_token', data.token);
-      localStorage.setItem('patient_portal_phone', currentPhone);
+      if (currentPhone) localStorage.setItem('patient_portal_phone', currentPhone);
+      if (currentEmail) localStorage.setItem('patient_portal_email', currentEmail);
       localStorage.setItem('chc_token', data.token);
-      localStorage.setItem('chc_user_phone', currentPhone);
       localStorage.setItem('chc_user_role', 'Patient');
 
       if (resendTimerInterval) clearInterval(resendTimerInterval);
@@ -175,15 +232,20 @@ async function verifyOTP() {
       loadMyPrescriptions();
     } else {
       const err = await res.json();
-      status.textContent = err.error || 'Invalid OTP';
-      status.style.color = 'var(--danger)';
+      if (status) {
+        status.textContent = err.error || 'Invalid OTP';
+        status.style.color = 'var(--danger)';
+      }
     }
   } catch (err) {
     console.error(err);
-    status.textContent = 'Network error. Try again.';
-    status.style.color = 'var(--danger)';
+    if (status) {
+      status.textContent = 'Network error. Try again.';
+      status.style.color = 'var(--danger)';
+    }
   }
 }
+
 
 async function uploadReport() {
   const fileInput = document.getElementById('report-file');

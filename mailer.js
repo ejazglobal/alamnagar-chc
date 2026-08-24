@@ -191,57 +191,102 @@ function sendSMS(to, message) {
   }
 }
 
-// Helper to send real Email via SendGrid API (no npm module required)
+// Helper to send real Email via Resend API or SendGrid API (over HTTPS Port 443)
 function sendEmail(to, subject, htmlContent) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@alamnagar-chc.org';
+  const resendKey = process.env.RESEND_API_KEY;
+  const sendgridKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL || 'Alamnagar CHC <onboarding@resend.dev>';
 
-  if (!apiKey) {
-    console.log(`[SIMULATED EMAIL] Skipping real email to ${to} (no SendGrid credentials).`);
+  // 1. Resend API (Recommended — Instant 10-second signup, zero account blocks)
+  if (resendKey) {
+    const postData = JSON.stringify({
+      from: fromEmail,
+      to: [to],
+      subject: subject,
+      html: htmlContent
+    });
+
+    const options = {
+      hostname: 'api.resend.com',
+      port: 443,
+      path: '/emails',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        console.log(`[RESEND EMAIL] Real email sent successfully to ${to}`);
+      } else {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          console.error(`[RESEND EMAIL] Failed with status ${res.statusCode}: ${data}`);
+        });
+      }
+    });
+
+    req.on('error', (e) => {
+      console.error(`[RESEND EMAIL] Request error: ${e.message}`);
+    });
+
+    req.write(postData);
+    req.end();
     return;
   }
 
-  const postData = JSON.stringify({
-    personalizations: [{ to: [{ email: to }] }],
-    from: { email: fromEmail, name: 'Alamnagar CHC' },
-    subject: subject,
-    content: [{ type: 'text/html', value: htmlContent }]
-  });
+  // 2. SendGrid API Fallback
+  if (sendgridKey) {
+    const postData = JSON.stringify({
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: process.env.SENDGRID_FROM_EMAIL || 'info.ashiana.online@gmail.com', name: 'Alamnagar CHC' },
+      subject: subject,
+      content: [{ type: 'text/html', value: htmlContent }]
+    });
 
-  const options = {
-    hostname: 'api.sendgrid.com',
-    port: 443,
-    path: '/v3/mail/send',
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'Content-Length': postData.length
-    }
-  };
+    const options = {
+      hostname: 'api.sendgrid.com',
+      port: 443,
+      path: '/v3/mail/send',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sendgridKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
 
-  const req = https.request(options, (res) => {
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      console.log(`[SENDGRID EMAIL] Real email sent successfully to ${to}`);
-    } else {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        console.error(`[SENDGRID EMAIL] Failed with status ${res.statusCode}: ${data}`);
-      });
-    }
-  });
+    const req = https.request(options, (res) => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        console.log(`[SENDGRID EMAIL] Real email sent successfully to ${to}`);
+      } else {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          console.error(`[SENDGRID EMAIL] Failed with status ${res.statusCode}: ${data}`);
+        });
+      }
+    });
 
-  req.on('error', (e) => {
-    console.error(`[SENDGRID EMAIL] Request error: ${e.message}`);
-  });
+    req.on('error', (e) => {
+      console.error(`[SENDGRID EMAIL] Request error: ${e.message}`);
+    });
 
-  req.write(postData);
-  req.end();
+    req.write(postData);
+    req.end();
+    return;
+  }
+
+  console.log(`[SIMULATED EMAIL] Skipping real email to ${to} (no RESEND_API_KEY or SENDGRID_API_KEY in .env).`);
 }
 
 /**
  * Sends a confirmation email by saving it as a beautifully styled HTML file.
+
  * This acts as a reliable development mailer.
  * 
  * @param {Object} appointment - The appointment details
