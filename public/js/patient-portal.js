@@ -4,7 +4,7 @@ let currentPortalMethod = 'phone';
 let portalToken = '';
 let resendTimerInterval = null;
 
-window.setPortalMethod = function(method) {
+window.setPortalMethodImpl = window.setPortalMethod = function(method) {
   currentPortalMethod = method;
   const phoneBtn = document.getElementById('portal-method-phone');
   const emailBtn = document.getElementById('portal-method-email');
@@ -37,6 +37,7 @@ window.setPortalMethod = function(method) {
     if (emailGroup) emailGroup.style.display = 'block';
   }
 };
+
 
 function startResendTimer() {
   const timerText = document.getElementById('resend-timer-text');

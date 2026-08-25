@@ -218,6 +218,31 @@
   </div>
 
   <script src="js/qrious.min.js"></script>
-  <script src="js/patient-portal.js"></script>
+  <script>
+    function setPortalMethod(method) {
+      if (window.setPortalMethodImpl) {
+        window.setPortalMethodImpl(method);
+      } else {
+        const phoneBtn = document.getElementById('portal-method-phone');
+        const emailBtn = document.getElementById('portal-method-email');
+        const phoneGroup = document.getElementById('portal-phone-group');
+        const emailGroup = document.getElementById('portal-email-group');
+
+        if (method === 'phone') {
+          if (phoneBtn) { phoneBtn.style.backgroundColor = 'var(--primary-color)'; phoneBtn.style.color = 'white'; }
+          if (emailBtn) { emailBtn.style.backgroundColor = '#f8fafc'; emailBtn.style.color = 'var(--text-muted)'; }
+          if (phoneGroup) phoneGroup.style.display = 'block';
+          if (emailGroup) emailGroup.style.display = 'none';
+        } else {
+          if (phoneBtn) { phoneBtn.style.backgroundColor = '#f8fafc'; phoneBtn.style.color = 'var(--text-muted)'; }
+          if (emailBtn) { emailBtn.style.backgroundColor = 'var(--primary-color)'; emailBtn.style.color = 'white'; }
+          if (phoneGroup) phoneGroup.style.display = 'none';
+          if (emailGroup) emailGroup.style.display = 'block';
+        }
+      }
+    }
+  </script>
+  <script src="js/patient-portal.js?v=2.5"></script>
 </body>
 </html>
+
