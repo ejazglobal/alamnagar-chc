@@ -1440,13 +1440,12 @@ app.put('/api/reports/:id/findings', authenticateToken, async (req, res) => {
 
 app.get('/api/reports/:phone', authenticateToken, async (req, res) => {
   const phone = req.params.phone;
-  if (!phone) return res.status(400).json({ error: 'Phone parameter required.' });
+  if (!phone) return res.status(400).json({ error: 'Phone or email parameter required.' });
   
-  // Basic security: if patient, ensure they are fetching their own reports
-  // Normalize comparison by removing any leading '88' prefix
-  const normUserPhone = (req.user.phone || '').replace(/^88/, '');
-  const normParamPhone = phone.replace(/^88/, '');
-  if (req.user.role === 'Patient' && normUserPhone !== normParamPhone) {
+  // Security check: ensure patients only fetch their own reports
+  const userContact = (req.user.phone || req.user.email || '').replace(/^88/, '').toLowerCase();
+  const paramContact = phone.replace(/^88/, '').toLowerCase();
+  if ((req.user.role || '').toLowerCase() === 'patient' && userContact && userContact !== paramContact) {
     return res.status(403).json({ error: 'You can only view your own reports.' });
   }
 
@@ -1458,6 +1457,7 @@ app.get('/api/reports/:phone', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Database error.' });
   }
 });
+
 
 // --- SECURE SHARE API ENDPOINTS ---
 app.post('/api/share/prescription/:id/request-otp', async (req, res) => {

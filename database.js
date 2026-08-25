@@ -900,15 +900,17 @@ module.exports = {
   },
 
   getPatientReportsByPhone: async (phone) => {
-    // Normalizes matching by ignoring any leading '88' country code format differences
+    // Normalizes matching by ignoring any leading '88' country code format differences or exact email match
     const query = `
       SELECT * FROM patient_reports 
       WHERE REGEXP_REPLACE(patient_phone, '^88', '') = REGEXP_REPLACE($1, '^88', '') 
+         OR LOWER(patient_phone) = LOWER($1)
       ORDER BY upload_date DESC
     `;
     const res = await pool.query(query, [phone]);
     return res.rows;
   },
+
 
   // --- SYSTEM MAINTENANCE & CLEANUP HELPERS ---
   cleanTestData: async (options = { deletePatientUsers: true }) => {

@@ -305,19 +305,27 @@ async function uploadReport() {
 
 async function loadMyReports() {
   const container = document.getElementById('reports-list');
-  try {
-    // Determine digits (to fetch) - using exact returned token format or just currentPhone mapping format
-    let digits = currentPhone.replace(/\D/g, '');
-    if (digits.startsWith('0') && digits.length === 11) digits = '88' + digits;
+  if (!container) return;
 
-    const res = await fetch(`/api/reports/${digits}?t=${Date.now()}`, {
-      headers: { 'Authorization': `Bearer ${portalToken}` }
+  try {
+    const activeContact = currentEmail || currentPhone || localStorage.getItem('patient_portal_email') || localStorage.getItem('patient_portal_phone') || localStorage.getItem('chc_user_email') || localStorage.getItem('chc_user_phone') || '';
+    
+    let contactParam = activeContact;
+    if (!activeContact.includes('@') && activeContact) {
+      contactParam = activeContact.replace(/\D/g, '');
+      if (contactParam.startsWith('0') && contactParam.length === 11) contactParam = '88' + contactParam;
+    }
+
+    const activeToken = portalToken || localStorage.getItem('patient_portal_token') || localStorage.getItem('chc_token');
+
+    const res = await fetch(`/api/reports/${encodeURIComponent(contactParam)}?t=${Date.now()}`, {
+      headers: { 'Authorization': `Bearer ${activeToken}` }
     });
     
     if (res.ok) {
       const reports = await res.json();
-      if (reports.length === 0) {
-        container.innerHTML = '<div style="text-align: center; color: var(--text-muted);">No reports uploaded yet.</div>';
+      if (!reports || reports.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No reports uploaded yet. Select a file above and click "Upload Document" to store your report securely.</div>';
         return;
       }
       
@@ -326,12 +334,12 @@ async function loadMyReports() {
         const isImage = r.file_url && /\.(png|jpg|jpeg|gif|webp)$/i.test(r.file_url);
         const viewLabel = isPdf ? '📄 View PDF' : isImage ? '🖼 View Image' : '👁 View Document';
         return `
-        <div class="report-card">
+        <div class="report-card" style="margin-bottom: 0.75rem;">
           <div>
             <div style="font-weight: 600; color: var(--text-dark);">${r.description || 'Investigation Report'}</div>
             <div style="font-size: 0.8rem; color: var(--text-muted);">Uploaded: ${new Date(r.upload_date).toLocaleDateString('en-GB')}</div>
           </div>
-          <a href="${r.file_url}" target="_blank" class="btn" style="width: auto; padding: 0.5rem 1rem; text-decoration: none; font-size:0.875rem;">${viewLabel}</a>
+          <a href="${r.file_url}" target="_blank" rel="noopener noreferrer" class="btn" style="width: auto; padding: 0.5rem 1rem; text-decoration: none; font-size:0.875rem;">${viewLabel}</a>
         </div>`;
       }).join('');
 
@@ -340,6 +348,7 @@ async function loadMyReports() {
     console.error('Failed to load reports', err);
   }
 }
+
 
 function logout() {
   portalToken = '';
