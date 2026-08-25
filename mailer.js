@@ -298,12 +298,9 @@ function sendEmail(to, subject, htmlContent) {
   });
 }
 
-
-  console.log(`[SIMULATED EMAIL] Skipping real email to ${to} (no RESEND_API_KEY or SENDGRID_API_KEY in .env).`);
-}
-
 /**
  * Sends a confirmation email by saving it as a beautifully styled HTML file.
+
 
  * This acts as a reliable development mailer.
  * 
