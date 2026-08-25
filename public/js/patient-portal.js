@@ -108,43 +108,22 @@ async function resendOTP() {
 }
 
 async function requestOTP() {
-  let phone = '';
-  let email = '';
+  const phoneInput = document.getElementById('patient-phone');
+  const emailInput = document.getElementById('patient-email');
+  const emailGroup = document.getElementById('portal-email-group');
 
-  if (currentPortalMethod === 'phone') {
-    const phoneInput = document.getElementById('patient-phone');
-    phone = phoneInput ? phoneInput.value.trim() : '';
-    if (!phone) return alert('Please enter your mobile number.');
-  } else {
-    const emailInput = document.getElementById('patient-email');
-    email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+  let phone = phoneInput ? phoneInput.value.trim() : '';
+  let email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+
+  // Intelligently check visible tab or populated field
+  const isEmailActive = (emailGroup && emailGroup.style.display !== 'none') || (email.length > 0 && phone.length === 0);
+
+  if (isEmailActive) {
     if (!email) return alert('Please enter your email address.');
-  }
-
-  // Check if contact was ALREADY verified on this browser/device!
-  const cleanInput = email || normalizeDigits(phone);
-  let verifiedPhones = {};
-  try {
-    verifiedPhones = JSON.parse(localStorage.getItem('verified_patient_phones') || '{}');
-  } catch(e) {}
-
-  const activePhone = localStorage.getItem('patient_portal_phone') || localStorage.getItem('chc_user_phone');
-  const activeEmail = localStorage.getItem('patient_portal_email') || localStorage.getItem('chc_user_email');
-  const activeToken = localStorage.getItem('patient_portal_token') || localStorage.getItem('chc_token');
-
-  const existingToken = verifiedPhones[cleanInput] || (activePhone && normalizeDigits(activePhone) === cleanInput ? activeToken : (activeEmail && activeEmail === cleanInput ? activeToken : null));
-
-  if (existingToken) {
-    // AUTO-BYPASS OTP! Contact was previously verified on this device.
-    currentPhone = phone;
-    currentEmail = email;
-    portalToken = existingToken;
-    
-    document.getElementById('step-1').classList.remove('active');
-    document.getElementById('step-3').classList.add('active');
-    loadMyReports();
-    loadMyPrescriptions();
-    return;
+    phone = '';
+  } else {
+    if (!phone) return alert('Please enter your mobile number.');
+    email = '';
   }
 
   const status = document.getElementById('otp-request-status');
@@ -152,6 +131,7 @@ async function requestOTP() {
     status.textContent = 'Sending OTP...';
     status.style.color = '#475569';
   }
+
 
   try {
     const res = await fetch('/api/patient/request-otp', {
