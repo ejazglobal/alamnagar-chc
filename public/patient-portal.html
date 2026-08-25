@@ -242,8 +242,67 @@
         }
       }
     }
+
+    async function requestOTP() {
+      if (window.requestOTPImpl) {
+        return window.requestOTPImpl();
+      }
+
+      const phoneInput = document.getElementById('patient-phone');
+      const emailInput = document.getElementById('patient-email');
+      const emailGroup = document.getElementById('portal-email-group');
+
+      let phone = phoneInput ? phoneInput.value.trim() : '';
+      let email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+
+      const isEmailActive = (emailGroup && emailGroup.style.display !== 'none') || (email.length > 0 && phone.length === 0);
+
+      if (isEmailActive) {
+        if (!email) return alert('Please enter your email address.');
+        phone = '';
+      } else {
+        if (!phone) return alert('Please enter your mobile number.');
+        email = '';
+      }
+
+      const status = document.getElementById('otp-request-status');
+      if (status) {
+        status.textContent = 'Sending OTP...';
+        status.style.color = '#475569';
+      }
+
+      try {
+        const res = await fetch('/api/patient/request-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, email })
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          window.currentPhone = phone;
+          window.currentEmail = email;
+          document.getElementById('step-1').classList.remove('active');
+          document.getElementById('step-2').classList.add('active');
+          if (window.startResendTimer) window.startResendTimer();
+          if (status) status.textContent = '';
+        } else {
+          if (status) {
+            status.textContent = data.error || 'Failed to request OTP';
+            status.style.color = 'var(--danger)';
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        if (status) {
+          status.textContent = 'Network error. Try again.';
+          status.style.color = 'var(--danger)';
+        }
+      }
+    }
   </script>
-  <script src="js/patient-portal.js?v=4.0"></script>
+  <script src="js/patient-portal.js?v=5.0"></script>
+
 
 
 </body>
