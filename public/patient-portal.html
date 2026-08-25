@@ -554,8 +554,35 @@
       if (document.getElementById('otp-verify-status')) document.getElementById('otp-verify-status').textContent = '';
       switchPatientTab('reports');
     }
+
+    async function loadMyPrescriptions() {
+      if (window.loadMyPrescriptionsImpl) {
+        return window.loadMyPrescriptionsImpl();
+      }
+    }
+
+    function viewPrescriptionDetails(appointmentId) {
+      if (window.viewPrescriptionDetailsImpl) {
+        return window.viewPrescriptionDetailsImpl(appointmentId);
+      }
+    }
+
+    function closePrescriptionModal(e) {
+      if (window.closePrescriptionModalImpl) {
+        return window.closePrescriptionModalImpl(e);
+      }
+      const modal = document.getElementById('prescription-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function printPortalPrescription() {
+      if (window.printPortalPrescriptionImpl) {
+        return window.printPortalPrescriptionImpl();
+      }
+    }
   </script>
-  <script src="js/patient-portal.js?v=7.0"></script>
+  <script src="js/patient-portal.js?v=8.0"></script>
+
 
 
 

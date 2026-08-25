@@ -418,7 +418,8 @@ window.switchPatientTabImpl = window.switchPatientTab = function(tab) {
 };
 
 // Load patient prescriptions
-async function loadMyPrescriptions() {
+window.loadMyPrescriptionsImpl = window.loadMyPrescriptions = async function loadMyPrescriptions() {
+
   const container = document.getElementById('prescriptions-list');
   if (!container) return;
   
@@ -460,7 +461,8 @@ async function loadMyPrescriptions() {
   }
 }
 
-window.viewPrescriptionDetails = async function(appointmentId) {
+window.viewPrescriptionDetailsImpl = window.viewPrescriptionDetails = async function(appointmentId) {
+
   const modal = document.getElementById('prescription-modal');
   const body = document.getElementById('prescription-modal-body');
   if (!modal || !body) return;
@@ -604,13 +606,14 @@ window.viewPrescriptionDetails = async function(appointmentId) {
   }
 };
 
-window.closePrescriptionModal = function(e) {
+window.closePrescriptionModalImpl = window.closePrescriptionModal = function(e) {
   if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
   const modal = document.getElementById('prescription-modal');
   if (modal) modal.style.display = 'none';
 };
 
-window.printPortalPrescription = function() {
+window.printPortalPrescriptionImpl = window.printPortalPrescription = function() {
+
   if (!window.AndroidPrint && (window.Capacitor || /wv|WebView|Android.*Version\/[0-9.]+/i.test(navigator.userAgent))) {
     alert("Printing directly from this version of the Android App is not supported. Please install the updated app build, or open the portal in your phone's web browser (like Google Chrome) to print.");
     return;
