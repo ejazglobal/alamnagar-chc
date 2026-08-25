@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const querystring = require('querystring');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 // Check if phone number is a valid Bangladeshi telecom number
 function isBDPhoneNumber(phone) {
@@ -193,51 +194,68 @@ function sendSMS(to, message) {
 
 // Helper to send real Email via Resend API or SendGrid API (over HTTPS Port 443)
 function sendEmail(to, subject, htmlContent) {
-  const resendKey = process.env.RESEND_API_KEY;
-  const sendgridKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL || 'Alamnagar CHC <onboarding@resend.dev>';
+  return new Promise((resolve) => {
+    const resendKey = (process.env.RESEND_API_KEY || '').trim();
+    const sendgridKey = (process.env.SENDGRID_API_KEY || '').trim();
+    const rawFrom = process.env.EMAIL_FROM || '';
+    const fromEmail = (rawFrom && !rawFrom.includes('onboarding@resend.dev')) ? rawFrom : 'Alamnagar CHC <noreply@ashiana.online>';
 
-  // 1. Resend API (Recommended — Instant 10-second signup, zero account blocks)
-  if (resendKey) {
-    const postData = JSON.stringify({
-      from: fromEmail,
-      to: [to],
-      subject: subject,
-      html: htmlContent
-    });
 
-    const options = {
-      hostname: 'api.resend.com',
-      port: 443,
-      path: '/emails',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
 
-    const req = https.request(options, (res) => {
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        console.log(`[RESEND EMAIL] Real email sent successfully to ${to}`);
-      } else {
+
+    if (!resendKey && !sendgridKey) {
+      console.error(`[RESEND EMAIL ERROR] Neither RESEND_API_KEY nor SENDGRID_API_KEY is configured in .env!`);
+      return resolve({ success: false, error: 'RESEND_API_KEY is missing in server .env configuration' });
+    }
+
+    if (resendKey) {
+      const postData = JSON.stringify({
+        from: fromEmail,
+        to: [to],
+        subject: subject,
+        html: htmlContent
+      });
+
+      const options = {
+        hostname: 'api.resend.com',
+        port: 443,
+        path: '/emails',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      };
+
+      const req = https.request(options, (res) => {
         let data = '';
         res.on('data', (chunk) => { data += chunk; });
         res.on('end', () => {
-          console.error(`[RESEND EMAIL] Failed with status ${res.statusCode}: ${data}`);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[RESEND EMAIL SUCCESS] Email delivered to ${to} from ${fromEmail}`);
+            resolve({ success: true, data });
+          } else {
+            console.error(`[RESEND EMAIL ERROR] Failed with status ${res.statusCode}: ${data}`);
+            resolve({ success: false, status: res.statusCode, error: data });
+          }
         });
-      }
-    });
+      });
 
-    req.on('error', (e) => {
-      console.error(`[RESEND EMAIL] Request error: ${e.message}`);
-    });
+      req.on('error', (e) => {
+        console.error(`[RESEND EMAIL REQUEST ERROR]: ${e.message}`);
+        resolve({ success: false, error: e.message });
+      });
 
-    req.write(postData);
-    req.end();
-    return;
-  }
+      req.write(postData);
+      req.end();
+      return;
+    }
+
+    resolve({ success: false, error: 'No active email provider' });
+  });
+}
+
 
   // 2. SendGrid API Fallback
   if (sendgridKey) {
@@ -516,9 +534,14 @@ function sendBookingOTP(email, phone, otp) {
   console.log(`[MAILER] OTP email successfully written for ${email} -> ${filePath}`);
   console.log(`[MAILER] *** OTP CODE IS: ${otp} (for ${email} / ${phone}) ***`);
 
-  sendEmail(email, subject, emailHtml);
-  sendSMS(phone, `[আলমনগর সিএইচসি] আপনার অ্যাপয়েন্টমেন্ট বুকিংয়ের ওটিপি (OTP) হলো ${otp} । এটি ১০ মিনিটের জন্য বৈধ।`);
+  if (email) {
+    return sendEmail(email, subject, emailHtml);
+  }
+  if (phone) {
+    sendSMS(phone, `[আলমনগর সিএইচসি] আপনার অ্যাপয়েন্টমেন্ট বুকিংয়ের ওটিপি (OTP) হলো ${otp} । এটি ১০ মিনিটের জন্য বৈধ।`);
+  }
 }
+
 
 function sendPrescriptionLinkSMS(phone, link) {
   sendSMS(phone, `[আলমনগর সিএইচসি] আপনার ডিজিটাল প্রেসক্রিপশন প্রস্তুত হয়েছে। দেখতে এখানে ক্লিক করুন: ${link}`);

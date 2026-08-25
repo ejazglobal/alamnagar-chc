@@ -1262,9 +1262,14 @@ app.post('/api/patient/request-otp', async (req, res) => {
   try {
     if (cleanEmail) {
       await db.createOTP(cleanEmail, '', otp);
-      mailer.sendBookingOTP(cleanEmail, '', otp);
+      const mailRes = await mailer.sendBookingOTP(cleanEmail, '', otp);
+      if (mailRes && mailRes.success === false) {
+        console.error('[PATIENT OTP EMAIL ERROR]', mailRes.error);
+        return res.status(500).json({ error: `Failed to send Email OTP: ${mailRes.error || 'Server mail error'}` });
+      }
       return res.json({ success: true, message: 'Verification code (OTP) sent to your email address!' });
     }
+
 
     let digits = cleanPhone.replace(/\D/g, '');
     if (digits.startsWith('0') && digits.length === 11) {
