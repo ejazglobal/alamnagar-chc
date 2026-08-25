@@ -170,7 +170,8 @@
         <label class="form-label">Description (Optional)</label>
         <input type="text" id="report-desc" class="form-control" placeholder="e.g. CBC Blood Test Result">
       </div>
-      <button class="btn" style="background-color: var(--primary-color);" onclick="uploadReport()">Upload Document</button>
+      <button type="button" class="btn" id="btn-upload-report" style="background-color: var(--primary-color);" onclick="uploadReport()">Upload Document</button>
+
       <div id="upload-status" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
 
       <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--border-color);">
@@ -370,8 +371,192 @@
         }
       }
     }
+
+    async function uploadReport() {
+      if (window.uploadReportImpl) {
+        return window.uploadReportImpl();
+      }
+
+      const fileInput = document.getElementById('report-file');
+      const file = fileInput ? fileInput.files[0] : null;
+      if (!file) return alert('Please select a file to upload.');
+
+      const descInput = document.getElementById('report-desc');
+      const desc = descInput ? descInput.value.trim() : '';
+      const status = document.getElementById('upload-status');
+      if (status) {
+        status.textContent = 'Uploading...';
+        status.style.color = '#475569';
+      }
+
+      const activeToken = window.portalToken || localStorage.getItem('patient_portal_token') || localStorage.getItem('chc_token');
+      const activeContact = window.currentPhone || window.currentEmail || localStorage.getItem('patient_portal_phone') || localStorage.getItem('patient_portal_email') || localStorage.getItem('chc_user_phone') || localStorage.getItem('chc_user_email');
+
+      const formData = new FormData();
+      formData.append('report_file', file);
+      formData.append('description', desc);
+      if (activeContact) {
+        formData.append('patient_phone', activeContact);
+      }
+
+      try {
+        const res = await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${activeToken}` },
+          body: formData
+        });
+        
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem('patient_portal_token');
+          localStorage.removeItem('patient_portal_phone');
+          localStorage.removeItem('patient_portal_email');
+          localStorage.removeItem('chc_token');
+          window.portalToken = '';
+          document.getElementById('step-3').classList.remove('active');
+          document.getElementById('step-1').classList.add('active');
+          const reqStatus = document.getElementById('otp-request-status');
+          if (reqStatus) {
+            reqStatus.textContent = 'Session expired. Please request a fresh OTP code to log in.';
+            reqStatus.style.color = 'var(--danger)';
+          }
+          return;
+        }
+
+        if (res.ok) {
+          if (status) {
+            status.textContent = 'Upload successful!';
+            status.style.color = 'green';
+          }
+          if (fileInput) fileInput.value = '';
+          if (descInput) descInput.value = '';
+          loadMyReports();
+          setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+        } else {
+          const err = await res.json();
+          if (status) {
+            status.textContent = err.error || 'Upload failed.';
+            status.style.color = 'var(--danger)';
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        if (status) {
+          status.textContent = 'Network error during upload.';
+          status.style.color = 'var(--danger)';
+        }
+      }
+    }
+
+    async function loadMyReports() {
+      if (window.loadMyReportsImpl) {
+        return window.loadMyReportsImpl();
+      }
+
+      const container = document.getElementById('reports-list');
+      if (!container) return;
+
+      try {
+        const activeContact = window.currentEmail || window.currentPhone || localStorage.getItem('patient_portal_email') || localStorage.getItem('patient_portal_phone') || localStorage.getItem('chc_user_email') || localStorage.getItem('chc_user_phone') || '';
+        
+        let contactParam = activeContact;
+        if (!activeContact.includes('@') && activeContact) {
+          contactParam = activeContact.replace(/\D/g, '');
+          if (contactParam.startsWith('0') && contactParam.length === 11) contactParam = '88' + contactParam;
+        }
+
+        const activeToken = window.portalToken || localStorage.getItem('patient_portal_token') || localStorage.getItem('chc_token');
+
+        const res = await fetch(`/api/reports/${encodeURIComponent(contactParam)}?t=${Date.now()}`, {
+          headers: { 'Authorization': `Bearer ${activeToken}` }
+        });
+        
+        if (res.ok) {
+          const reports = await res.json();
+          if (!reports || reports.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No reports uploaded yet. Select a file above and click "Upload Document" to store your report securely.</div>';
+            return;
+          }
+          
+          container.innerHTML = reports.map(r => {
+            const isPdf = r.file_url && /\.pdf$/i.test(r.file_url);
+            const isImage = r.file_url && /\.(png|jpg|jpeg|gif|webp)$/i.test(r.file_url);
+            const viewLabel = isPdf ? '📄 View PDF' : isImage ? '🖼 View Image' : '👁 View Document';
+            return `
+            <div class="report-card" style="margin-bottom: 0.75rem;">
+              <div>
+                <div style="font-weight: 600; color: var(--text-dark);">${r.description || 'Investigation Report'}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Uploaded: ${new Date(r.upload_date).toLocaleDateString('en-GB')}</div>
+              </div>
+              <a href="${r.file_url}" target="_blank" rel="noopener noreferrer" class="btn" style="width: auto; padding: 0.5rem 1rem; text-decoration: none; font-size:0.875rem;">${viewLabel}</a>
+            </div>`;
+          }).join('');
+        }
+      } catch (err) {
+        console.error('Failed to load reports', err);
+      }
+    }
+
+    function switchPatientTab(tab) {
+      if (window.switchPatientTabImpl) {
+        return window.switchPatientTabImpl(tab);
+      }
+
+      const btnReports = document.getElementById('btn-show-reports');
+      const btnPresc = document.getElementById('btn-show-prescriptions');
+      const panelReports = document.getElementById('panel-reports');
+      const panelPresc = document.getElementById('panel-prescriptions');
+      
+      if (!btnReports || !btnPresc || !panelReports || !panelPresc) return;
+
+      if (tab === 'reports') {
+        btnReports.style.background = 'var(--primary-color)';
+        btnReports.style.color = 'white';
+        btnPresc.style.background = '#e2e8f0';
+        btnPresc.style.color = 'var(--text-dark)';
+        panelReports.style.display = 'block';
+        panelPresc.style.display = 'none';
+      } else {
+        btnPresc.style.background = 'var(--primary-color)';
+        btnPresc.style.color = 'white';
+        btnReports.style.background = '#e2e8f0';
+        btnReports.style.color = 'var(--text-dark)';
+        panelReports.style.display = 'none';
+        panelPresc.style.display = 'block';
+        if (window.loadMyPrescriptions) window.loadMyPrescriptions();
+      }
+    }
+
+    function logout() {
+      if (window.logoutImpl) {
+        return window.logoutImpl();
+      }
+
+      window.portalToken = '';
+      window.currentPhone = '';
+      window.currentEmail = '';
+      
+      localStorage.removeItem('patient_portal_token');
+      localStorage.removeItem('patient_portal_phone');
+      localStorage.removeItem('patient_portal_email');
+      localStorage.removeItem('chc_token');
+      localStorage.removeItem('chc_user_role');
+      localStorage.removeItem('chc_user_name');
+      localStorage.removeItem('chc_user_email');
+      localStorage.removeItem('chc_user_phone');
+      localStorage.removeItem('chc_user_id');
+
+      document.getElementById('step-3').classList.remove('active');
+      document.getElementById('step-1').classList.add('active');
+      if (document.getElementById('patient-phone')) document.getElementById('patient-phone').value = '';
+      if (document.getElementById('patient-email')) document.getElementById('patient-email').value = '';
+      if (document.getElementById('otp-request-status')) document.getElementById('otp-request-status').textContent = '';
+      if (document.getElementById('patient-otp')) document.getElementById('patient-otp').value = '';
+      if (document.getElementById('otp-verify-status')) document.getElementById('otp-verify-status').textContent = '';
+      switchPatientTab('reports');
+    }
   </script>
-  <script src="js/patient-portal.js?v=6.0"></script>
+  <script src="js/patient-portal.js?v=7.0"></script>
+
 
 
 

@@ -231,7 +231,8 @@ window.verifyOTPImpl = window.verifyOTP = async function verifyOTP() {
 }
 
 
-async function uploadReport() {
+window.uploadReportImpl = window.uploadReport = async function uploadReport() {
+
   const fileInput = document.getElementById('report-file');
   const file = fileInput ? fileInput.files[0] : null;
   if (!file) return alert('Please select a file to upload.');
@@ -303,7 +304,8 @@ async function uploadReport() {
   }
 }
 
-async function loadMyReports() {
+window.loadMyReportsImpl = window.loadMyReports = async function loadMyReports() {
+
   const container = document.getElementById('reports-list');
   if (!container) return;
 
@@ -350,7 +352,8 @@ async function loadMyReports() {
 }
 
 
-function logout() {
+window.logoutImpl = window.logout = function logout() {
+
   portalToken = '';
   currentPhone = '';
   
@@ -384,7 +387,8 @@ function escapeHTML(str) {
 }
 
 // Switch between reports and prescriptions sub-tabs
-window.switchPatientTab = function(tab) {
+window.switchPatientTabImpl = window.switchPatientTab = function(tab) {
+
   const btnReports = document.getElementById('btn-show-reports');
   const btnPresc = document.getElementById('btn-show-prescriptions');
   const panelReports = document.getElementById('panel-reports');
