@@ -278,6 +278,22 @@ async function uploadReport() {
       body: formData
     });
     
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('patient_portal_token');
+      localStorage.removeItem('patient_portal_phone');
+      localStorage.removeItem('patient_portal_email');
+      localStorage.removeItem('chc_token');
+      portalToken = '';
+      document.getElementById('step-3').classList.remove('active');
+      document.getElementById('step-1').classList.add('active');
+      const reqStatus = document.getElementById('otp-request-status');
+      if (reqStatus) {
+        reqStatus.textContent = 'Session expired. Please request a fresh OTP code to log in.';
+        reqStatus.style.color = 'var(--danger)';
+      }
+      return;
+    }
+
     if (res.ok) {
       if (status) {
         status.textContent = 'Upload successful!';
@@ -294,6 +310,7 @@ async function uploadReport() {
         status.style.color = 'var(--danger)';
       }
     }
+
   } catch (err) {
     console.error(err);
     if (status) {
@@ -921,22 +938,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const token = localStorage.getItem('chc_token') || localStorage.getItem('patient_portal_token');
   const role = localStorage.getItem('chc_user_role');
   const phone = localStorage.getItem('chc_user_phone') || localStorage.getItem('patient_portal_phone');
+  const email = localStorage.getItem('patient_portal_email') || localStorage.getItem('chc_user_email');
+  const contact = phone || email;
 
-  if (token) {
-    if (phone && phone.trim().length > 0) {
-      // Auto-bypass OTP verification!
-      portalToken = token;
-      currentPhone = phone;
-      
-      const step1 = document.getElementById('step-1');
-      const step3 = document.getElementById('step-3');
-      if (step1 && step3) {
-        step1.classList.remove('active');
-        step3.classList.add('active');
-        loadMyReports();
-        loadMyPrescriptions();
-      }
-    } else if (role === 'Patient') {
+  if (token && contact && contact.trim().length > 0) {
+    portalToken = token;
+    currentPhone = phone || '';
+    currentEmail = email || '';
+    
+    const step1 = document.getElementById('step-1');
+    const step3 = document.getElementById('step-3');
+    if (step1 && step3) {
+      step1.classList.remove('active');
+      step3.classList.add('active');
+      loadMyReports();
+      loadMyPrescriptions();
+    }
+  } else if (token && role === 'Patient') {
+
       // Prompt patient to link a mobile number
       const step1Div = document.getElementById('step-1');
       if (step1Div) {
