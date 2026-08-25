@@ -164,7 +164,8 @@ window.requestOTPImpl = window.requestOTP = async function requestOTP() {
   }
 }
 
-async function verifyOTP() {
+window.verifyOTPImpl = window.verifyOTP = async function verifyOTP() {
+
   const otpInput = document.getElementById('patient-otp');
   const otp = otpInput ? otpInput.value.trim() : '';
   if (!otp) return alert('Please enter the OTP.');
