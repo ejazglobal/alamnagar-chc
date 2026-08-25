@@ -200,9 +200,6 @@ function sendEmail(to, subject, htmlContent) {
     const rawFrom = process.env.EMAIL_FROM || '';
     const fromEmail = (rawFrom && !rawFrom.includes('onboarding@resend.dev')) ? rawFrom : 'Alamnagar CHC <noreply@ashiana.online>';
 
-
-
-
     if (!resendKey && !sendgridKey) {
       console.error(`[RESEND EMAIL ERROR] Neither RESEND_API_KEY nor SENDGRID_API_KEY is configured in .env!`);
       return resolve({ success: false, error: 'RESEND_API_KEY is missing in server .env configuration' });
@@ -252,52 +249,55 @@ function sendEmail(to, subject, htmlContent) {
       return;
     }
 
+    // 2. SendGrid API Fallback
+    if (sendgridKey) {
+      const postData = JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: process.env.SENDGRID_FROM_EMAIL || 'info.ashiana.online@gmail.com', name: 'Alamnagar CHC' },
+        subject: subject,
+        content: [{ type: 'text/html', value: htmlContent }]
+      });
+
+      const options = {
+        hostname: 'api.sendgrid.com',
+        port: 443,
+        path: '/v3/mail/send',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sendgridKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      };
+
+      const req = https.request(options, (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          console.log(`[SENDGRID EMAIL] Real email sent successfully to ${to}`);
+          resolve({ success: true });
+        } else {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            console.error(`[SENDGRID EMAIL] Failed with status ${res.statusCode}: ${data}`);
+            resolve({ success: false, status: res.statusCode, error: data });
+          });
+        }
+      });
+
+      req.on('error', (e) => {
+        console.error(`[SENDGRID EMAIL] Request error: ${e.message}`);
+        resolve({ success: false, error: e.message });
+      });
+
+      req.write(postData);
+      req.end();
+      return;
+    }
+
     resolve({ success: false, error: 'No active email provider' });
   });
 }
 
-
-  // 2. SendGrid API Fallback
-  if (sendgridKey) {
-    const postData = JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: process.env.SENDGRID_FROM_EMAIL || 'info.ashiana.online@gmail.com', name: 'Alamnagar CHC' },
-      subject: subject,
-      content: [{ type: 'text/html', value: htmlContent }]
-    });
-
-    const options = {
-      hostname: 'api.sendgrid.com',
-      port: 443,
-      path: '/v3/mail/send',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sendgridKey}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        console.log(`[SENDGRID EMAIL] Real email sent successfully to ${to}`);
-      } else {
-        let data = '';
-        res.on('data', (chunk) => { data += chunk; });
-        res.on('end', () => {
-          console.error(`[SENDGRID EMAIL] Failed with status ${res.statusCode}: ${data}`);
-        });
-      }
-    });
-
-    req.on('error', (e) => {
-      console.error(`[SENDGRID EMAIL] Request error: ${e.message}`);
-    });
-
-    req.write(postData);
-    req.end();
-    return;
-  }
 
   console.log(`[SIMULATED EMAIL] Skipping real email to ${to} (no RESEND_API_KEY or SENDGRID_API_KEY in .env).`);
 }
