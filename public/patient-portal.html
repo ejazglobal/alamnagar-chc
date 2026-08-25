@@ -132,9 +132,10 @@
         <span style="font-size: 0.75rem; color: var(--primary-color); display: block; margin-top: 0.25rem; font-weight: 500;">🌐 International & Local: Instant 6-digit verification code will be sent to this email.</span>
       </div>
 
-      <button class="btn" onclick="requestOTP()">Request OTP Code</button>
+      <button type="button" class="btn" id="btn-request-otp" onclick="requestOTP()">Request OTP Code</button>
       <div id="otp-request-status" style="margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
     </div>
+
 
 
     <!-- Step 2: Verify OTP -->
@@ -241,8 +242,15 @@
         }
       }
     }
+
+    function requestOTP() {
+      if (window.requestOTPImpl) {
+        return window.requestOTPImpl();
+      }
+    }
   </script>
-  <script src="js/patient-portal.js?v=2.5"></script>
+  <script src="js/patient-portal.js?v=3.0"></script>
+
 </body>
 </html>
 

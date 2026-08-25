@@ -107,7 +107,8 @@ async function resendOTP() {
   }
 }
 
-async function requestOTP() {
+window.requestOTPImpl = window.requestOTP = async function requestOTP() {
+
   const phoneInput = document.getElementById('patient-phone');
   const emailInput = document.getElementById('patient-email');
   const emailGroup = document.getElementById('portal-email-group');
