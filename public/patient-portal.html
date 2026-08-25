@@ -235,21 +235,16 @@
           if (phoneGroup) phoneGroup.style.display = 'block';
           if (emailGroup) emailGroup.style.display = 'none';
         } else {
-          if (phoneBtn) { phoneBtn.style.backgroundColor = '#f8fafc'; phoneBtn.style.color = 'var(--text-muted)'; }
+          if (phoneBtn) { phoneBtn.style.backgroundColor = '#f8fafc'; phoneBtn.style.color = 'white'; }
           if (emailBtn) { emailBtn.style.backgroundColor = 'var(--primary-color)'; emailBtn.style.color = 'white'; }
           if (phoneGroup) phoneGroup.style.display = 'none';
           if (emailGroup) emailGroup.style.display = 'block';
         }
       }
     }
-
-    function requestOTP() {
-      if (window.requestOTPImpl) {
-        return window.requestOTPImpl();
-      }
-    }
   </script>
-  <script src="js/patient-portal.js?v=3.0"></script>
+  <script src="js/patient-portal.js?v=4.0"></script>
+
 
 </body>
 </html>
