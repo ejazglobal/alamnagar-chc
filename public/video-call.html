@@ -116,15 +116,38 @@
   </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const rawRoom = urlParams.get('room') || 'AlamnagarChcConsultationRoom';
-      const displayName = urlParams.get('name') || 'Guest User';
       const apptId = urlParams.get('appointment_id');
+      const rawRoom = urlParams.get('room');
+      let displayName = urlParams.get('name') || 'Guest User';
 
-      // Sanitize room name (remove hyphens & vconsult prefixes)
-      let roomName = rawRoom.replace(/[^a-zA-Z0-9]/g, '');
-      if (!roomName || roomName.length < 5 || roomName.includes('vconsult')) {
+      let roomName = '';
+
+      // Synchronize room ID directly from API so Doctor and Patient always connect to the exact same room
+      if (apptId) {
+        try {
+          const res = await fetch(`/api/appointments/${apptId}/video-room?t=${Date.now()}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.room_id || data.video_room_id) {
+              const r = data.room_id || data.video_room_id;
+              roomName = r.replace(/[^a-zA-Z0-9]/g, '');
+            }
+            if (data.patient_name) {
+              displayName = data.patient_name;
+            }
+          }
+        } catch (e) {
+          console.warn('API lookup failed, falling back to URL room:', e);
+        }
+      }
+
+      if (!roomName && rawRoom) {
+        roomName = rawRoom.replace(/[^a-zA-Z0-9]/g, '');
+      }
+
+      if (!roomName || roomName.length < 5) {
         roomName = 'AlamnagarChcConsultationRoom' + (apptId || 'General');
       }
 
