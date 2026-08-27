@@ -97,7 +97,12 @@
         <div class="call-meta" id="patient-display">Loading appointment details...</div>
       </div>
     </a>
-    <div style="display: flex; gap: 0.5rem; align-items: center;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+      <select id="server-select" style="background: #334155; color: white; border: 1px solid #475569; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+        <option value="meet.element.io">Node 1 (Element Global)</option>
+        <option value="meet.ffm.freifunk.net">Node 2 (Freifunk Cluster)</option>
+        <option value="jitsi.member.fsf.org">Node 3 (FSF Network)</option>
+      </select>
       <a id="external-call-btn" href="#" target="_blank" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; background: #0d9488; color: white; border-radius: 6px; text-decoration: none;">🌐 Open Fullscreen</a>
       <a href="javascript:history.back()" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; background: #334155; color: white; border-radius: 6px; text-decoration: none;">&larr; Exit</a>
     </div>
@@ -113,23 +118,14 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const rawRoom = urlParams.get('room') || 'AlamnagarChcConsultGeneral';
+      const rawRoom = urlParams.get('room') || 'AlamnagarChcConsultationRoom';
       const displayName = urlParams.get('name') || 'Guest User';
       const apptId = urlParams.get('appointment_id');
 
-      // Sanitize room name (remove hyphens/special chars to prevent moderator locks)
+      // Sanitize room name (remove hyphens & vconsult prefixes)
       let roomName = rawRoom.replace(/[^a-zA-Z0-9]/g, '');
-      if (!roomName || roomName.length < 5) {
+      if (!roomName || roomName.length < 5 || roomName.includes('vconsult')) {
         roomName = 'AlamnagarChcConsultationRoom' + (apptId || 'General');
-      }
-
-      // Cloudflare Anycast CDN node 8x8.vc (100% DNS resolution worldwide)
-      const domain = '8x8.vc';
-      const fallbackDomain = 'meet.element.io';
-
-      const extBtn = document.getElementById('external-call-btn');
-      if (extBtn) {
-        extBtn.href = `https://8x8.vc/${roomName}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
       }
 
       const patientDisplay = document.getElementById('patient-display');
@@ -139,57 +135,32 @@
 
       const container = document.getElementById('video-container');
       const spinner = document.getElementById('loading-spinner');
+      const serverSelect = document.getElementById('server-select');
+      const extBtn = document.getElementById('external-call-btn');
 
-      function initJitsi(targetDomain) {
-        try {
-          const options = {
-            roomName: roomName,
-            width: '100%',
-            height: '100%',
-            parentNode: container,
-            userInfo: {
-              displayName: displayName
-            },
-            configOverwrite: {
-              startWithAudioMuted: false,
-              startWithVideoMuted: false,
-              prejoinConfig: { enabled: false },
-              prejoinPageEnabled: false,
-              enableLobby: false,
-              disableLobby: true,
-              requireDisplayName: false,
-              disableDeepLinking: true
-            },
-            interfaceConfigOverwrite: {
-              TOOLBAR_BUTTONS: [
-                'microphone', 'camera', 'desktop', 'fullscreen', 'hangup',
-                'profile', 'chat', 'settings', 'tileview'
-              ],
-              SHOW_JITSI_WATERMARK: false,
-              SHOW_WATERMARK_FOR_GUESTS: false,
-              DEFAULT_BACKGROUND: '#0f172a'
-            }
-          };
+      function loadRoom(serverDomain) {
+        if (spinner) spinner.style.display = 'flex';
+        
+        const videoUrl = `https://${serverDomain}/${roomName}#config.prejoinPageEnabled=false&config.enableLobby=false&config.disableLobby=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&userInfo.displayName="${encodeURIComponent(displayName)}"`;
 
-          if (window.JitsiMeetExternalAPI) {
-            const api = new JitsiMeetExternalAPI(targetDomain, options);
-            api.addEventListener('videoConferenceJoined', () => {
-              if (spinner) spinner.style.display = 'none';
-            });
-            setTimeout(() => {
-              if (spinner) spinner.style.display = 'none';
-            }, 3000);
-          } else {
-            throw new Error('Jitsi script not loaded');
-          }
-        } catch (e) {
-          console.warn('Primary domain failed, attempting fallback iframe:', e);
+        if (extBtn) extBtn.href = videoUrl;
+
+        // Use direct un-moderated WebRTC iframe to guarantee 0 moderator locks and 0 logins
+        container.innerHTML = `<iframe src="${videoUrl}" allow="camera; microphone; display-capture; autoplay" style="width:100%; height:100%; border:none;"></iframe>`;
+
+        setTimeout(() => {
           if (spinner) spinner.style.display = 'none';
-          container.innerHTML = `<iframe src="https://${fallbackDomain}/${roomName}" allow="camera; microphone; display-capture; autoplay"></iframe>`;
-        }
+        }, 1500);
       }
 
-      initJitsi(domain);
+      if (serverSelect) {
+        serverSelect.addEventListener('change', (e) => {
+          loadRoom(e.target.value);
+        });
+      }
+
+      // Initial load with meet.element.io (Element Global Anycast WebRTC Node)
+      loadRoom('meet.element.io');
     });
   </script>
 </body>

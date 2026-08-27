@@ -297,6 +297,7 @@ async function initializeDatabase() {
         await pool.query("ALTER TABLE appointments ALTER COLUMN email DROP NOT NULL");
         await pool.query("ALTER TABLE appointments ALTER COLUMN phone DROP NOT NULL");
         await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS video_room_id VARCHAR(255)");
+        await pool.query("UPDATE appointments SET video_room_id = 'AlamnagarChcConsult' || id || 'x' || floor(random() * 90000 + 10000)::text WHERE video_room_id LIKE '%vconsult%' OR video_room_id LIKE '%-%'");
         await pool.query("ALTER TABLE otp_verifications ALTER COLUMN email DROP NOT NULL");
         await pool.query("ALTER TABLE otp_verifications ALTER COLUMN phone DROP NOT NULL");
       } catch (e) {
