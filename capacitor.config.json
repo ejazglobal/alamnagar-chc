@@ -4,6 +4,19 @@
   "webDir": "public",
   "server": {
     "url": "https://ashiana.online",
-    "cleartext": true
+    "cleartext": true,
+    "allowNavigation": [
+      "https://ashiana.online/*",
+      "https://meet.element.io/*",
+      "https://meet.ffm.freifunk.net/*",
+      "https://jitsi.member.fsf.org/*",
+      "https://8x8.vc/*",
+      "https://meet.jit.si/*"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
   }
 }
