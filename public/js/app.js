@@ -51,6 +51,8 @@ const TRANSLATIONS = {
     "booking-select-prompt": "-- Choose a Doctor --",
     "booking-slots-title": "Available Time Slots for",
     "booking-details-title": "Patient Contact Details",
+    "method-bd": "🇧🇩 Bangladesh (Mobile)",
+    "method-abroad": "🌐 Abroad / International (Email)",
     "booking-name": "Full Name *",
     "booking-email": "Email Address *",
     "booking-phone": "Phone Number *",
@@ -89,6 +91,8 @@ const TRANSLATIONS = {
     "booking-select-prompt": "-- ডাক্তার নির্বাচন করুন --",
     "booking-slots-title": "খালি সময়সূচী",
     "booking-details-title": "রোগীর যোগাযোগের বিবরণ",
+    "method-bd": "🇧🇩 বাংলাদেশ (মোবাইল)",
+    "method-abroad": "🌐 বিদেশ / আন্তর্জাতিক (ইমেল)",
     "booking-name": "সম্পূর্ণ নাম *",
     "booking-email": "ইমেল ঠিকানা *",
     "booking-phone": "ফোন নম্বর *",
@@ -755,6 +759,31 @@ function setupEventListeners() {
   // Submit Booking request
   let pendingBookingPayload = null;
 
+  window.setBookingMethod = function(method) {
+    const phoneBtn = document.getElementById('booking-method-phone');
+    const emailBtn = document.getElementById('booking-method-email');
+    const phoneGroup = document.getElementById('booking-phone-group');
+    const emailGroup = document.getElementById('booking-email-group');
+    const phoneInput = document.getElementById('patient-phone');
+    const emailInput = document.getElementById('patient-email');
+
+    if (method === 'phone') {
+      if (phoneBtn) { phoneBtn.style.backgroundColor = 'var(--primary-color)'; phoneBtn.style.color = 'white'; }
+      if (emailBtn) { emailBtn.style.backgroundColor = '#f8fafc'; emailBtn.style.color = 'var(--text-dark)'; }
+      if (phoneGroup) phoneGroup.style.display = 'block';
+      if (emailGroup) emailGroup.style.display = 'none';
+      if (phoneInput) phoneInput.setAttribute('required', 'true');
+      if (emailInput) emailInput.removeAttribute('required');
+    } else {
+      if (emailBtn) { emailBtn.style.backgroundColor = 'var(--primary-color)'; emailBtn.style.color = 'white'; }
+      if (phoneBtn) { phoneBtn.style.backgroundColor = '#f8fafc'; phoneBtn.style.color = 'var(--text-dark)'; }
+      if (emailGroup) emailGroup.style.display = 'block';
+      if (phoneGroup) phoneGroup.style.display = 'none';
+      if (emailInput) emailInput.setAttribute('required', 'true');
+      if (phoneInput) phoneInput.removeAttribute('required');
+    }
+  };
+
   window.closeOtpModal = function(e) {
     if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
     document.getElementById('otp-modal').style.display = 'none';
@@ -768,7 +797,8 @@ function setupEventListeners() {
   window.resendBookingOtp = async function() {
     if (resendSecondsRemaining > 0) return;
     
-    const patientPhone = document.getElementById('patient-phone').value.trim();
+    const patientPhone = document.getElementById('patient-phone') ? document.getElementById('patient-phone').value.trim() : '';
+    const patientEmail = document.getElementById('patient-email') ? document.getElementById('patient-email').value.trim() : '';
     const statusBannerOtp = document.getElementById('otp-status-banner');
     
     try {
@@ -779,7 +809,7 @@ function setupEventListeners() {
       const response = await fetch('/api/appointments/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: '', phone: patientPhone })
+        body: JSON.stringify({ email: patientEmail, phone: patientPhone })
       });
 
       if (!response.ok) {
@@ -878,7 +908,10 @@ function setupEventListeners() {
     e.preventDefault();
     
     const patientName = document.getElementById('patient-name').value.trim();
-    const patientPhone = document.getElementById('patient-phone').value.trim();
+    const patientPhoneEl = document.getElementById('patient-phone');
+    const patientEmailEl = document.getElementById('patient-email');
+    const patientPhone = patientPhoneEl ? patientPhoneEl.value.trim() : '';
+    const patientEmail = patientEmailEl ? patientEmailEl.value.trim() : '';
     const bookingNotes = document.getElementById('booking-notes').value.trim();
 
     if (!selectedDateStr || !selectedSlotTime || !selectedDoctorId) {
@@ -886,9 +919,14 @@ function setupEventListeners() {
       return;
     }
 
+    if (!patientPhone && !patientEmail) {
+      showStatus('Please enter your mobile phone number or email address.', 'error');
+      return;
+    }
+
     const payload = {
       patient_name: patientName,
-      email: '',
+      email: patientEmail,
       phone: patientPhone,
       appointment_date: selectedDateStr,
       appointment_time: selectedSlotTime,
@@ -898,7 +936,7 @@ function setupEventListeners() {
 
     try {
       if (isFallbackMode) {
-        // Save in LocalStorage fallback (skips OTP verification in fallback demo mode)
+        // Save in LocalStorage fallback
         const localAppts = JSON.parse(localStorage.getItem('chc_appointments')) || [];
         const activeUserId = localStorage.getItem('chc_user_id');
         const newAppt = {
@@ -914,7 +952,6 @@ function setupEventListeners() {
         appointments.push(newAppt);
         showBookingSuccess(newAppt);
       } else {
-        // Direct appointment booking without showing OTP modal (temporarily bypassed)
         const headers = { 'Content-Type': 'application/json' };
         const token = localStorage.getItem('chc_token');
         if (token) {

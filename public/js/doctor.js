@@ -494,6 +494,15 @@ async function selectPatient(appointment) {
   statusBadge.textContent = appointment.status.toUpperCase();
   statusBadge.className = `badge ${appointment.status}`;
 
+  const videoBtn = document.getElementById('doctor-video-call-btn');
+  if (videoBtn) {
+    if (appointment.status === 'approved' || appointment.status === 'completed') {
+      videoBtn.style.display = 'inline-block';
+    } else {
+      videoBtn.style.display = 'none';
+    }
+  }
+
   // Load form details
   document.getElementById('obs-input').value = '';
   document.getElementById('findings-input').value = '';
@@ -3077,5 +3086,41 @@ window.handleAdviceCheckboxChange = function(cb) {
       textarea.value = val;
     }
   }
+};
+
+window.startDoctorVideoCall = async function() {
+  if (!activeAppointment || !activeAppointment.id) return;
+  const modal = document.getElementById('doctor-video-modal');
+  const iframe = document.getElementById('doctor-video-iframe');
+  const patientNameSpan = document.getElementById('doctor-video-patient-name');
+  
+  if (patientNameSpan) patientNameSpan.textContent = `— ${activeAppointment.patient_name}`;
+  
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch(`/api/appointments/${activeAppointment.id}/video-room`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      iframe.src = data.video_url;
+    } else {
+      const roomId = activeAppointment.video_room_id || `alamnagar-chc-vconsult-${activeAppointment.id}`;
+      iframe.src = `/video-call.html?room=${roomId}&appointment_id=${activeAppointment.id}&name=${encodeURIComponent(activeAppointment.patient_name)}`;
+    }
+  } catch (e) {
+    console.error('Error fetching video room:', e);
+    const roomId = activeAppointment.video_room_id || `alamnagar-chc-vconsult-${activeAppointment.id}`;
+    iframe.src = `/video-call.html?room=${roomId}&appointment_id=${activeAppointment.id}&name=${encodeURIComponent(activeAppointment.patient_name)}`;
+  }
+  
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closeDoctorVideoModal = function() {
+  const modal = document.getElementById('doctor-video-modal');
+  const iframe = document.getElementById('doctor-video-iframe');
+  if (iframe) iframe.src = '';
+  if (modal) modal.style.display = 'none';
 };
 

@@ -124,16 +124,27 @@
 
       <!-- Booking Information Form (appears after selecting slot) -->
       <form id="booking-form" class="booking-form" style="display: none;">
-        <h4 class="slots-title" style="margin-top: 0; margin-bottom: 1rem;" data-i18n="booking-details-title">Patient Contact Details</h4>
+        <h4 class="slots-title" style="margin-top: 0; margin-bottom: 0.75rem;" data-i18n="booking-details-title">Patient Contact Details</h4>
         
+        <!-- Contact Method Toggle (BD Mobile vs Abroad Email) -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+          <button type="button" id="booking-method-phone" onclick="setBookingMethod('phone')" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--primary-color); color: white; font-weight: 600; font-size: 0.85rem; cursor: pointer;" data-i18n="method-bd">🇧🇩 Bangladesh (Mobile)</button>
+          <button type="button" id="booking-method-email" onclick="setBookingMethod('email')" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; background: #f8fafc; color: var(--text-dark); font-weight: 600; font-size: 0.85rem; cursor: pointer;" data-i18n="method-abroad">🌐 Abroad / International (Email)</button>
+        </div>
+
         <div class="form-group">
           <label class="form-label" for="patient-name" data-i18n="booking-name">Full Name *</label>
           <input type="text" id="patient-name" class="form-control" placeholder="John Doe" required>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" id="booking-phone-group">
           <label class="form-label" for="patient-phone" data-i18n="booking-phone">Phone Number *</label>
           <input type="tel" id="patient-phone" class="form-control" placeholder="e.g. 01712345678" required>
+        </div>
+
+        <div class="form-group" id="booking-email-group" style="display: none;">
+          <label class="form-label" for="patient-email" data-i18n="booking-email">Email Address *</label>
+          <input type="email" id="patient-email" class="form-control" placeholder="e.g. patient@example.com">
         </div>
 
         <div class="form-group">

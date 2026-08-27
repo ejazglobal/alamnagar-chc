@@ -792,13 +792,19 @@ app.get('/api/appointments', optionalAuthenticateToken, async (req, res) => {
 app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
   const { patient_name, email, phone, appointment_date, appointment_time, notes, doctor_id } = req.body;
 
+  const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const cleanPhone = phone && typeof phone === 'string' ? phone.trim() : '';
+
   if (!patient_name || typeof patient_name !== 'string' || patient_name.trim().length === 0) {
     return res.status(400).json({ error: 'Patient name is required' });
   }
-  if (email && !isValidEmail(email)) {
+  if (!cleanEmail && !cleanPhone) {
+    return res.status(400).json({ error: 'A valid phone number or email address is required' });
+  }
+  if (cleanEmail && !isValidEmail(cleanEmail)) {
     return res.status(400).json({ error: 'A valid email address is required' });
   }
-  if (!phone || !isValidPhone(phone)) {
+  if (cleanPhone && !isValidPhone(cleanPhone)) {
     return res.status(400).json({ error: 'A valid phone number (8-15 digits) is required' });
   }
   if (!appointment_date || !isValidDate(appointment_date)) {
@@ -807,8 +813,6 @@ app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
   if (!appointment_time || !isValidTime(appointment_time)) {
     return res.status(400).json({ error: 'A valid appointment time (HH:MM) is required' });
   }
-
-  // Weekend restriction removed - Saturday and Sunday are fully open
 
   const todayStr = new Date().toISOString().split('T')[0];
   if (appointment_date < todayStr) {
@@ -819,17 +823,17 @@ app.post('/api/appointments', optionalAuthenticateToken, async (req, res) => {
 
   try {
     const newAppointment = await db.createAppointment({
-      user_id: req.user ? req.user.id : null, // Store active patient's ID if logged in
+      user_id: req.user ? req.user.id : null,
       patient_name: patient_name.trim(),
-      email: email ? email.trim().toLowerCase() : '',
-      phone: phone.trim(),
+      email: cleanEmail,
+      phone: cleanPhone,
       appointment_date,
       appointment_time,
       notes: notes ? notes.trim() : '',
       doctor_id: docId
     });
 
-    // Send confirmation email asynchronously (development fallback writes local file)
+    // Send confirmation email asynchronously
     try {
       mailer.sendAppointmentConfirmation(newAppointment);
     } catch (mailErr) {
@@ -865,17 +869,37 @@ app.patch('/api/appointments/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    // Trigger SMS notification when appointment is approved
+    // Trigger SMS and Email notifications when appointment is approved
     if (status === 'approved') {
       try {
-        const apptRes = await db.pool.query("SELECT * FROM appointments WHERE id = $1", [appointmentId]);
+        const apptRes = await db.pool.query(
+          `SELECT a.*, d.name_en AS doctor_name 
+           FROM appointments a 
+           LEFT JOIN doctors d ON a.doctor_id = d.id 
+           WHERE a.id = $1`, 
+          [appointmentId]
+        );
         if (apptRes.rows.length > 0) {
           const appt = apptRes.rows[0];
-          // Call mailer sendSMS
-          mailer.sendSMS(appt.phone, `[আলমনগর সিএইচসি] প্রিয় ${appt.patient_name}, ${appt.appointment_date} তারিখে ${appt.appointment_time} সময়ে আপনার অ্যাপয়েন্টমেন্টটি অনুমোদিত হয়েছে।`);
+          let roomId = appt.video_room_id;
+          if (!roomId) {
+            roomId = `alamnagar-chc-vconsult-${appointmentId}-${Math.floor(1000 + Math.random() * 9000)}`;
+            await db.pool.query("UPDATE appointments SET video_room_id = $1 WHERE id = $2", [roomId, appointmentId]);
+          }
+
+          const host = req.get('host');
+          const protocol = req.protocol;
+          const videoLink = `${protocol}://${host}/video-call.html?room=${roomId}&appointment_id=${appointmentId}&name=${encodeURIComponent(appt.patient_name)}`;
+
+          if (appt.email) {
+            mailer.sendAppointmentApprovalEmail(appt, videoLink);
+          }
+          if (appt.phone) {
+            mailer.sendSMS(appt.phone, `[আলমনগর সিএইচসি] প্রিয় ${appt.patient_name}, ${appt.appointment_date} তারিখে ${appt.appointment_time} সময়ে আপনার অ্যাপয়েন্টমেন্টটি অনুমোদিত হয়েছে। অনলাইন ভিডিও কল: ${videoLink}`);
+          }
         }
-      } catch (smsError) {
-        console.error("SMS Gateway Error Details:", smsError);
+      } catch (notifyErr) {
+        console.error("Approval Notification Error Details:", notifyErr);
       }
     }
 
@@ -1180,21 +1204,27 @@ app.post('/api/auth/reset-forgotten-password', async (req, res) => {
 // --- OTP VERIFICATION ENDPOINTS ---
 app.post('/api/appointments/request-otp', async (req, res) => {
   const { email, phone } = req.body;
-  if (email && !isValidEmail(email)) {
+  const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const cleanPhone = phone && typeof phone === 'string' ? phone.trim() : '';
+
+  if (!cleanEmail && !cleanPhone) {
+    return res.status(400).json({ error: 'A valid email address or phone number is required.' });
+  }
+  if (cleanEmail && !isValidEmail(cleanEmail)) {
     return res.status(400).json({ error: 'A valid email address is required.' });
   }
-  if (!phone || !isValidPhone(phone)) {
+  if (cleanPhone && !isValidPhone(cleanPhone)) {
     return res.status(400).json({ error: 'A valid mobile number is required.' });
   }
   
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const normalizedPhone = normalizePhone(phone);
+  const normalizedPhone = cleanPhone ? normalizePhone(cleanPhone) : '';
   
   try {
-    await db.createOTP(email ? email.trim().toLowerCase() : '', normalizedPhone, otp);
+    await db.createOTP(cleanEmail, normalizedPhone, otp);
     
     // Delegate to mailer client (supports simulation + real SendGrid/Twilio dispatch)
-    mailer.sendBookingOTP(email ? email.trim().toLowerCase() : '', normalizedPhone, otp);
+    mailer.sendBookingOTP(cleanEmail, normalizedPhone, otp);
 
     res.json({ success: true, message: 'OTP sent successfully!' });
   } catch (err) {
@@ -1210,14 +1240,17 @@ app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async 
 
   const { patient_name, email, phone, appointment_date, appointment_time, notes, doctor_id } = appointment;
 
-  if (!patient_name || !phone || !appointment_date || !appointment_time) {
-    return res.status(400).json({ error: 'Missing appointment details.' });
+  const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const cleanPhone = phone && typeof phone === 'string' ? phone.trim() : '';
+
+  if (!patient_name || (!cleanEmail && !cleanPhone) || !appointment_date || !appointment_time) {
+    return res.status(400).json({ error: 'Missing appointment details. Email or phone is required.' });
   }
 
-  const normalizedPhone = normalizePhone(phone);
+  const normalizedPhone = cleanPhone ? normalizePhone(cleanPhone) : '';
 
   try {
-    const verified = (otp === 'bypass') || isTestAccountOTP(normalizedPhone, otp) || await db.verifyOTP(email ? email.trim().toLowerCase() : '', normalizedPhone, otp);
+    const verified = (otp === 'bypass') || (normalizedPhone && isTestAccountOTP(normalizedPhone, otp)) || await db.verifyOTP(cleanEmail, normalizedPhone, otp);
     if (!verified) {
       return res.status(400).json({ error: 'Invalid or expired OTP. Please try again.' });
     }
@@ -1225,7 +1258,7 @@ app.post('/api/appointments/confirm-with-otp', optionalAuthenticateToken, async 
     const newAppointment = await db.createAppointment({
       user_id: req.user ? req.user.id : null,
       patient_name: patient_name.trim(),
-      email: email ? email.trim().toLowerCase() : '',
+      email: cleanEmail,
       phone: normalizedPhone,
       appointment_date,
       appointment_time,
@@ -2177,23 +2210,72 @@ app.post('/api/prescriptions', authenticateToken, async (req, res) => {
       }
     }
 
-    // Trigger SMS with secure short link
+    // Trigger SMS and Email with secure short link
     const host = req.get('host');
     const protocol = req.protocol;
     const shareLink = `${protocol}://${host}/share.html?id=${targetApptId}`;
     try {
-      const smsPhone = phone || (appointment_id !== 'walkin' ? (await db.pool.query("SELECT phone FROM appointments WHERE id = $1", [targetApptId])).rows[0]?.phone : null);
-      if (smsPhone) {
-        mailer.sendPrescriptionLinkSMS(smsPhone, shareLink);
+      let targetEmail = null;
+      let targetPhone = phone || null;
+      if (appointment_id !== 'walkin') {
+        const apptInfo = (await db.pool.query("SELECT email, phone, patient_name FROM appointments WHERE id = $1", [targetApptId])).rows[0];
+        if (apptInfo) {
+          if (!targetPhone) targetPhone = apptInfo.phone;
+          targetEmail = apptInfo.email;
+        }
+      }
+      if (targetPhone) {
+        mailer.sendPrescriptionLinkSMS(targetPhone, shareLink);
+      }
+      if (targetEmail) {
+        mailer.sendPrescriptionLinkEmail(targetEmail, patient_name || 'Patient', shareLink);
       }
     } catch (e) {
-      console.error('Failed to send prescription SMS:', e);
+      console.error('Failed to send prescription notifications:', e);
     }
 
     res.status(201).json({ ...result, appointment_id: targetApptId });
   } catch (err) {
     console.error('Error saving prescription:', err);
     res.status(500).json({ error: 'Failed to save prescription.' });
+  }
+});
+
+// GET Video Consultation Room details for an approved appointment
+app.get('/api/appointments/:id/video-room', optionalAuthenticateToken, async (req, res) => {
+  const apptId = parseInt(req.params.id, 10);
+  if (isNaN(apptId)) return res.status(400).json({ error: 'Invalid appointment ID' });
+
+  try {
+    const resAppt = await db.pool.query("SELECT * FROM appointments WHERE id = $1", [apptId]);
+    if (resAppt.rows.length === 0) return res.status(404).json({ error: 'Appointment not found' });
+    const appt = resAppt.rows[0];
+
+    if (appt.status !== 'approved' && appt.status !== 'completed') {
+      return res.status(403).json({ error: 'Video consultation is only available for approved appointments.' });
+    }
+
+    let roomId = appt.video_room_id;
+    if (!roomId) {
+      roomId = `alamnagar-chc-vconsult-${apptId}-${Math.floor(1000 + Math.random() * 9000)}`;
+      await db.pool.query("UPDATE appointments SET video_room_id = $1 WHERE id = $2", [roomId, apptId]);
+    }
+
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const videoUrl = `${protocol}://${host}/video-call.html?room=${roomId}&appointment_id=${apptId}&name=${encodeURIComponent(appt.patient_name)}`;
+
+    res.json({
+      success: true,
+      room_id: roomId,
+      video_url: videoUrl,
+      patient_name: appt.patient_name,
+      appointment_date: appt.appointment_date,
+      appointment_time: appt.appointment_time
+    });
+  } catch (err) {
+    console.error('Error getting video room:', err);
+    res.status(500).json({ error: 'Failed to retrieve video room.' });
   }
 });
 

@@ -295,8 +295,12 @@ async function initializeDatabase() {
       }
       try {
         await pool.query("ALTER TABLE appointments ALTER COLUMN email DROP NOT NULL");
+        await pool.query("ALTER TABLE appointments ALTER COLUMN phone DROP NOT NULL");
+        await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS video_room_id VARCHAR(255)");
+        await pool.query("ALTER TABLE otp_verifications ALTER COLUMN email DROP NOT NULL");
+        await pool.query("ALTER TABLE otp_verifications ALTER COLUMN phone DROP NOT NULL");
       } catch (e) {
-        console.warn("Could not alter appointments email constraint:", e.message);
+        console.warn("Could not alter appointments/otp_verifications constraints:", e.message);
       }
       try {
         await pool.query("ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone)");
@@ -793,24 +797,49 @@ module.exports = {
   // --- OTP HELPERS ---
   createOTP: async (email, phone, otp) => {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const cleanPhone = phone ? phone.trim() : '';
     // Clean up old ones for this email/phone first
-    await pool.query("DELETE FROM otp_verifications WHERE email = $1 OR phone = $2", [email, phone]);
+    if (cleanEmail && cleanPhone) {
+      await pool.query("DELETE FROM otp_verifications WHERE email = $1 OR phone = $2", [cleanEmail, cleanPhone]);
+    } else if (cleanEmail) {
+      await pool.query("DELETE FROM otp_verifications WHERE email = $1", [cleanEmail]);
+    } else if (cleanPhone) {
+      await pool.query("DELETE FROM otp_verifications WHERE phone = $1", [cleanPhone]);
+    }
     const query = `INSERT INTO otp_verifications (email, phone, otp, expires_at) VALUES ($1, $2, $3, $4) RETURNING id`;
-    const res = await pool.query(query, [email, phone, otp, expiresAt]);
+    const res = await pool.query(query, [cleanEmail, cleanPhone, otp, expiresAt]);
     return res.rows[0].id;
   },
 
   verifyOTP: async (email, phone, otp) => {
-    const res = await pool.query(
-      "SELECT * FROM otp_verifications WHERE email = $1 AND phone = $2 AND otp = $3",
-      [email, phone, otp]
-    );
-    if (res.rows.length > 0) {
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const cleanPhone = phone ? phone.trim() : '';
+    let res;
+    if (cleanEmail && cleanPhone) {
+      res = await pool.query(
+        "SELECT * FROM otp_verifications WHERE (email = $1 OR phone = $2) AND otp = $3",
+        [cleanEmail, cleanPhone, otp]
+      );
+    } else if (cleanEmail) {
+      res = await pool.query(
+        "SELECT * FROM otp_verifications WHERE email = $1 AND otp = $2",
+        [cleanEmail, otp]
+      );
+    } else if (cleanPhone) {
+      res = await pool.query(
+        "SELECT * FROM otp_verifications WHERE phone = $1 AND otp = $2",
+        [cleanPhone, otp]
+      );
+    } else {
+      return false;
+    }
+
+    if (res && res.rows.length > 0) {
       const record = res.rows[0];
       const now = new Date();
       const expiresAt = new Date(record.expires_at);
       if (expiresAt > now) {
-        // Valid: invalidate immediately and return true
         await pool.query("DELETE FROM otp_verifications WHERE id = $1", [record.id]);
         return true;
       }

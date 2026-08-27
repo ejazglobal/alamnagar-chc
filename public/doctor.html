@@ -719,6 +719,7 @@
 
           <div>
             <span class="badge" id="patient-banner-status" style="font-size: 0.85rem; padding: 0.4rem 1rem;">Status</span>
+            <button type="button" id="doctor-video-call-btn" onclick="startDoctorVideoCall()" style="display: none; background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-left: 0.5rem; box-shadow: 0 2px 6px rgba(13,148,136,0.3);">🎥 Start Video Consultation</button>
           </div>
 
           <!-- Report Upload Section -->
@@ -1349,6 +1350,20 @@
         <button class="btn" style="background: white; border: 1px solid #cbd5e1; color: #475569;" onclick="closeProfileModal(event)">Cancel</button>
         <button class="btn" style="background: var(--primary-color); color: white;" onclick="saveProfileSignature()">Save Signature</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Doctor Video Consultation Modal -->
+  <div class="modal-overlay" id="doctor-video-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 2100; align-items: center; justify-content: center;">
+    <div class="modal-content" style="background: #0f172a; border-radius: 10px; width: 95%; height: 90%; max-width: 1200px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-lg);">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; background: #1e293b; border-bottom: 1px solid #334155;">
+        <h3 style="margin: 0; color: #2dd4bf; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span>🎥 Video Consultation Room</span>
+          <span id="doctor-video-patient-name" style="font-size: 0.9rem; color: #cbd5e1; font-weight: normal;"></span>
+        </h3>
+        <button style="background: #334155; border: none; font-size: 1.2rem; cursor: pointer; color: white; border-radius: 6px; padding: 0.2rem 0.6rem;" onclick="closeDoctorVideoModal()">&times; Close</button>
+      </div>
+      <iframe id="doctor-video-iframe" src="" style="width: 100%; flex: 1; border: none;" allow="camera; microphone; display-capture; autoplay"></iframe>
     </div>
   </div>
 

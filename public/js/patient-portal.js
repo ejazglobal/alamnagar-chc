@@ -387,33 +387,33 @@ function escapeHTML(str) {
 }
 
 // Switch between reports and prescriptions sub-tabs
-window.switchPatientTabImpl = window.switchPatientTab = function(tab) {
-
+window.switchPatientTab = function(tabName) {
   const btnReports = document.getElementById('btn-show-reports');
   const btnPresc = document.getElementById('btn-show-prescriptions');
+  const btnAppts = document.getElementById('btn-show-appointments');
+  
   const panelReports = document.getElementById('panel-reports');
   const panelPresc = document.getElementById('panel-prescriptions');
-  
-  if (!btnReports || !btnPresc || !panelReports || !panelPresc) return;
+  const panelAppts = document.getElementById('panel-appointments');
 
-  if (tab === 'reports') {
-    btnReports.style.background = 'var(--primary-color)';
-    btnReports.style.color = 'white';
-    btnPresc.style.background = '#e2e8f0';
-    btnPresc.style.color = 'var(--text-dark)';
-    
-    panelReports.style.display = 'block';
-    panelPresc.style.display = 'none';
-  } else {
-    btnPresc.style.background = 'var(--primary-color)';
-    btnPresc.style.color = 'white';
-    btnReports.style.background = '#e2e8f0';
-    btnReports.style.color = 'var(--text-dark)';
-    
-    panelReports.style.display = 'none';
-    panelPresc.style.display = 'block';
-    
+  [btnReports, btnPresc, btnAppts].forEach(btn => {
+    if (btn) { btn.style.background = '#e2e8f0'; btn.style.color = 'var(--text-dark)'; }
+  });
+  [panelReports, panelPresc, panelAppts].forEach(panel => {
+    if (panel) panel.style.display = 'none';
+  });
+
+  if (tabName === 'reports') {
+    if (btnReports) { btnReports.style.background = 'var(--primary-color)'; btnReports.style.color = 'white'; }
+    if (panelReports) panelReports.style.display = 'block';
+  } else if (tabName === 'prescriptions') {
+    if (btnPresc) { btnPresc.style.background = 'var(--primary-color)'; btnPresc.style.color = 'white'; }
+    if (panelPresc) panelPresc.style.display = 'block';
     loadMyPrescriptions();
+  } else if (tabName === 'appointments') {
+    if (btnAppts) { btnAppts.style.background = 'var(--primary-color)'; btnAppts.style.color = 'white'; }
+    if (panelAppts) panelAppts.style.display = 'block';
+    loadMyAppointments();
   }
 };
 
@@ -971,3 +971,88 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+
+window.loadMyAppointments = async function() {
+  const container = document.getElementById('appointments-list');
+  if (!container) return;
+
+  container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading appointments...</div>';
+
+  try {
+    const res = await fetch(`/api/patient/appointments?t=${Date.now()}`, {
+      headers: { 'Authorization': `Bearer ${portalToken}` }
+    });
+
+    let appts = [];
+    if (res.ok) {
+      appts = await res.json();
+    } else {
+      const resGen = await fetch(`/api/appointments?t=${Date.now()}`, {
+        headers: { 'Authorization': `Bearer ${portalToken}` }
+      });
+      if (resGen.ok) appts = await resGen.json();
+    }
+
+    if (appts.length === 0) {
+      container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No appointments found in your record.</div>';
+      return;
+    }
+
+    container.innerHTML = appts.map(a => {
+      const isApproved = a.status === 'approved';
+      const isCompleted = a.status === 'completed';
+      const badgeStyle = isApproved ? 'background:#e0f2fe; color:#0369a1;' : isCompleted ? 'background:#d1fae5; color:#065f46;' : 'background:#fef3c7; color:#92400e;';
+      
+      const videoCallBtnHtml = (isApproved || isCompleted) ? `
+        <button onclick="startPatientVideoCall(${a.id}, '${escapeHTML(a.patient_name || '')}', '${a.video_room_id || ''}')" class="btn" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: linear-gradient(135deg, #0d9488, #059669); color: white; margin-top: 0.5rem; cursor: pointer;">🎥 Join Video Call</button>
+      ` : '';
+
+      return `
+        <div class="report-card" style="border-left: 4px solid var(--primary-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1rem; margin-bottom: 1rem; background: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <div>
+            <div style="font-weight: 700; color: var(--text-dark); font-size: 1rem;">${escapeHTML(a.patient_name)} <span style="font-size:0.75rem; padding:0.15rem 0.5rem; border-radius:4px; font-weight:600; ${badgeStyle}">${a.status.toUpperCase()}</span></div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">Date & Time: <strong>${a.appointment_date} at ${a.appointment_time}</strong></div>
+            ${a.notes ? `<div style="font-size: 0.8rem; color: var(--text-dark); margin-top: 0.2rem;">Notes: <em>${escapeHTML(a.notes)}</em></div>` : ''}
+          </div>
+          <div>
+            ${videoCallBtnHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Failed to load appointments', err);
+    container.innerHTML = '<div style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Error loading appointments.</div>';
+  }
+};
+
+window.startPatientVideoCall = async function(apptId, patientName, roomId) {
+  const modal = document.getElementById('patient-video-modal');
+  const iframe = document.getElementById('patient-video-iframe');
+
+  try {
+    const res = await fetch(`/api/appointments/${apptId}/video-room?t=${Date.now()}`, {
+      headers: { 'Authorization': `Bearer ${portalToken}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      iframe.src = data.video_url;
+    } else {
+      const rId = roomId || `alamnagar-chc-vconsult-${apptId}`;
+      iframe.src = `/video-call.html?room=${rId}&appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+    }
+  } catch (e) {
+    console.error('Error fetching patient video room:', e);
+    const rId = roomId || `alamnagar-chc-vconsult-${apptId}`;
+    iframe.src = `/video-call.html?room=${rId}&appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+  }
+
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closePatientVideoModal = function() {
+  const modal = document.getElementById('patient-video-modal');
+  const iframe = document.getElementById('patient-video-iframe');
+  if (iframe) iframe.src = '';
+  if (modal) modal.style.display = 'none';
+};

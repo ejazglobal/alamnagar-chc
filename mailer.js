@@ -544,6 +544,84 @@ function sendPrescriptionLinkSMS(phone, link) {
   sendSMS(phone, `[আলমনগর সিএইচসি] আপনার ডিজিটাল প্রেসক্রিপশন প্রস্তুত হয়েছে। দেখতে এখানে ক্লিক করুন: ${link}`);
 }
 
+function sendPrescriptionLinkEmail(email, patient_name, link) {
+  if (!email) return;
+  const subject = "Your Digital Prescription - Alamnagar CHC";
+  const emailHtml = `<!DOCTYPE html>
+  <html>
+  <head><style>body { font-family: sans-serif; line-height: 1.5; color: #333; }</style></head>
+  <body>
+    <div style="max-width: 550px; margin: 20px auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #ffffff;">
+      <h2 style="color: #0d9488; margin-top: 0; text-align: center;">Alamnagar Charitable Healthcare Centre</h2>
+      <p style="font-size: 16px;">Dear <strong>${patient_name || 'Patient'}</strong>,</p>
+      <p>Your digital prescription has been created and prepared by your doctor.</p>
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${link}" style="display: inline-block; background-color: #0d9488; color: white; padding: 12px 24px; font-weight: bold; border-radius: 6px; text-decoration: none;">View Digital Prescription</a>
+      </div>
+      <p style="font-size: 13px; color: #64748b;">Direct link: <a href="${link}">${link}</a></p>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="font-size: 12px; color: #94a3b8; text-align: center;">Alamnagar CHC - Confidential Healthcare Communication</p>
+    </div>
+  </body>
+  </html>`;
+
+  const emailDir = path.join(__dirname, 'sent_emails');
+  if (!fs.existsSync(emailDir)) fs.mkdirSync(emailDir, { recursive: true });
+  const filePath = path.join(emailDir, `rx_${Date.now()}.html`);
+  fs.writeFileSync(filePath, emailHtml);
+  console.log(`[MAILER] Prescription email created for ${email} -> ${filePath}`);
+
+  sendEmail(email, subject, emailHtml);
+}
+
+function sendAppointmentApprovalEmail(appt, videoLink) {
+  if (!appt || !appt.email) return;
+  const subject = "Appointment Approved - Alamnagar CHC";
+  const videoCallButtonHtml = videoLink ? `
+    <div style="background-color: #f0fdfa; border: 1px solid #99f6e4; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+      <h4 style="color: #0f766e; margin-top: 0;">Online Video Consultation</h4>
+      <p style="font-size: 14px; color: #115e59; margin-bottom: 15px;">Your appointment includes online video consultation. Click below to join the video session at your appointment time:</p>
+      <a href="${videoLink}" style="display: inline-block; background-color: #0d9488; color: white; padding: 12px 24px; font-weight: bold; border-radius: 6px; text-decoration: none;">🎥 Join Video Consultation</a>
+      <p style="font-size: 12px; color: #0f766e; margin-top: 10px; margin-bottom: 0;">Link: <a href="${videoLink}">${videoLink}</a></p>
+    </div>
+  ` : '';
+
+  const emailHtml = `<!DOCTYPE html>
+  <html>
+  <head><style>body { font-family: sans-serif; line-height: 1.5; color: #333; }</style></head>
+  <body>
+    <div style="max-width: 550px; margin: 20px auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #ffffff;">
+      <h2 style="color: #0d9488; margin-top: 0; text-align: center;">Alamnagar Charitable Healthcare Centre</h2>
+      <div style="background-color: #dcfce7; border-left: 4px solid #16a34a; padding: 12px 15px; border-radius: 4px; margin-bottom: 20px;">
+        <strong style="color: #15803d; font-size: 16px;">Appointment Confirmed & Approved!</strong>
+      </div>
+      <p>Dear <strong>${appt.patient_name || 'Patient'}</strong>,</p>
+      <p>We are pleased to inform you that your consultation appointment has been <strong>approved</strong> by our team.</p>
+      
+      <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+        <tr><td style="padding: 8px 0; color: #64748b;">Appointment ID:</td><td><strong>#${appt.id}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #64748b;">Date:</td><td><strong>${appt.appointment_date}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #64748b;">Time:</td><td><strong>${appt.appointment_time}</strong></td></tr>
+        <tr><td style="padding: 8px 0; color: #64748b;">Doctor:</td><td><strong>${appt.doctor_name || 'Assigned Specialist'}</strong></td></tr>
+      </table>
+
+      ${videoCallButtonHtml}
+
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+      <p style="font-size: 12px; color: #94a3b8; text-align: center;">Alamnagar Charitable Healthcare Centre</p>
+    </div>
+  </body>
+  </html>`;
+
+  const emailDir = path.join(__dirname, 'sent_emails');
+  if (!fs.existsSync(emailDir)) fs.mkdirSync(emailDir, { recursive: true });
+  const filePath = path.join(emailDir, `approval_${appt.id}_${Date.now()}.html`);
+  fs.writeFileSync(filePath, emailHtml);
+  console.log(`[MAILER] Approval email created for ${appt.email} -> ${filePath}`);
+
+  sendEmail(appt.email, subject, emailHtml);
+}
+
 function sendPasswordResetOTP(email, phone, username, otp) {
   const subject = "Reset Password Verification Code - Alamnagar CHC";
   const emailHtml = `<!DOCTYPE html>
@@ -586,9 +664,11 @@ function sendPasswordResetOTP(email, phone, username, otp) {
 module.exports = {
   isBDPhoneNumber,
   sendAppointmentConfirmation,
+  sendAppointmentApprovalEmail,
   sendBookingOTP,
   sendSMS,
   sendPrescriptionLinkSMS,
+  sendPrescriptionLinkEmail,
   sendEmail,
   sendPasswordResetOTP
 };

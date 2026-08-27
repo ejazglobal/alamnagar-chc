@@ -176,10 +176,11 @@
 
       <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--border-color);">
       
-      <!-- Sub-tabs to switch between reports and prescriptions -->
-      <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
-        <button id="btn-show-reports" onclick="switchPatientTab('reports')" style="flex: 1; padding: 0.5rem; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Investigation Reports</button>
-        <button id="btn-show-prescriptions" onclick="switchPatientTab('prescriptions')" style="flex: 1; padding: 0.5rem; background: #e2e8f0; color: var(--text-dark); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Prescriptions</button>
+      <!-- Sub-tabs to switch between reports, prescriptions, and appointments -->
+      <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap;">
+        <button id="btn-show-reports" onclick="switchPatientTab('reports')" style="flex: 1; min-width: 130px; padding: 0.5rem; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Investigation Reports</button>
+        <button id="btn-show-prescriptions" onclick="switchPatientTab('prescriptions')" style="flex: 1; min-width: 130px; padding: 0.5rem; background: #e2e8f0; color: var(--text-dark); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Prescriptions</button>
+        <button id="btn-show-appointments" onclick="switchPatientTab('appointments')" style="flex: 1; min-width: 130px; padding: 0.5rem; background: #e2e8f0; color: var(--text-dark); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Appointments & Video Call</button>
       </div>
 
       <!-- Reports Panel -->
@@ -195,6 +196,14 @@
         <h3 style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.2rem;">My Prescriptions</h3>
         <div id="prescriptions-list">
           <!-- Prescriptions rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Appointments & Video Consultation Panel -->
+      <div id="panel-appointments" style="display: none;">
+        <h3 style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.2rem;">My Appointments & Video Consultations</h3>
+        <div id="appointments-list">
+          <!-- Appointments rendered dynamically -->
         </div>
       </div>
 
@@ -581,13 +590,19 @@
       }
     }
   </script>
+  <!-- Patient Video Consultation Modal -->
+  <div class="modal-overlay" id="patient-video-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 2100; align-items: center; justify-content: center;">
+    <div class="modal-content" style="background: #0f172a; border-radius: 10px; width: 95%; height: 90%; max-width: 1200px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-lg);">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; background: #1e293b; border-bottom: 1px solid #334155;">
+        <h3 style="margin: 0; color: #2dd4bf; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span>🎥 Video Consultation Room</span>
+        </h3>
+        <button style="background: #334155; border: none; font-size: 1.2rem; cursor: pointer; color: white; border-radius: 6px; padding: 0.2rem 0.6rem;" onclick="closePatientVideoModal()">&times; Close</button>
+      </div>
+      <iframe id="patient-video-iframe" src="" style="width: 100%; flex: 1; border: none;" allow="camera; microphone; display-capture; autoplay"></iframe>
+    </div>
+  </div>
+
   <script src="js/patient-portal.js?v=8.0"></script>
-
-
-
-
-
-
 </body>
 </html>
-
