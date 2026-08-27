@@ -98,7 +98,8 @@
       </div>
     </a>
     <div style="display: flex; gap: 0.5rem; align-items: center;">
-      <a href="javascript:history.back()" class="btn" style="padding: 0.4rem 1rem; font-size: 0.85rem; background: #334155; color: white; border-radius: 6px; text-decoration: none;">&larr; Exit Call</a>
+      <a id="external-call-btn" href="#" target="_blank" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; background: #0d9488; color: white; border-radius: 6px; text-decoration: none;">🌐 Open Fullscreen</a>
+      <a href="javascript:history.back()" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; background: #334155; color: white; border-radius: 6px; text-decoration: none;">&larr; Exit</a>
     </div>
   </header>
 
@@ -112,9 +113,14 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const roomName = urlParams.get('room') || 'alamnagar-chc-general-room';
+      const roomName = urlParams.get('room') || 'AlamnagarChcConsultGeneral';
       const displayName = urlParams.get('name') || 'Guest User';
       const apptId = urlParams.get('appointment_id');
+
+      const extBtn = document.getElementById('external-call-btn');
+      if (extBtn) {
+        extBtn.href = `https://meet.jit.si/${roomName}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
+      }
 
       const patientDisplay = document.getElementById('patient-display');
       if (patientDisplay) {
@@ -137,16 +143,18 @@
           configOverwrite: {
             startWithAudioMuted: false,
             startWithVideoMuted: false,
+            prejoinConfig: { enabled: false },
             prejoinPageEnabled: false,
-            disableDeepLinking: true
+            enableLobby: false,
+            disableLobby: true,
+            requireDisplayName: false,
+            disableDeepLinking: true,
+            remoteVideoMenu: { disableKick: true }
           },
           interfaceConfigOverwrite: {
             TOOLBAR_BUTTONS: [
-              'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-              'f当地', 'hangup', 'profile', 'chat', 'recording',
-              'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
-              'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
-              'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone'
+              'microphone', 'camera', 'desktop', 'fullscreen', 'hangup',
+              'profile', 'chat', 'settings', 'tileview'
             ],
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,

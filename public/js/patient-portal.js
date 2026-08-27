@@ -1029,6 +1029,7 @@ window.loadMyAppointments = async function() {
 window.startPatientVideoCall = async function(apptId, patientName, roomId) {
   const modal = document.getElementById('patient-video-modal');
   const iframe = document.getElementById('patient-video-iframe');
+  const extBtn = document.getElementById('patient-video-ext-btn');
 
   try {
     const res = await fetch(`/api/appointments/${apptId}/video-room?t=${Date.now()}`, {
@@ -1037,14 +1038,19 @@ window.startPatientVideoCall = async function(apptId, patientName, roomId) {
     if (res.ok) {
       const data = await res.json();
       iframe.src = data.video_url;
+      if (extBtn) extBtn.href = data.video_url;
     } else {
-      const rId = roomId || `alamnagar-chc-vconsult-${apptId}`;
-      iframe.src = `/video-call.html?room=${rId}&appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+      const rId = roomId || `AlamnagarChcConsult${apptId}`;
+      const url = `/video-call.html?room=${rId}&appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+      iframe.src = url;
+      if (extBtn) extBtn.href = url;
     }
   } catch (e) {
     console.error('Error fetching patient video room:', e);
-    const rId = roomId || `alamnagar-chc-vconsult-${apptId}`;
-    iframe.src = `/video-call.html?room=${rId}&appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+    const rId = roomId || `AlamnagarChcConsult${apptId}`;
+    const url = `/video-call.html?room=${rId}&appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+    iframe.src = url;
+    if (extBtn) extBtn.href = url;
   }
 
   if (modal) modal.style.display = 'flex';

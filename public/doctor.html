@@ -1361,7 +1361,10 @@
           <span>🎥 Video Consultation Room</span>
           <span id="doctor-video-patient-name" style="font-size: 0.9rem; color: #cbd5e1; font-weight: normal;"></span>
         </h3>
-        <button style="background: #334155; border: none; font-size: 1.2rem; cursor: pointer; color: white; border-radius: 6px; padding: 0.2rem 0.6rem;" onclick="closeDoctorVideoModal()">&times; Close</button>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <a id="doctor-video-ext-btn" href="#" target="_blank" style="background: #0d9488; color: white; text-decoration: none; font-size: 0.85rem; font-weight: 600; border-radius: 6px; padding: 0.3rem 0.7rem;">🌐 Open Fullscreen</a>
+          <button style="background: #334155; border: none; font-size: 1rem; cursor: pointer; color: white; border-radius: 6px; padding: 0.3rem 0.7rem;" onclick="closeDoctorVideoModal()">&times; Close</button>
+        </div>
       </div>
       <iframe id="doctor-video-iframe" src="" style="width: 100%; flex: 1; border: none;" allow="camera; microphone; display-capture; autoplay"></iframe>
     </div>

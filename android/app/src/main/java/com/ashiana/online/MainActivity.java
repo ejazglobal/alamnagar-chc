@@ -33,7 +33,27 @@ public class MainActivity extends BridgeActivity {
             if (settings != null) {
                 settings.setDomStorageEnabled(true);
                 settings.setDatabaseEnabled(true);
+                settings.setMediaPlaybackRequiresUserGesture(false);
+                settings.setJavaScriptEnabled(true);
+                settings.setAllowFileAccess(true);
             }
+
+            // Auto-grant Camera & Microphone permission requests for embedded WebRTC video call
+            webView.setWebChromeClient(new android.webkit.WebChromeClient() {
+                @Override
+                public void onPermissionRequest(final android.webkit.PermissionRequest request) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                request.grant(request.getResources());
+                            } catch (Exception e) {
+                                Log.e("WebViewPermission", "Permission grant failed", e);
+                            }
+                        }
+                    });
+                }
+            });
 
             // Explicitly enable Android Autofill service integration for the WebView
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
