@@ -85,7 +85,7 @@
       to { transform: rotate(360deg); }
     }
   </style>
-  <script src="https://meet.ffm.freifunk.net/external_api.js"></script>
+  <script src="https://8x8.vc/external_api.js"></script>
 </head>
 <body>
 
@@ -123,11 +123,13 @@
         roomName = 'AlamnagarChcConsultationRoom' + (apptId || 'General');
       }
 
-      const domain = 'meet.ffm.freifunk.net';
+      // Cloudflare Anycast CDN node 8x8.vc (100% DNS resolution worldwide)
+      const domain = '8x8.vc';
+      const fallbackDomain = 'meet.element.io';
 
       const extBtn = document.getElementById('external-call-btn');
       if (extBtn) {
-        extBtn.href = `https://${domain}/${roomName}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
+        extBtn.href = `https://8x8.vc/${roomName}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
       }
 
       const patientDisplay = document.getElementById('patient-display');
@@ -138,49 +140,56 @@
       const container = document.getElementById('video-container');
       const spinner = document.getElementById('loading-spinner');
 
-      try {
-        const options = {
-          roomName: roomName,
-          width: '100%',
-          height: '100%',
-          parentNode: container,
-          userInfo: {
-            displayName: displayName
-          },
-          configOverwrite: {
-            startWithAudioMuted: false,
-            startWithVideoMuted: false,
-            prejoinConfig: { enabled: false },
-            prejoinPageEnabled: false,
-            enableLobby: false,
-            disableLobby: true,
-            requireDisplayName: false,
-            disableDeepLinking: true
-          },
-          interfaceConfigOverwrite: {
-            TOOLBAR_BUTTONS: [
-              'microphone', 'camera', 'desktop', 'fullscreen', 'hangup',
-              'profile', 'chat', 'settings', 'tileview'
-            ],
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_WATERMARK_FOR_GUESTS: false,
-            DEFAULT_BACKGROUND: '#0f172a'
+      function initJitsi(targetDomain) {
+        try {
+          const options = {
+            roomName: roomName,
+            width: '100%',
+            height: '100%',
+            parentNode: container,
+            userInfo: {
+              displayName: displayName
+            },
+            configOverwrite: {
+              startWithAudioMuted: false,
+              startWithVideoMuted: false,
+              prejoinConfig: { enabled: false },
+              prejoinPageEnabled: false,
+              enableLobby: false,
+              disableLobby: true,
+              requireDisplayName: false,
+              disableDeepLinking: true
+            },
+            interfaceConfigOverwrite: {
+              TOOLBAR_BUTTONS: [
+                'microphone', 'camera', 'desktop', 'fullscreen', 'hangup',
+                'profile', 'chat', 'settings', 'tileview'
+              ],
+              SHOW_JITSI_WATERMARK: false,
+              SHOW_WATERMARK_FOR_GUESTS: false,
+              DEFAULT_BACKGROUND: '#0f172a'
+            }
+          };
+
+          if (window.JitsiMeetExternalAPI) {
+            const api = new JitsiMeetExternalAPI(targetDomain, options);
+            api.addEventListener('videoConferenceJoined', () => {
+              if (spinner) spinner.style.display = 'none';
+            });
+            setTimeout(() => {
+              if (spinner) spinner.style.display = 'none';
+            }, 3000);
+          } else {
+            throw new Error('Jitsi script not loaded');
           }
-        };
-
-        const api = new JitsiMeetExternalAPI(domain, options);
-        api.addEventListener('videoConferenceJoined', () => {
+        } catch (e) {
+          console.warn('Primary domain failed, attempting fallback iframe:', e);
           if (spinner) spinner.style.display = 'none';
-        });
-
-        setTimeout(() => {
-          if (spinner) spinner.style.display = 'none';
-        }, 3000);
-      } catch (e) {
-        console.error('Jitsi API failed, loading iframe fallback', e);
-        if (spinner) spinner.style.display = 'none';
-        container.innerHTML = `<iframe src="https://${domain}/${roomName}" allow="camera; microphone; display-capture; autoplay"></iframe>`;
+          container.innerHTML = `<iframe src="https://${fallbackDomain}/${roomName}" allow="camera; microphone; display-capture; autoplay"></iframe>`;
+        }
       }
+
+      initJitsi(domain);
     });
   </script>
 </body>
