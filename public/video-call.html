@@ -103,6 +103,7 @@
         <option value="meet.ffm.freifunk.net">Node 2 (Freifunk Cluster)</option>
         <option value="jitsi.member.fsf.org">Node 3 (FSF Network)</option>
       </select>
+      <button id="record-btn" onclick="toggleCallRecording()" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem;">⏺️ Record Call</button>
       <a id="external-call-btn" href="#" target="_blank" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; background: #0d9488; color: white; border-radius: 6px; text-decoration: none;">🌐 Open Fullscreen</a>
       <a href="javascript:history.back()" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; background: #334155; color: white; border-radius: 6px; text-decoration: none;">&larr; Exit</a>
     </div>
@@ -116,6 +117,11 @@
   </div>
 
   <script>
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recordingTimer = null;
+    let recordSeconds = 0;
+
     document.addEventListener('DOMContentLoaded', async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const apptId = urlParams.get('appointment_id');
@@ -123,6 +129,72 @@
       let displayName = urlParams.get('name') || 'Guest User';
 
       let roomName = '';
+
+      window.toggleCallRecording = async function() {
+        const btn = document.getElementById('record-btn');
+        if (!btn) return;
+
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+          return;
+        }
+
+        try {
+          const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: { mediaSource: 'screen' },
+            audio: true
+          });
+
+          recordedChunks = [];
+          let mime = 'video/webm;codecs=vp9,opus';
+          if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+
+          mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+              recordedChunks.push(e.data);
+            }
+          };
+
+          mediaRecorder.onstop = () => {
+            clearInterval(recordingTimer);
+            btn.innerHTML = '⏺️ Record Call';
+            btn.style.background = '#dc2626';
+
+            stream.getTracks().forEach(track => track.stop());
+
+            if (recordedChunks.length > 0) {
+              const blob = new Blob(recordedChunks, { type: 'video/webm' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.style.display = 'none';
+              a.href = url;
+              a.download = `Consultation_Appt_${apptId || 'Call'}_${new Date().toISOString().slice(0,10)}.webm`;
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+              }, 100);
+            }
+          };
+
+          mediaRecorder.start(1000);
+          recordSeconds = 0;
+          btn.style.background = '#16a34a';
+
+          recordingTimer = setInterval(() => {
+            recordSeconds++;
+            const mins = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+            const secs = String(recordSeconds % 60).padStart(2, '0');
+            btn.innerHTML = `🔴 Recording (${mins}:${secs}) — Save`;
+          }, 1000);
+
+        } catch (err) {
+          console.warn('Call recording cancelled or unsupported:', err);
+        }
+      };
 
       // Synchronize room ID directly from API so Doctor and Patient always connect to the exact same room
       if (apptId) {
