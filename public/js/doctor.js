@@ -3090,37 +3090,25 @@ window.handleAdviceCheckboxChange = function(cb) {
 
 window.startDoctorVideoCall = async function() {
   if (!activeAppointment || !activeAppointment.id) return;
-  const modal = document.getElementById('doctor-video-modal');
-  const iframe = document.getElementById('doctor-video-iframe');
-  const patientNameSpan = document.getElementById('doctor-video-patient-name');
-  const extBtn = document.getElementById('doctor-video-ext-btn');
+  const apptId = activeAppointment.id;
+  const patientName = activeAppointment.patient_name || 'Patient';
   
-  if (patientNameSpan) patientNameSpan.textContent = `— ${activeAppointment.patient_name}`;
-  
+  let videoUrl = `/video-call.html?appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+
   try {
     const token = localStorage.getItem('chc_token');
-    const res = await fetch(`/api/appointments/${activeAppointment.id}/video-room`, {
+    const res = await fetch(`/api/appointments/${apptId}/video-room`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (res.ok) {
       const data = await res.json();
-      iframe.src = data.video_url;
-      if (extBtn) extBtn.href = data.video_url;
-    } else {
-      const roomId = activeAppointment.video_room_id || `AlamnagarChcConsult${activeAppointment.id}`;
-      const url = `/video-call.html?room=${roomId}&appointment_id=${activeAppointment.id}&name=${encodeURIComponent(activeAppointment.patient_name)}`;
-      iframe.src = url;
-      if (extBtn) extBtn.href = url;
+      if (data.video_url) videoUrl = data.video_url;
     }
   } catch (e) {
-    console.error('Error fetching video room:', e);
-    const roomId = activeAppointment.video_room_id || `AlamnagarChcConsult${activeAppointment.id}`;
-    const url = `/video-call.html?room=${roomId}&appointment_id=${activeAppointment.id}&name=${encodeURIComponent(activeAppointment.patient_name)}`;
-    iframe.src = url;
-    if (extBtn) extBtn.href = url;
+    console.error('Error fetching video room URL:', e);
   }
   
-  if (modal) modal.style.display = 'flex';
+  window.open(videoUrl, '_blank');
 };
 
 window.closeDoctorVideoModal = function() {
