@@ -882,7 +882,7 @@ app.patch('/api/appointments/:id', authenticateToken, async (req, res) => {
         if (apptRes.rows.length > 0) {
           const appt = apptRes.rows[0];
           let roomId = appt.video_room_id;
-          if (!roomId) {
+          if (!roomId || roomId.includes('alamnagar-chc-vconsult') || roomId.includes('-')) {
             roomId = `AlamnagarChcConsultationRoom${appointmentId}x${Math.floor(10000 + Math.random() * 90000)}`;
             await db.pool.query("UPDATE appointments SET video_room_id = $1 WHERE id = $2", [roomId, appointmentId]);
           }
@@ -2256,7 +2256,7 @@ app.get('/api/appointments/:id/video-room', optionalAuthenticateToken, async (re
     }
 
     let roomId = appt.video_room_id;
-    if (!roomId) {
+    if (!roomId || roomId.includes('alamnagar-chc-vconsult') || roomId.includes('-')) {
       roomId = `AlamnagarChcConsultationRoom${apptId}x${Math.floor(10000 + Math.random() * 90000)}`;
       await db.pool.query("UPDATE appointments SET video_room_id = $1 WHERE id = $2", [roomId, apptId]);
     }

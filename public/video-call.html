@@ -85,7 +85,7 @@
       to { transform: rotate(360deg); }
     }
   </style>
-  <script src="https://meet.jit.si/external_api.js"></script>
+  <script src="https://meet.ffm.freifunk.net/external_api.js"></script>
 </head>
 <body>
 
@@ -113,13 +113,21 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const roomName = urlParams.get('room') || 'AlamnagarChcConsultGeneral';
+      const rawRoom = urlParams.get('room') || 'AlamnagarChcConsultGeneral';
       const displayName = urlParams.get('name') || 'Guest User';
       const apptId = urlParams.get('appointment_id');
 
+      // Sanitize room name (remove hyphens/special chars to prevent moderator locks)
+      let roomName = rawRoom.replace(/[^a-zA-Z0-9]/g, '');
+      if (!roomName || roomName.length < 5) {
+        roomName = 'AlamnagarChcConsultationRoom' + (apptId || 'General');
+      }
+
+      const domain = 'meet.ffm.freifunk.net';
+
       const extBtn = document.getElementById('external-call-btn');
       if (extBtn) {
-        extBtn.href = `https://meet.jit.si/${roomName}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
+        extBtn.href = `https://${domain}/${roomName}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
       }
 
       const patientDisplay = document.getElementById('patient-display');
@@ -127,7 +135,6 @@
         patientDisplay.textContent = `Patient: ${displayName}${apptId ? ' (Appt #' + apptId + ')' : ''}`;
       }
 
-      const domain = 'meet.jit.si';
       const container = document.getElementById('video-container');
       const spinner = document.getElementById('loading-spinner');
 
@@ -148,8 +155,7 @@
             enableLobby: false,
             disableLobby: true,
             requireDisplayName: false,
-            disableDeepLinking: true,
-            remoteVideoMenu: { disableKick: true }
+            disableDeepLinking: true
           },
           interfaceConfigOverwrite: {
             TOOLBAR_BUTTONS: [
@@ -167,14 +173,13 @@
           if (spinner) spinner.style.display = 'none';
         });
 
-        // Fallback timeout to hide spinner if event doesn't fire fast
         setTimeout(() => {
           if (spinner) spinner.style.display = 'none';
         }, 3000);
       } catch (e) {
         console.error('Jitsi API failed, loading iframe fallback', e);
         if (spinner) spinner.style.display = 'none';
-        container.innerHTML = `<iframe src="https://meet.jit.si/${roomName}" allow="camera; microphone; display-capture; autoplay"></iframe>`;
+        container.innerHTML = `<iframe src="https://${domain}/${roomName}" allow="camera; microphone; display-capture; autoplay"></iframe>`;
       }
     });
   </script>
