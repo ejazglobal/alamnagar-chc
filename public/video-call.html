@@ -140,13 +140,26 @@
         }
 
         try {
-          // Capture display/tab video + audio
+          // Capture display/tab video + audio with systemAudio & preferCurrentTab enabled by default
           const displayStream = await navigator.mediaDevices.getDisplayMedia({
             video: { mediaSource: 'screen' },
-            audio: true
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+              systemAudio: 'include'
+            },
+            preferCurrentTab: true,
+            selfBrowserSurface: 'include',
+            systemAudio: 'include'
           });
 
-          // Capture microphone audio directly so recording ALWAYS has audio even if user forgets Chrome audio checkbox
+          // Alert if tab audio was un-checked in Chrome popup
+          if (displayStream.getAudioTracks().length === 0) {
+            alert("⚠️ Important: Patient's voice was not selected. Next time, make sure the 'Also share tab audio' toggle is turned ON in Chrome's popup so the patient's voice is recorded!");
+          }
+
+          // Capture doctor's microphone audio directly
           let micStream = null;
           try {
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -154,7 +167,7 @@
             console.warn('Microphone stream access unavailable for recording:', micErr);
           }
 
-          // Create Web Audio Context to mix microphone + tab audio together
+          // Create Web Audio Context to mix doctor's mic + patient's tab audio into single stream
           const AudioCtx = window.AudioContext || window.webkitAudioContext;
           let combinedStream = displayStream;
 
@@ -163,11 +176,13 @@
               const audioCtx = new AudioCtx();
               const audioDest = audioCtx.createMediaStreamDestination();
 
+              // Connect patient's voice (tab audio)
               if (displayStream.getAudioTracks().length > 0) {
                 const displaySource = audioCtx.createMediaStreamSource(displayStream);
                 displaySource.connect(audioDest);
               }
 
+              // Connect doctor's voice (microphone audio)
               if (micStream && micStream.getAudioTracks().length > 0) {
                 const micSource = audioCtx.createMediaStreamSource(micStream);
                 micSource.connect(audioDest);
