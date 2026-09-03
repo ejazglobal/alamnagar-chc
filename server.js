@@ -2536,9 +2536,17 @@ app.post('/api/tuition/enroll', optionalAuthenticateToken, async (req, res) => {
     });
 
     console.log(`[TUITION ENROLLMENT] New student enrolled: ${student_name} (${normPhone}) for class ${student_class} [${selectedMode}]`);
+
+    // Dispatch SMS & Email notifications to student
+    try {
+      mailer.sendTuitionEnrollmentNotification(enrollment);
+    } catch (mErr) {
+      console.warn('[MAILER NOTICE] Could not send tuition enrollment notification:', mErr.message);
+    }
+
     res.json({
       success: true,
-      message: 'Tuition enrollment application submitted successfully! Our community education coordinator will contact you shortly.',
+      message: 'Tuition enrollment application submitted successfully! Instant confirmation SMS and email have been sent.',
       enrollment
     });
   } catch (err) {
@@ -2601,7 +2609,16 @@ app.put('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, res
       return res.status(404).json({ error: 'Tuition enrollment record not found.' });
     }
 
-    res.json({ success: true, message: 'Tuition enrollment updated successfully.', enrollment: updated });
+    // Dispatch SMS & Email notifications with updated tutor assignment & schedule
+    try {
+      const fullList = await db.getTuitionEnrollmentsByUserOrPhone(null, updated.phone);
+      const matched = fullList.find(e => e.id == id) || updated;
+      mailer.sendTuitionAssignmentNotification(matched);
+    } catch (mErr) {
+      console.warn('[MAILER NOTICE] Could not send tuition assignment notification:', mErr.message);
+    }
+
+    res.json({ success: true, message: 'Tuition enrollment updated successfully. Notification sent to student.', enrollment: updated });
   } catch (err) {
     console.error('Admin updating enrollment error:', err);
     res.status(500).json({ error: 'Failed to update tuition enrollment.' });

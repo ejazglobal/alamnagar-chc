@@ -661,6 +661,98 @@ function sendPasswordResetOTP(email, phone, username, otp) {
   }
 }
 
+function sendTuitionEnrollmentNotification(enrollment) {
+  const { student_name, phone, email, student_class, subject_choices, preferred_mode } = enrollment;
+  const isOnline = preferred_mode === 'online';
+
+  const smsMsg = `[আলমনগর সিএইচসি] প্রিয় ${student_name}, আপনার টিউশন আবেদনটি সফলভাবে গ্রহণ করা হয়েছে (${student_class})। বিষয়: ${subject_choices}। শীঘ্রই শিক্ষক ও সময়সূচি জানিয়ে দেওয়া হবে।`;
+  if (phone) {
+    sendSMS(phone, smsMsg);
+  }
+
+  if (email) {
+    const subject = "Application Received - Alamnagar Community Tuition";
+    const emailHtml = `<!DOCTYPE html>
+    <html>
+    <head><style>body { font-family: sans-serif; line-height: 1.6; color: #333; }</style></head>
+    <body>
+      <div style="max-width: 550px; margin: 20px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #0d9488; text-align: center; margin-bottom: 5px;">🎓 Alamnagar Community Education</h2>
+        <p style="text-align: center; color: #64748b; margin-top: 0;">Tuition Application Confirmation</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
+        <p>Dear <strong>${student_name}</strong>,</p>
+        <p>Thank you for enrolling in our Community Tuition & Education program. We have received your application with the following details:</p>
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #0d9488; margin: 15px 0;">
+          <p style="margin: 3px 0;"><strong>Student Name:</strong> ${student_name}</p>
+          <p style="margin: 3px 0;"><strong>Class Level:</strong> ${student_class}</p>
+          <p style="margin: 3px 0;"><strong>Subject Choice(s):</strong> ${subject_choices}</p>
+          <p style="margin: 3px 0;"><strong>Learning Mode:</strong> ${isOnline ? '💻 Online Live Class' : '🏫 On-Premises Classroom'}</p>
+        </div>
+        <p>Our community education coordinator is assigning a qualified tutor for your selected subjects. You will receive another notification once your schedule and tutor details are finalized.</p>
+        <div style="text-align: center; margin-top: 25px;">
+          <a href="https://ashiana.online/tuition.html" style="background: #0d9488; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Track Status on Portal</a>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0 10px 0;">
+        <p style="font-size: 12px; color: #94a3b8; text-align: center;">Alamnagar Charitable Healthcare & Community Education Centre</p>
+      </div>
+    </body>
+    </html>`;
+
+    sendEmail(email, subject, emailHtml);
+  }
+}
+
+function sendTuitionAssignmentNotification(enrollment) {
+  const { student_name, phone, email, student_class, subject_choices, preferred_mode, status, tutor_name, tutor_phone, assigned_schedule, class_location_or_link } = enrollment;
+  const isOnline = preferred_mode === 'online';
+  const roomLink = class_location_or_link || `https://ashiana.online/video-call.html?room=tuition-class-${enrollment.id}`;
+
+  const smsMsg = `[আলমনগর সিএইচসি] প্রিয় ${student_name}, আপনার টিউশন শ্রেণি অনুমোদিত ও বরাদ্দ করা হয়েছে! শিক্ষক: ${tutor_name || 'মেন্টর'}, সময়: ${assigned_schedule || 'নির্ধারিত'}। বিস্তারিত: https://ashiana.online/tuition.html`;
+  if (phone) {
+    sendSMS(phone, smsMsg);
+  }
+
+  if (email) {
+    const subject = `Tuition Assignment Finalized - ${student_class} (${status.toUpperCase()})`;
+    const emailHtml = `<!DOCTYPE html>
+    <html>
+    <head><style>body { font-family: sans-serif; line-height: 1.6; color: #333; }</style></head>
+    <body>
+      <div style="max-width: 600px; margin: 20px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #0d9488; text-align: center; margin-bottom: 5px;">🎓 Class Assignment Confirmed</h2>
+        <p style="text-align: center; color: #64748b; margin-top: 0;">Alamnagar Community Tuition Program</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
+        <p>Dear <strong>${student_name}</strong>,</p>
+        <p>Great news! Your tuition application has been reviewed and your tutor and weekly schedule have been finalized:</p>
+        
+        <div style="background: #f0fdfa; padding: 18px; border-radius: 10px; border: 1px solid #99f6e4; margin: 20px 0;">
+          <h3 style="color: #0f766e; margin-top: 0; margin-bottom: 10px;">📋 Class Schedule Details</h3>
+          <p style="margin: 5px 0;"><strong>Student Name:</strong> ${student_name}</p>
+          <p style="margin: 5px 0;"><strong>Class Level:</strong> ${student_class}</p>
+          <p style="margin: 5px 0;"><strong>Subjects:</strong> ${subject_choices}</p>
+          <p style="margin: 5px 0;"><strong>Assigned Tutor:</strong> 👨‍🏫 ${tutor_name || 'Assigned Mentor'} ${tutor_phone ? `(Contact: ${tutor_phone})` : ''}</p>
+          <p style="margin: 5px 0;"><strong>Weekly Schedule:</strong> 🕒 ${assigned_schedule || 'As scheduled'}</p>
+          <p style="margin: 5px 0;"><strong>Location / Mode:</strong> ${isOnline ? '💻 Live Virtual Classroom' : '🏫 On-Premises Classroom'}</p>
+          ${!isOnline && class_location_or_link ? `<p style="margin: 5px 0;"><strong>Classroom:</strong> 📍 ${class_location_or_link}</p>` : ''}
+        </div>
+
+        ${isOnline ? `
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${roomLink}" style="background: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">🎥 Join Live Virtual Classroom</a>
+          </div>
+        ` : ''}
+
+        <p style="font-size: 13px; color: #475569;">You can track your schedule anytime by visiting the <a href="https://ashiana.online/tuition.html" style="color: #0d9488;">Community Tuition Portal</a>.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0 10px 0;">
+        <p style="font-size: 12px; color: #94a3b8; text-align: center;">Alamnagar Charitable Healthcare & Community Education Centre</p>
+      </div>
+    </body>
+    </html>`;
+
+    sendEmail(email, subject, emailHtml);
+  }
+}
+
 module.exports = {
   isBDPhoneNumber,
   sendAppointmentConfirmation,
@@ -670,6 +762,8 @@ module.exports = {
   sendPrescriptionLinkSMS,
   sendPrescriptionLinkEmail,
   sendEmail,
-  sendPasswordResetOTP
+  sendPasswordResetOTP,
+  sendTuitionEnrollmentNotification,
+  sendTuitionAssignmentNotification
 };
 
