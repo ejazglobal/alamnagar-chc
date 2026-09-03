@@ -282,6 +282,7 @@
       <button class="tab-btn active" onclick="switchTab('enroll-tab')">📝 Student Enrollment</button>
       <button class="tab-btn" onclick="switchTab('my-tab')">🔍 My Enrollments & Classes</button>
       <button class="tab-btn" onclick="switchTab('tutors-tab')">👨‍🏫 Community Tutors</button>
+      <button class="tab-btn" id="tutor-portal-btn" style="display: none; background: #e0f2fe; color: #0369a1;" onclick="switchTab('tutor-classes-tab')">👨‍🏫 Tutor Portal (My Batches)</button>
     </div>
 
     <!-- TAB 1: Student Enrollment Form -->
@@ -413,6 +414,20 @@
         </div>
         <div id="tutors-container" class="tutors-grid">
           <p style="color: var(--text-muted); text-align: center;">Loading tutor list...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Tutor Portal (My Assigned Batches) -->
+    <div id="tutor-classes-tab" class="tab-content" style="display: none;">
+      <div class="tuition-card">
+        <h2 style="color: #0284c7; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span>👨‍🏫 My Assigned Tuition Batches & Students</span>
+        </h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Welcome to the Tutor Portal. Below are the student applications and group class batches assigned to you.</p>
+
+        <div id="tutor-classes-list">
+          <p style="color: var(--text-muted); text-align: center; padding: 2rem; font-style: italic;">Loading your assigned tuition batches...</p>
         </div>
       </div>
     </div>
@@ -671,7 +686,18 @@
     }
 
     async function checkLoggedInUser() {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('chc_token');
+      const role = localStorage.getItem('chc_user_role');
+      
+      if (role === 'Tutor' || role === 'Admin' || role === 'Staff') {
+        const tutorBtn = document.getElementById('tutor-portal-btn');
+        if (tutorBtn) tutorBtn.style.display = 'inline-block';
+        if (role === 'Tutor') {
+          switchTab('tutor-classes-tab');
+          loadTutorAssignedClasses();
+        }
+      }
+
       if (token) {
         try {
           const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -683,6 +709,67 @@
             lookupMyEnrollments();
           }
         } catch (e) {}
+      }
+    }
+
+    async function loadTutorAssignedClasses() {
+      const container = document.getElementById('tutor-classes-list');
+      if (!container) return;
+
+      const token = localStorage.getItem('token') || localStorage.getItem('chc_token');
+      if (!token) {
+        container.innerHTML = '<p style="color: var(--danger); text-align: center;">Please log in with a Tutor account to view your assigned classes.</p>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/tuition/tutor/my-classes?t=${Date.now()}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.classes && data.classes.length > 0) {
+          container.innerHTML = data.classes.map(c => {
+            const isOnline = c.preferred_mode === 'online';
+            const roomLink = c.class_location_or_link || `video-call.html?room=tuition-class-${c.id}`;
+
+            return `
+              <div class="enrollment-item" style="border-left: 4px solid #0284c7; background: #ffffff;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                  <div>
+                    <h3 style="margin: 0; color: var(--text-dark);">${escapeHtml(c.student_name)}</h3>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Class: <strong>${escapeHtml(c.student_class)}</strong> | Contact: 📞 ${escapeHtml(c.phone)} ${c.email ? `(${escapeHtml(c.email)})` : ''}</div>
+                  </div>
+                  <span class="badge-status badge-assigned">${escapeHtml(c.status.toUpperCase())}</span>
+                </div>
+                
+                <div style="margin-bottom: 0.5rem; font-size: 0.9rem;">
+                  <strong>Subject Choices:</strong> ${escapeHtml(c.subject_choices)}
+                </div>
+
+                <div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #334155;">
+                  <strong>Schedule:</strong> 🕒 ${escapeHtml(c.assigned_schedule || 'Schedule pending')}
+                </div>
+
+                ${isOnline ? `
+                  <div>
+                    <a href="${escapeHtml(roomLink)}" class="btn" style="background: #0284c7; color: white; display: inline-block; padding: 0.6rem 1.25rem; font-weight: 600; text-decoration: none; border-radius: 8px;">
+                      🎥 Launch Virtual Classroom
+                    </a>
+                  </div>
+                ` : (c.class_location_or_link ? `
+                  <div style="font-size: 0.85rem; color: #059669; font-weight: 600;">
+                    📍 Premises Room: ${escapeHtml(c.class_location_or_link)}
+                  </div>
+                ` : '')}
+              </div>
+            `;
+          }).join('');
+        } else {
+          container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No student batches currently assigned to your tutor account.</p>';
+        }
+      } catch (err) {
+        console.error('Error loading tutor classes:', err);
+        container.innerHTML = '<p style="color: var(--danger); text-align: center;">Error loading assigned classes.</p>';
       }
     }
 

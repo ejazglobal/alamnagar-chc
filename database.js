@@ -82,7 +82,7 @@ async function initializeDatabase() {
           END LOOP;
         END $$;
       `);
-      await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist'))`);
+      await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist', 'Tutor'))`);
       await pool.query(`ALTER TABLE staff_permissions ADD CONSTRAINT staff_permissions_check CHECK(permissions IN ('news', 'doctors', 'all', 'pharmacist'))`);
     } catch (cErr) {
       console.log('Role/Permissions check constraint update note:', cErr.message);
@@ -220,6 +220,7 @@ async function initializeDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tutors (
         id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         name VARCHAR(255) NOT NULL,
         phone VARCHAR(50),
         email VARCHAR(255),
@@ -231,6 +232,12 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    try {
+      await pool.query(`ALTER TABLE tutors ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+    } catch (tColErr) {
+      console.log('Tutors table user_id migration notice:', tColErr.message);
+    }
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tuition_enrollments (
@@ -1072,12 +1079,33 @@ module.exports = {
   },
 
   updateTutor: async (id, tutorData) => {
-    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio, status } = tutorData;
+    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio, status, user_id } = tutorData;
     const res = await pool.query(
-      `UPDATE tutors SET name = $1, phone = $2, email = $3, qualification = $4, subjects_taught = $5, tuition_mode = $6, bio = $7, status = $8 WHERE id = $9 RETURNING *`,
-      [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '', status || 'active', id]
+      `UPDATE tutors SET name = $1, phone = $2, email = $3, qualification = $4, subjects_taught = $5, tuition_mode = $6, bio = $7, status = $8, user_id = COALESCE($9, user_id) WHERE id = $10 RETURNING *`,
+      [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '', status || 'active', user_id || null, id]
     );
     return res.rows[0];
+  },
+
+  getTutorAssignedClasses: async (tutorUserId, tutorId = null) => {
+    let query = `
+      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone
+      FROM tuition_enrollments te
+      JOIN tutors t ON te.tutor_id = t.id
+      WHERE 1=0
+    `;
+    const params = [];
+    if (tutorId) {
+      params.push(tutorId);
+      query += ` OR te.tutor_id = $${params.length}`;
+    }
+    if (tutorUserId) {
+      params.push(tutorUserId);
+      query += ` OR t.user_id = $${params.length}`;
+    }
+    query += ` ORDER BY te.created_at DESC`;
+    const res = await pool.query(query, params);
+    return res.rows;
   },
 
   createTuitionEnrollment: async (enrollmentData) => {

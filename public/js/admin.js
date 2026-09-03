@@ -2665,6 +2665,8 @@ window.saveTutorForm = async function saveTutorForm(e) {
   const subjects = document.getElementById('tutor-subjects-input').value.trim();
   const phone = document.getElementById('tutor-phone-input').value.trim();
   const mode = document.getElementById('tutor-mode-input').value;
+  const username = document.getElementById('tutor-username-input') ? document.getElementById('tutor-username-input').value.trim() : '';
+  const password = document.getElementById('tutor-password-input') ? document.getElementById('tutor-password-input').value : '';
 
   try {
     const token = localStorage.getItem('chc_token');
@@ -2679,7 +2681,9 @@ window.saveTutorForm = async function saveTutorForm(e) {
         qualification,
         subjects_taught: subjects,
         phone,
-        tuition_mode: mode
+        tuition_mode: mode,
+        username,
+        password
       })
     });
 

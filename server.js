@@ -2625,17 +2625,38 @@ app.put('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, res
   }
 });
 
-// 7. Admin: Manage Tutors (Add / Update)
+// 7. Admin: Manage Tutors (Add / Update & optionally create linked Tutor user account)
 app.post('/api/tuition/admin/tutors', authenticateToken, async (req, res) => {
   try {
     if (!['Admin', 'Staff'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Access denied.' });
     }
-    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio } = req.body;
+    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio, username, password } = req.body;
     if (!name || !qualification || !subjects_taught) {
       return res.status(400).json({ error: 'Name, Qualification, and Subjects Taught are required.' });
     }
-    const tutor = await db.addTutor({ name, phone, email, qualification, subjects_taught, tuition_mode, bio });
+
+    let createdUserId = null;
+    if (username && password) {
+      if (username.trim().length < 3 || password.length < 6) {
+        return res.status(400).json({ error: 'Username must be at least 3 characters and password at least 6 characters.' });
+      }
+      try {
+        const user = await db.createUser({
+          username: username.trim(),
+          password,
+          email: email ? email.trim() : null,
+          phone: phone ? phone.trim() : null,
+          role: 'Tutor'
+        });
+        createdUserId = user.id;
+        console.log(`[TUTOR CREATED] Linked user account created for tutor ${name} (ID: ${user.id}, Role: Tutor)`);
+      } catch (uErr) {
+        console.warn('Could not create user account for tutor:', uErr.message);
+      }
+    }
+
+    const tutor = await db.addTutor({ name, phone, email, qualification, subjects_taught, tuition_mode, bio, user_id: createdUserId });
     res.json({ success: true, message: 'Tutor profile added successfully.', tutor });
   } catch (err) {
     console.error('Admin adding tutor error:', err);
@@ -2653,6 +2674,21 @@ app.put('/api/tuition/admin/tutors/:id', authenticateToken, async (req, res) => 
   } catch (err) {
     console.error('Admin updating tutor error:', err);
     res.status(500).json({ error: 'Failed to update tutor.' });
+  }
+});
+
+// 8. Tutor Portal: Get My Assigned Tuition Batches & Classes
+app.get('/api/tuition/tutor/my-classes', authenticateToken, async (req, res) => {
+  try {
+    if (!['Tutor', 'Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied. Tutor or Admin privileges required.' });
+    }
+    const userId = req.user.id;
+    const assignedClasses = await db.getTutorAssignedClasses(userId);
+    res.json({ success: true, classes: assignedClasses });
+  } catch (err) {
+    console.error('Error fetching tutor assigned classes:', err);
+    res.status(500).json({ error: 'Failed to fetch assigned tuition classes.' });
   }
 });
 
