@@ -343,50 +343,6 @@
           </div>
         </section>
 
-        <!-- Manage User Registry (Admin Only) -->
-        <section class="panel" id="admin-user-directory-section" style="margin-top: 1.5rem; display: none;">
-          <h2 class="panel-title">
-            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            User Directory & Management
-          </h2>
-          
-          <div id="user-directory-status-banner" class="status-banner" style="margin-bottom: 1rem;"></div>
-
-          <!-- User Filters & Search -->
-          <div class="filters-bar" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
-            <div class="filter-btn-group" id="user-role-filter-group" style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
-              <button class="filter-btn active" data-filter="all" onclick="filterUsersRole('all')">All</button>
-              <button class="filter-btn" data-filter="Admin" onclick="filterUsersRole('Admin')">Admin</button>
-              <button class="filter-btn" data-filter="Staff" onclick="filterUsersRole('Staff')">Staff</button>
-              <button class="filter-btn" data-filter="Doctor" onclick="filterUsersRole('Doctor')">Doctor</button>
-              <button class="filter-btn" data-filter="Patient" onclick="filterUsersRole('Patient')">Patient</button>
-              <button class="filter-btn" data-filter="Observer" onclick="filterUsersRole('Observer')">Observer</button>
-            </div>
-            <input type="search" id="user-search-input" class="search-input" placeholder="Search username, contact..." oninput="searchUsers(this.value)">
-          </div>
-
-          <div class="table-wrapper">
-            <table class="news-manage-table">
-              <thead>
-                <tr>
-                  <th>User Details</th>
-                  <th>Role</th>
-                  <th>Joined Date</th>
-                  <th style="width: 180px; text-align: center;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="users-directory-tbody">
-                <!-- Dynamically populated -->
-                <tr>
-                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">Loading user registry...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
         <!-- Photo Gallery Management Section -->
         <section class="panel" style="margin-top: 1.5rem;">
           <h2 class="panel-title">

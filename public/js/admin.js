@@ -2782,17 +2782,24 @@ window.loadUsersAndRender = async function() {
     const res = await fetch('/api/admin/users?t=' + Date.now(), {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+    
+    if (!res.ok) {
+      console.warn('User directory API endpoint returned non-200 status:', res.status);
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--warning); padding: 1.5rem 0;">Server update pending. Please run <code>git pull origin main && pm2 restart all</code> on your DigitalOcean terminal to load live user accounts.</td></tr>';
+      return;
+    }
+
     const data = await res.json();
 
-    if (data.success && data.users) {
+    if (data.success && data.users && data.users.length > 0) {
       allAdminUsers = data.users;
       renderAdminUsersTable();
     } else {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No user accounts found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No registered user accounts found in database.</td></tr>';
     }
   } catch (err) {
     console.error('Error loading user directory:', err);
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Error loading user directory.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Error connecting to user directory API server.</td></tr>';
   }
 };
 
