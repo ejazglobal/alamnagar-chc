@@ -2857,16 +2857,16 @@ function renderAdminUsersTable(filtered = null) {
         <td>✉️ ${escapeHTML(u.email || 'N/A')}</td>
         <td style="font-size: 0.85rem; color: var(--text-muted);">${formattedDate}</td>
         <td style="text-align: center; white-space: nowrap;">
-          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')" title="Reset Password & Send Notification">
+          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal('${u.id}')" title="Reset Password & Send Notification">
             🔑 Password
           </button>
-          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #4f46e5; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openEditUserModal('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}', '${escapeHTML(u.phone || '')}', '${escapeHTML(u.email || '')}', '${escapeHTML(u.role || 'Patient')}', '${isSuspended ? 'suspended' : 'active'}')" title="Edit Role & Status">
+          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #4f46e5; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openEditUserModal('${u.id}')" title="Edit Role & Status">
             ✏️ Edit
           </button>
           ${isAdminAccount ? `
             <span style="font-size: 0.7rem; color: #991b1b; background: #fee2e2; padding: 0.25rem 0.5rem; border-radius: 50px; font-weight: 600;">🔒 Protected</span>
           ` : `
-            <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #ef4444; color: white; width: auto; display: inline-block;" onclick="deleteUserAccountAdmin('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')" title="Delete User Account">
+            <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #ef4444; color: white; width: auto; display: inline-block;" onclick="deleteUserAccountAdmin('${u.id}')" title="Delete User Account">
               🗑️ Delete
             </button>
           `}
@@ -2920,12 +2920,17 @@ window.searchUsersAdmin = function(query) {
   renderAdminUsersTable(searchResults);
 };
 
-window.openResetPasswordModal = function(id, username) {
+window.openResetPasswordModal = function(id) {
   const modal = document.getElementById('admin-reset-password-modal');
   if (!modal) return;
+  const user = allAdminUsers.find(u => String(u.id) === String(id));
+  const username = user ? user.username : 'User';
+
   document.getElementById('reset-user-id').value = id;
   document.getElementById('reset-username-label').textContent = username;
   document.getElementById('reset-new-password').value = '';
+  const banner = document.getElementById('admin-reset-status-banner');
+  if (banner) banner.style.display = 'none';
   modal.style.display = 'flex';
 };
 
@@ -2995,19 +3000,26 @@ window.submitCreateUserForm = async function(e) {
   }
 };
 
-window.openEditUserModal = function(id, username, phone, email, role, status) {
+window.openEditUserModal = function(id) {
   const modal = document.getElementById('admin-edit-user-modal');
   if (!modal) return;
-  document.getElementById('edit-user-id').value = id;
-  document.getElementById('edit-username-label').textContent = username;
-  document.getElementById('edit-user-phone').value = phone || '';
-  document.getElementById('edit-user-email').value = email || '';
+  const user = allAdminUsers.find(u => String(u.id) === String(id));
+  if (!user) return;
+
+  const isSuspended = user.is_active === false || user.status === 'suspended';
+
+  document.getElementById('edit-user-id').value = user.id;
+  document.getElementById('edit-username-label').textContent = user.username || 'User';
+  document.getElementById('edit-user-phone').value = user.phone || '';
+  document.getElementById('edit-user-email').value = user.email || '';
   if (document.getElementById('edit-user-role')) {
-    document.getElementById('edit-user-role').value = role || 'Patient';
+    document.getElementById('edit-user-role').value = user.role || 'Patient';
   }
   if (document.getElementById('edit-user-status')) {
-    document.getElementById('edit-user-status').value = status || 'active';
+    document.getElementById('edit-user-status').value = isSuspended ? 'suspended' : 'active';
   }
+  const banner = document.getElementById('admin-edit-user-status-banner');
+  if (banner) banner.style.display = 'none';
   modal.style.display = 'flex';
 };
 
@@ -3068,7 +3080,9 @@ window.submitEditUserForm = async function(e) {
   }
 };
 
-window.deleteUserAccountAdmin = async function(id, username) {
+window.deleteUserAccountAdmin = async function(id) {
+  const user = allAdminUsers.find(u => String(u.id) === String(id));
+  const username = user ? user.username : 'user account';
   if (!confirm(`Are you sure you want to delete user account "${username}"?`)) return;
 
   try {
