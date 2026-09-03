@@ -1031,6 +1031,7 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
     console.error('Error resetting user password:', err);
     res.status(500).json({ error: 'Database error resetting password.' });
   }
+});
 app.post('/api/admin/users/create', authenticateToken, async (req, res) => {
   if (!['Admin', 'Staff'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
