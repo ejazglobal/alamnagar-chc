@@ -1108,6 +1108,29 @@ module.exports = {
     return res.rows;
   },
 
+  getAllUsers: async (roleFilter = null) => {
+    let query = `SELECT id, username, phone, email, role, created_at FROM users`;
+    const params = [];
+    if (roleFilter && roleFilter !== 'all') {
+      query += ` WHERE role = $1`;
+      params.push(roleFilter);
+    }
+    query += ` ORDER BY id DESC`;
+    const res = await pool.query(query, params);
+    return res.rows;
+  },
+
+  adminResetUserPassword: async (userId, newPassword) => {
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(newPassword, salt);
+    const res = await pool.query(
+      `UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, username, phone, email, role`,
+      [hash, userId]
+    );
+    return res.rows[0];
+  },
+
   createTuitionEnrollment: async (enrollmentData) => {
     const { user_id, student_name, phone, email, student_class, subject_choices, preferred_mode, preferred_time, notes } = enrollmentData;
     const subjectsStr = Array.isArray(subject_choices) ? subject_choices.join(', ') : subject_choices;

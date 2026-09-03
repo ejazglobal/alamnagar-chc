@@ -2701,4 +2701,201 @@ window.saveTutorForm = async function saveTutorForm(e) {
   }
 };
 
+// --- SYSTEM USER DIRECTORY & CREDENTIALS MANAGEMENT ---
+let allAdminUsers = [];
+let currentRoleFilter = 'all';
+
+window.setupUserDirectoryEvents = function() {
+  const resetForm = document.getElementById('admin-reset-password-form');
+  if (resetForm) {
+    resetForm.onsubmit = async function(e) {
+      e.preventDefault();
+      const userId = document.getElementById('reset-user-id').value;
+      const newPassword = document.getElementById('reset-new-password').value;
+      if (!userId || !newPassword) return;
+
+      try {
+        const token = localStorage.getItem('chc_token');
+        const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ newPassword })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(data.message || 'Password reset successfully!');
+          closeResetPasswordModal();
+          loadUsersAndRender();
+        } else {
+          alert(data.error || 'Failed to reset password.');
+        }
+      } catch (err) {
+        console.error('Error resetting password:', err);
+        alert('Failed to reset user password.');
+      }
+    };
+  }
+
+  const editUserForm = document.getElementById('admin-edit-user-form');
+  if (editUserForm) {
+    editUserForm.onsubmit = async function(e) {
+      e.preventDefault();
+      const userId = document.getElementById('edit-user-id').value;
+      const phone = document.getElementById('edit-user-phone').value;
+      const email = document.getElementById('edit-user-email').value;
+
+      try {
+        const token = localStorage.getItem('chc_token');
+        const res = await fetch(`/api/admin/users/${userId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ phone, email })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('User information updated successfully!');
+          closeEditUserModal();
+          loadUsersAndRender();
+        } else {
+          alert(data.error || 'Failed to update user info.');
+        }
+      } catch (err) {
+        console.error('Error updating user info:', err);
+        alert('Failed to update user information.');
+      }
+    };
+  }
+};
+
+window.loadUsersAndRender = async function() {
+  const tbody = document.getElementById('users-admin-tbody');
+  if (!tbody) return;
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch('/api/admin/users?t=' + Date.now(), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (data.success && data.users) {
+      allAdminUsers = data.users;
+      renderAdminUsersTable();
+    } else {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No user accounts found.</td></tr>';
+    }
+  } catch (err) {
+    console.error('Error loading user directory:', err);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Error loading user directory.</td></tr>';
+  }
+};
+
+function renderAdminUsersTable(filtered = null) {
+  const tbody = document.getElementById('users-admin-tbody');
+  if (!tbody) return;
+
+  const usersToRender = filtered || allAdminUsers;
+
+  if (usersToRender.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No user accounts matching filter criteria.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = usersToRender.map(u => {
+    const roleBadgeClass = u.role === 'Admin' ? 'background: #fee2e2; color: #991b1b;' :
+                           u.role === 'Tutor' ? 'background: #e0f2fe; color: #0369a1;' :
+                           u.role === 'Student' ? 'background: #f0fdf4; color: #15803d;' :
+                           u.role === 'Doctor' ? 'background: #f3e8ff; color: #6b21a8;' :
+                           'background: #f1f5f9; color: #475569;';
+
+    const formattedDate = u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A';
+
+    return `
+      <tr>
+        <td>
+          <strong style="color: var(--primary-color);">#${u.id}</strong> — <strong>${escapeHTML(u.username)}</strong>
+        </td>
+        <td>
+          <span style="padding: 0.2rem 0.6rem; border-radius: 50px; font-weight: 600; font-size: 0.75rem; ${roleBadgeClass}">
+            ${escapeHTML(u.role || 'Patient')}
+          </span>
+        </td>
+        <td>📞 ${escapeHTML(u.phone || 'N/A')}</td>
+        <td>✉️ ${escapeHTML(u.email || 'N/A')}</td>
+        <td style="font-size: 0.85rem; color: var(--text-muted);">${formattedDate}</td>
+        <td style="text-align: center;">
+          <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal(${u.id}, '${escapeHTML(u.username)}')">
+            🔑 Reset Password
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.filterUsersAdmin = function(role, btn) {
+  currentRoleFilter = role;
+  document.querySelectorAll('#users-filter-group .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  if (role === 'all') {
+    renderAdminUsersTable(allAdminUsers);
+  } else {
+    const filtered = allAdminUsers.filter(u => u.role === role || (role === 'Staff' && (u.role === 'Staff' || u.role === 'Admin')));
+    renderAdminUsersTable(filtered);
+  }
+};
+
+window.searchUsersAdmin = function(query) {
+  const q = (query || '').toLowerCase().trim();
+  if (!q) {
+    filterUsersAdmin(currentRoleFilter);
+    return;
+  }
+  const searchResults = allAdminUsers.filter(u => {
+    return (u.username && u.username.toLowerCase().includes(q)) ||
+           (u.phone && u.phone.includes(q)) ||
+           (u.email && u.email.toLowerCase().includes(q)) ||
+           (u.role && u.role.toLowerCase().includes(q));
+  });
+  renderAdminUsersTable(searchResults);
+};
+
+window.openResetPasswordModal = function(id, username) {
+  const modal = document.getElementById('admin-reset-password-modal');
+  if (!modal) return;
+  document.getElementById('reset-user-id').value = id;
+  document.getElementById('reset-username-label').textContent = username;
+  document.getElementById('reset-new-password').value = '';
+  modal.style.display = 'flex';
+};
+
+window.closeResetPasswordModal = function(e) {
+  if (e) e.preventDefault();
+  const modal = document.getElementById('admin-reset-password-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.openEditUserModal = function(id, username, phone, email) {
+  const modal = document.getElementById('admin-edit-user-modal');
+  if (!modal) return;
+  document.getElementById('edit-user-id').value = id;
+  document.getElementById('edit-username-label').textContent = username;
+  document.getElementById('edit-user-phone').value = phone || '';
+  document.getElementById('edit-user-email').value = email || '';
+  modal.style.display = 'flex';
+};
+
+window.closeEditUserModal = function(e) {
+  if (e) e.preventDefault();
+  const modal = document.getElementById('admin-edit-user-modal');
+  if (modal) modal.style.display = 'none';
+};
+
 

@@ -633,6 +633,48 @@
         </div>
       </section>
 
+      <!-- System User Directory & Credentials Management Panel -->
+      <section class="panel" id="admin-user-directory-section" style="margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+          <h2 class="panel-title" style="margin-bottom: 0;">
+            👥 System User Directory & Account Credentials
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">Manage accounts for Students, Tutors, Patients, and Staff</span>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="filters-bar" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <div class="filter-btn-group" id="users-filter-group" style="display: flex; gap: 0.25rem;">
+            <button class="filter-btn active" onclick="filterUsersAdmin('all', this)">All Accounts</button>
+            <button class="filter-btn" onclick="filterUsersAdmin('Student', this)">Students</button>
+            <button class="filter-btn" onclick="filterUsersAdmin('Tutor', this)">Tutors</button>
+            <button class="filter-btn" onclick="filterUsersAdmin('Patient', this)">Patients</button>
+            <button class="filter-btn" onclick="filterUsersAdmin('Staff', this)">Staff / Admins</button>
+          </div>
+          <input type="search" id="users-search-input" class="search-input" placeholder="Search username, phone, email..." oninput="searchUsersAdmin(this.value)" style="flex: 1;">
+        </div>
+
+        <div class="table-wrapper">
+          <table class="news-manage-table">
+            <thead>
+              <tr>
+                <th>User ID & Username</th>
+                <th>System Role</th>
+                <th>Mobile Phone</th>
+                <th>Email Address</th>
+                <th>Registered Date</th>
+                <th style="width: 160px; text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-admin-tbody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading user directory...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </div>
   </main>
 

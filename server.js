@@ -2692,7 +2692,50 @@ app.get('/api/tuition/tutor/my-classes', authenticateToken, async (req, res) => 
   }
 });
 
-// 8. Admin: Add Subject
+// 9. Admin User Directory & Password Settings
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied. Admin or Staff privileges required.' });
+    }
+    const roleFilter = req.query.role || null;
+    const users = await db.getAllUsers(roleFilter);
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Error fetching admin user directory:', err);
+    res.status(500).json({ error: 'Failed to fetch user directory.' });
+  }
+});
+
+app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const userId = req.params.id;
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const updatedUser = await db.adminResetUserPassword(userId, newPassword);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User record not found.' });
+    }
+
+    // Send SMS / Email notification to user if contact is present
+    if (updatedUser.phone) {
+      mailer.sendSMS(updatedUser.phone, `[আলমনগর সিএইচসি] আপনার অ্যাকাউন্ট পাসওয়ার্ড অ্যাডমিন দ্বারা আপডেট করা হয়েছে। নতুন পাসওয়ার্ড: ${newPassword}`);
+    }
+
+    res.json({ success: true, message: `Password for ${updatedUser.username} updated successfully.`, user: updatedUser });
+  } catch (err) {
+    console.error('Error resetting user password:', err);
+    res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
+// 10. Admin: Add Subject
 app.post('/api/tuition/admin/subjects', authenticateToken, async (req, res) => {
   try {
     if (!['Admin', 'Staff'].includes(req.user.role)) {
