@@ -1044,19 +1044,19 @@ app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res)
     if (rawId.toString().startsWith('tuition_')) {
       const tuitionId = rawId.replace('tuition_', '');
       await db.pool.query(
-        "UPDATE tuition_enrollments SET email = COALESCE($1, email), phone = COALESCE($2, phone) WHERE id = $3",
-        [email || null, phone || null, tuitionId]
+        "UPDATE tuition_enrollments SET email = $1, phone = $2 WHERE id = $3",
+        [email ? email.trim() : null, phone ? phone.trim() : null, tuitionId]
       );
-      return res.json({ message: 'Student application info updated successfully.' });
+      return res.json({ success: true, message: 'Student application info updated successfully.' });
     }
 
     if (rawId.toString().startsWith('tutor_')) {
       const tutorId = rawId.replace('tutor_', '');
       await db.pool.query(
-        "UPDATE tutors SET email = COALESCE($1, email), phone = COALESCE($2, phone) WHERE id = $3",
-        [email || null, phone || null, tutorId]
+        "UPDATE tutors SET email = $1, phone = $2 WHERE id = $3",
+        [email ? email.trim() : null, phone ? phone.trim() : null, tutorId]
       );
-      return res.json({ message: 'Tutor info updated successfully.' });
+      return res.json({ success: true, message: 'Tutor info updated successfully.' });
     }
 
     const userId = parseInt(rawId, 10);
@@ -1074,15 +1074,28 @@ app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res)
     const cleanRole = role && ['Admin', 'Staff', 'Doctor', 'Pharmacist', 'Observer', 'Tutor', 'Student', 'Patient'].includes(role) ? role : null;
     const activeBool = is_active !== undefined ? Boolean(is_active) : true;
 
+    // Check if phone is already registered to ANOTHER user
+    if (cleanPhone) {
+      const phoneCheck = await db.pool.query("SELECT id FROM users WHERE phone = $1 AND id != $2", [cleanPhone, userId]);
+      if (phoneCheck.rows.length > 0) {
+        return res.status(409).json({ error: `Mobile number ${cleanPhone} is already registered to another user account.` });
+      }
+    }
+
     await db.pool.query(
-      "UPDATE users SET email = COALESCE($1, email), phone = COALESCE($2, phone), role = COALESCE($3, role), is_active = $4 WHERE id = $5",
+      `UPDATE users SET 
+        email = $1, 
+        phone = $2, 
+        role = COALESCE($3, role), 
+        is_active = $4 
+       WHERE id = $5`,
       [cleanEmail, cleanPhone, cleanRole, activeBool, userId]
     );
 
-    res.json({ message: 'User account & permissions updated successfully.' });
+    res.json({ success: true, message: 'User account & permissions updated successfully.' });
   } catch (err) {
     console.error('Error updating user info:', err);
-    res.status(500).json({ error: 'Database error updating user info.' });
+    res.status(500).json({ error: 'Failed to update user information: ' + err.message });
   }
 });
 

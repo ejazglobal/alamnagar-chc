@@ -2977,6 +2977,12 @@ window.submitEditUserForm = async function(e) {
   const email = document.getElementById('edit-user-email').value;
   const role = document.getElementById('edit-user-role').value;
   const status = document.getElementById('edit-user-status').value;
+  const banner = document.getElementById('admin-edit-user-status-banner');
+
+  if (banner) {
+    banner.style.display = 'none';
+    banner.className = 'status-banner';
+  }
 
   try {
     const token = localStorage.getItem('chc_token');
@@ -2990,16 +2996,28 @@ window.submitEditUserForm = async function(e) {
     });
 
     const data = await res.json();
-    if (res.ok) {
+    if (res.ok && (data.success || data.message)) {
       alert('User account & permissions updated successfully.');
       closeEditUserModal();
       await loadUsersAndRender();
     } else {
-      alert(data.error || 'Failed to update user account.');
+      if (banner) {
+        banner.textContent = data.error || 'Failed to update user account.';
+        banner.className = 'status-banner banner-danger';
+        banner.style.display = 'block';
+      } else {
+        alert(data.error || 'Failed to update user account.');
+      }
     }
   } catch (err) {
     console.error('Error updating user:', err);
-    alert('Network error updating user account.');
+    if (banner) {
+      banner.textContent = 'Network error updating user account.';
+      banner.className = 'status-banner banner-danger';
+      banner.style.display = 'block';
+    } else {
+      alert('Network error updating user account.');
+    }
   }
 };
 
