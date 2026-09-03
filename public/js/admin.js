@@ -2738,39 +2738,6 @@ window.setupUserDirectoryEvents = function() {
       }
     };
   }
-
-  const editUserForm = document.getElementById('admin-edit-user-form');
-  if (editUserForm) {
-    editUserForm.onsubmit = async function(e) {
-      e.preventDefault();
-      const userId = document.getElementById('edit-user-id').value;
-      const phone = document.getElementById('edit-user-phone').value;
-      const email = document.getElementById('edit-user-email').value;
-
-      try {
-        const token = localStorage.getItem('chc_token');
-        const res = await fetch(`/api/admin/users/${userId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ phone, email })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert('User information updated successfully!');
-          closeEditUserModal();
-          loadUsersAndRender();
-        } else {
-          alert(data.error || 'Failed to update user info.');
-        }
-      } catch (err) {
-        console.error('Error updating user info:', err);
-        alert('Failed to update user information.');
-      }
-    };
-  }
 };
 
 window.loadUsersAndRender = async function() {
