@@ -1135,6 +1135,8 @@ module.exports = {
       }
     }
     return res.rows;
+  },
+
   getTuitionSubjects: async () => {
     const res = await pool.query(`SELECT * FROM tuition_subjects ORDER BY id DESC`);
     return res.rows;
