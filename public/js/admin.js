@@ -2790,9 +2790,10 @@ window.loadUsersAndRender = async function() {
     }
 
     const data = await res.json();
+    const fetchedUsers = Array.isArray(data) ? data : (data.users || []);
 
-    if (data.success && data.users && data.users.length > 0) {
-      allAdminUsers = data.users;
+    if (fetchedUsers && fetchedUsers.length > 0) {
+      allAdminUsers = fetchedUsers;
       renderAdminUsersTable();
     } else {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No registered user accounts found in database.</td></tr>';
@@ -2853,7 +2854,10 @@ function renderAdminUsersTable(filtered = null) {
         <td style="font-size: 0.85rem; color: var(--text-muted);">${formattedDate}</td>
         <td style="text-align: center;">
           <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')">
-            🔑 Reset / Create Password
+            🔑 Password
+          </button>
+          <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #ef4444; color: white; width: auto; display: inline-block;" onclick="deleteUserAccountAdmin('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')">
+            🗑️ Delete
           </button>
         </td>
       </tr>
@@ -2930,10 +2934,33 @@ window.openEditUserModal = function(id, username, phone, email) {
   modal.style.display = 'flex';
 };
 
-window.closeEditUserModal = function(e) {
-  if (e) e.preventDefault();
-  const modal = document.getElementById('admin-edit-user-modal');
-  if (modal) modal.style.display = 'none';
+window.deleteUserAccountAdmin = async function(id, username) {
+  if (!confirm(`Are you sure you want to delete user account "${username}"?`)) return;
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const endpoint = id.toString().startsWith('tuition_') 
+      ? `/api/tuition/admin/enrollments/${id.replace('tuition_', '')}`
+      : id.toString().startsWith('tutor_')
+      ? `/api/tuition/admin/tutors/${id.replace('tutor_', '')}`
+      : `/api/admin/users/${id}`;
+
+    const res = await fetch(endpoint, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(`Account "${username}" successfully deleted.`);
+      await loadUsersAndRender();
+    } else {
+      alert(data.error || 'Failed to delete user account.');
+    }
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    alert('Network error deleting user account.');
+  }
 };
 
 

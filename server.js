@@ -996,17 +996,13 @@ app.delete('/api/admin/staff/:id', authenticateToken, async (req, res) => {
 
 // --- ADMIN USER DIRECTORY & RESET ENDPOINTS ---
 app.get('/api/admin/users', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin') {
-    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  if (!['Admin', 'Staff'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
   }
   try {
-    const query = `
-      SELECT id, username, email, phone, role, created_at, doctor_id 
-      FROM users 
-      ORDER BY role ASC, username ASC
-    `;
-    const resDb = await db.pool.query(query);
-    res.json(resDb.rows);
+    const roleFilter = req.query.role || null;
+    const users = await db.getAllUsers(roleFilter);
+    res.json({ success: true, users });
   } catch (err) {
     console.error('Error fetching users:', err);
     res.status(500).json({ error: 'Database error fetching users.' });
