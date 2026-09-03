@@ -15,3 +15,7 @@
 
 ## 3. Webview Cache-Busting
 - Always append a cache-busting timestamp `?t=${Date.now()}` to GET requests fetching medical reports or prescriptions in `patient-portal.js` to prevent Android Chrome/WebView from recalling cached database records.
+
+## 4. Single-Line DigitalOcean Server Deployment Commands
+- Always combine server pull and restart commands into a single executable line for easy terminal history navigation:
+  `git pull origin main && pm2 restart all`
