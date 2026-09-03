@@ -36,6 +36,7 @@ const TRANSLATIONS = {
     "logo": "Alamnagar CHC",
     "nav-home": "Home",
     "nav-book": "Book Appointment",
+    "nav-tuition": "Community Tuition",
     "nav-portal": "Patient Portal (Upload Reports)",
     "nav-news": "News & Events",
     "nav-login": "Login / Register",
@@ -76,6 +77,7 @@ const TRANSLATIONS = {
     "logo": "আলমনগর সিএইচসি",
     "nav-home": "হোম",
     "nav-book": "অ্যাপয়েন্টমেন্ট বুকিং",
+    "nav-tuition": "কমিউনিটি টিউশন",
     "nav-portal": "পেশেন্ট পোর্টাল (রিপোর্ট আপলোড)",
     "nav-news": "খবর ও ইভেন্ট",
     "nav-login": "লগইন / রেজিস্টার",
@@ -1027,6 +1029,8 @@ function renderAuthNav() {
   const role = localStorage.getItem('chc_user_role');
   const name = localStorage.getItem('chc_user_name');
 
+  const tuitionLinkText = (TRANSLATIONS[currentLanguage] && TRANSLATIONS[currentLanguage]["nav-tuition"]) ? TRANSLATIONS[currentLanguage]["nav-tuition"] : 'Community Tuition';
+
   if (role) {
     let portalLink = '';
     if (role === 'Admin' || role === 'Staff') {
@@ -1038,6 +1042,7 @@ function renderAuthNav() {
     navMenu.innerHTML = `
       <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
       <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
+      <a href="tuition.html" class="nav-link" id="link-tuition" data-i18n="nav-tuition">${tuitionLinkText}</a>
       <a href="patient-portal.html" class="nav-link" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
       <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">${TRANSLATIONS[currentLanguage]["nav-news"]}</a>
       ${portalLink}
@@ -1058,6 +1063,7 @@ function renderAuthNav() {
     navMenu.innerHTML = `
       <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
       <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
+      <a href="tuition.html" class="nav-link" id="link-tuition" data-i18n="nav-tuition">${tuitionLinkText}</a>
       <a href="patient-portal.html" class="nav-link" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
       <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">${TRANSLATIONS[currentLanguage]["nav-news"]}</a>
       <a href="login.html" class="nav-link btn-admin" id="link-auth-btn" data-i18n="nav-login">${TRANSLATIONS[currentLanguage]["nav-login"]}</a>

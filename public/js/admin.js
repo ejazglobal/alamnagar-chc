@@ -134,6 +134,7 @@ function renderAuthNav() {
 
   navMenu.innerHTML = `
     <a href="index.html" class="nav-link" id="link-home">Home</a>
+    <a href="tuition.html" class="nav-link" id="link-tuition">Community Tuition</a>
     <a href="admin.html" class="nav-link active" id="link-admin">Admin Dashboard</a>
     <span class="nav-link" style="color: var(--primary-color); font-weight:600;">Welcome, ${escapeHTML(name)} (${role})</span>
     <a href="#" class="nav-link" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);">Logout</a>
