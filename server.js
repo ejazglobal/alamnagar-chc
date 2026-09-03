@@ -1034,50 +1034,52 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
 });
 
 app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin') {
-    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  if (!['Admin', 'Staff'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
   }
-  const userId = parseInt(req.params.id, 10);
-  if (isNaN(userId)) {
-    return res.status(400).json({ error: 'Invalid user ID.' });
-  }
-  const { email, phone } = req.body;
-  
+  const rawId = req.params.id;
+  const { email, phone, role, is_active } = req.body;
+
   try {
-    const userRes = await db.pool.query("SELECT id, email, phone FROM users WHERE id = $1", [userId]);
+    if (rawId.toString().startsWith('tuition_')) {
+      const tuitionId = rawId.replace('tuition_', '');
+      await db.pool.query(
+        "UPDATE tuition_enrollments SET email = COALESCE($1, email), phone = COALESCE($2, phone) WHERE id = $3",
+        [email || null, phone || null, tuitionId]
+      );
+      return res.json({ message: 'Student application info updated successfully.' });
+    }
+
+    if (rawId.toString().startsWith('tutor_')) {
+      const tutorId = rawId.replace('tutor_', '');
+      await db.pool.query(
+        "UPDATE tutors SET email = COALESCE($1, email), phone = COALESCE($2, phone) WHERE id = $3",
+        [email || null, phone || null, tutorId]
+      );
+      return res.json({ message: 'Tutor info updated successfully.' });
+    }
+
+    const userId = parseInt(rawId, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID.' });
+    }
+
+    const userRes = await db.pool.query("SELECT id, email, phone, role FROM users WHERE id = $1", [userId]);
     if (userRes.rows.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
     }
-    const user = userRes.rows[0];
-    
+
     const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
     const cleanPhone = phone && phone.trim().length > 0 ? normalizePhone(phone) : null;
-    
-    if (cleanEmail && !isValidEmail(cleanEmail)) {
-      return res.status(400).json({ error: 'A valid email address is required.' });
-    }
+    const cleanRole = role && ['Admin', 'Staff', 'Doctor', 'Pharmacist', 'Observer', 'Tutor', 'Student', 'Patient'].includes(role) ? role : null;
+    const activeBool = is_active !== undefined ? Boolean(is_active) : true;
 
-    if (cleanEmail && cleanEmail !== user.email) {
-      const existingEmail = await db.getUserByEmail(cleanEmail);
-      if (existingEmail) return res.status(409).json({ error: 'Email is already registered.' });
-    }
-    
-    if (phone && phone.trim().length > 0) {
-      if (!isValidPhone(phone)) {
-        return res.status(400).json({ error: 'A valid mobile number is required.' });
-      }
-      if (cleanPhone !== user.phone) {
-        const existingPhone = await db.getUserByPhone(cleanPhone);
-        if (existingPhone) return res.status(409).json({ error: 'Mobile number is already registered.' });
-      }
-    }
-    
     await db.pool.query(
-      "UPDATE users SET email = $1, phone = $2 WHERE id = $3",
-      [cleanEmail, cleanPhone, userId]
+      "UPDATE users SET email = COALESCE($1, email), phone = COALESCE($2, phone), role = COALESCE($3, role), is_active = $4 WHERE id = $5",
+      [cleanEmail, cleanPhone, cleanRole, activeBool, userId]
     );
-    
-    res.json({ message: 'User information updated successfully.' });
+
+    res.json({ message: 'User account & permissions updated successfully.' });
   } catch (err) {
     console.error('Error updating user info:', err);
     res.status(500).json({ error: 'Database error updating user info.' });

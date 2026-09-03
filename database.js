@@ -349,6 +349,7 @@ async function initializeDatabase() {
     // Safe column migrations for existing old tables
     try {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL");
       await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL");
       await pool.query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS visiting_days VARCHAR(255) DEFAULT '1,2,3,4,5'");
@@ -1120,7 +1121,7 @@ module.exports = {
 
   getAllUsers: async (roleFilter = null) => {
     // 1. Fetch registered users from users table
-    const usersRes = await pool.query(`SELECT id, username, phone, email, role, created_at FROM users ORDER BY id DESC`);
+    const usersRes = await pool.query(`SELECT id, username, phone, email, role, created_at, is_active FROM users ORDER BY id DESC`);
     const users = usersRes.rows;
 
     // 2. Fetch student tuition enrollments from tuition_enrollments table

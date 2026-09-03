@@ -2831,6 +2831,9 @@ function renderAdminUsersTable(filtered = null) {
   }
 
   tbody.innerHTML = usersToRender.map(u => {
+    const isAdminAccount = u.role === 'Admin' || u.username === 'admin' || u.id == 1;
+    const isSuspended = u.is_active === false || u.status === 'suspended';
+
     const roleBadgeClass = u.role === 'Admin' ? 'background: #fee2e2; color: #991b1b;' :
                            u.role === 'Tutor' ? 'background: #e0f2fe; color: #0369a1;' :
                            u.role === 'Student' ? 'background: #f0fdf4; color: #15803d;' :
@@ -2840,9 +2843,10 @@ function renderAdminUsersTable(filtered = null) {
     const formattedDate = u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A';
 
     return `
-      <tr>
+      <tr style="${isSuspended ? 'opacity: 0.65; background: #fafafa;' : ''}">
         <td>
           <strong style="color: var(--primary-color);">#${u.id}</strong> — <strong>${escapeHTML(u.username)}</strong>
+          ${isSuspended ? '<span style="background: #fef2f2; color: #dc2626; padding: 0.15rem 0.45rem; border-radius: 50px; font-size: 0.65rem; font-weight: 700; margin-left: 0.35rem;">SUSPENDED</span>' : ''}
         </td>
         <td>
           <span style="padding: 0.2rem 0.6rem; border-radius: 50px; font-weight: 600; font-size: 0.75rem; ${roleBadgeClass}">
@@ -2852,13 +2856,20 @@ function renderAdminUsersTable(filtered = null) {
         <td>📞 ${escapeHTML(u.phone || 'N/A')}</td>
         <td>✉️ ${escapeHTML(u.email || 'N/A')}</td>
         <td style="font-size: 0.85rem; color: var(--text-muted);">${formattedDate}</td>
-        <td style="text-align: center;">
-          <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')">
+        <td style="text-align: center; white-space: nowrap;">
+          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')" title="Reset Password & Send Notification">
             🔑 Password
           </button>
-          <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #ef4444; color: white; width: auto; display: inline-block;" onclick="deleteUserAccountAdmin('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')">
-            🗑️ Delete
+          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #4f46e5; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openEditUserModal('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}', '${escapeHTML(u.phone || '')}', '${escapeHTML(u.email || '')}', '${escapeHTML(u.role || 'Patient')}', '${isSuspended ? 'suspended' : 'active'}')" title="Edit Role & Status">
+            ✏️ Edit
           </button>
+          ${isAdminAccount ? `
+            <span style="font-size: 0.7rem; color: #991b1b; background: #fee2e2; padding: 0.25rem 0.5rem; border-radius: 50px; font-weight: 600;">🔒 Protected</span>
+          ` : `
+            <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #ef4444; color: white; width: auto; display: inline-block;" onclick="deleteUserAccountAdmin('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')" title="Delete User Account">
+              🗑️ Delete
+            </button>
+          `}
         </td>
       </tr>
     `;
@@ -2924,14 +2935,72 @@ window.closeResetPasswordModal = function(e) {
   if (modal) modal.style.display = 'none';
 };
 
-window.openEditUserModal = function(id, username, phone, email) {
+window.toggleMedicineCatalogSection = function() {
+  const body = document.getElementById('medicine-catalog-collapsible-body');
+  const badge = document.getElementById('med-catalog-toggle-badge');
+  if (!body) return;
+  if (body.style.display === 'none' || !body.style.display) {
+    body.style.display = 'block';
+    if (badge) badge.textContent = '▲ Click to Collapse Catalog';
+  } else {
+    body.style.display = 'none';
+    if (badge) badge.textContent = '▼ Click to Expand Catalog';
+  }
+};
+
+window.openEditUserModal = function(id, username, phone, email, role, status) {
   const modal = document.getElementById('admin-edit-user-modal');
   if (!modal) return;
   document.getElementById('edit-user-id').value = id;
   document.getElementById('edit-username-label').textContent = username;
   document.getElementById('edit-user-phone').value = phone || '';
   document.getElementById('edit-user-email').value = email || '';
+  if (document.getElementById('edit-user-role')) {
+    document.getElementById('edit-user-role').value = role || 'Patient';
+  }
+  if (document.getElementById('edit-user-status')) {
+    document.getElementById('edit-user-status').value = status || 'active';
+  }
   modal.style.display = 'flex';
+};
+
+window.closeEditUserModal = function(e) {
+  if (e) e.preventDefault();
+  const modal = document.getElementById('admin-edit-user-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.submitEditUserForm = async function(e) {
+  if (e) e.preventDefault();
+  const id = document.getElementById('edit-user-id').value;
+  const phone = document.getElementById('edit-user-phone').value;
+  const email = document.getElementById('edit-user-email').value;
+  const role = document.getElementById('edit-user-role').value;
+  const status = document.getElementById('edit-user-status').value;
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch(`/api/admin/users/${id}/update-info`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ phone, email, role, status, is_active: status === 'active' })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert('User account & permissions updated successfully.');
+      closeEditUserModal();
+      await loadUsersAndRender();
+    } else {
+      alert(data.error || 'Failed to update user account.');
+    }
+  } catch (err) {
+    console.error('Error updating user:', err);
+    alert('Network error updating user account.');
+  }
 };
 
 window.deleteUserAccountAdmin = async function(id, username) {
@@ -2962,5 +3031,3 @@ window.deleteUserAccountAdmin = async function(id, username) {
     alert('Network error deleting user account.');
   }
 };
-
-
