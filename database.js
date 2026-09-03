@@ -1117,6 +1117,8 @@ module.exports = {
     query += ` ORDER BY te.created_at DESC`;
     const res = await pool.query(query, params);
     return res.rows;
+  },
+
   getTutors: async () => {
     let res = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
     if (res.rows.length === 0) {
