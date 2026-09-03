@@ -2712,23 +2712,43 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
     if (!['Admin', 'Staff'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Access denied.' });
     }
-    const userId = req.params.id;
+    const rawId = req.params.id;
     const { newPassword } = req.body;
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    const updatedUser = await db.adminResetUserPassword(userId, newPassword);
+    let updatedUser = null;
+    if (rawId.toString().startsWith('tuition_')) {
+      const tuitionId = rawId.replace('tuition_', '');
+      const enrollments = await db.getAllTuitionEnrollments();
+      const student = enrollments.find(e => e.id == tuitionId);
+      if (!student) {
+        return res.status(404).json({ error: 'Tuition student record not found.' });
+      }
+
+      // Create or update login account for tuition student
+      updatedUser = await db.createUser({
+        username: student.phone || student.student_name.toLowerCase().replace(/\s+/g, '_'),
+        password: newPassword,
+        email: student.email,
+        phone: student.phone,
+        role: 'Student'
+      });
+    } else {
+      updatedUser = await db.adminResetUserPassword(rawId, newPassword);
+    }
+
     if (!updatedUser) {
       return res.status(404).json({ error: 'User record not found.' });
     }
 
     // Send SMS / Email notification to user if contact is present
     if (updatedUser.phone) {
-      mailer.sendSMS(updatedUser.phone, `[আলমনগর সিএইচসি] আপনার অ্যাকাউন্ট পাসওয়ার্ড অ্যাডমিন দ্বারা আপডেট করা হয়েছে। নতুন পাসওয়ার্ড: ${newPassword}`);
+      mailer.sendSMS(updatedUser.phone, `[আলমনগর সিএইচসি] আপনার শিক্ষার্থী পোর্টাল অ্যাকাউন্ট আপডেট করা হয়েছে। ইউজারনেম: ${updatedUser.username}, পাসওয়ার্ড: ${newPassword}`);
     }
 
-    res.json({ success: true, message: `Password for ${updatedUser.username} updated successfully.`, user: updatedUser });
+    res.json({ success: true, message: `Password for ${updatedUser.username} set successfully. SMS sent to student.`, user: updatedUser });
   } catch (err) {
     console.error('Error resetting user password:', err);
     res.status(500).json({ error: 'Failed to reset password.' });

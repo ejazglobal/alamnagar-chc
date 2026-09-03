@@ -1109,15 +1109,45 @@ module.exports = {
   },
 
   getAllUsers: async (roleFilter = null) => {
-    let query = `SELECT id, username, phone, email, role, created_at FROM users`;
-    const params = [];
-    if (roleFilter && roleFilter !== 'all') {
-      query += ` WHERE role = $1`;
-      params.push(roleFilter);
+    // 1. Fetch registered users from users table
+    const usersRes = await pool.query(`SELECT id, username, phone, email, role, created_at FROM users ORDER BY id DESC`);
+    const users = usersRes.rows;
+
+    // 2. Fetch student tuition enrollments from tuition_enrollments table
+    let tuitionStudents = [];
+    try {
+      const tuitionRes = await pool.query(`
+        SELECT id, student_name as username, phone, email, 'Student' as role, created_at, student_class
+        FROM tuition_enrollments
+        ORDER BY id DESC
+      `);
+      tuitionStudents = tuitionRes.rows;
+    } catch (e) {
+      console.warn('Tuition enrollments directory merge note:', e.message);
     }
-    query += ` ORDER BY id DESC`;
-    const res = await pool.query(query, params);
-    return res.rows;
+
+    const userPhones = new Set(users.map(u => u.phone).filter(Boolean));
+    const userNames = new Set(users.map(u => u.username ? u.username.toLowerCase() : '').filter(Boolean));
+
+    const combined = [...users];
+    for (const t of tuitionStudents) {
+      if (!userPhones.has(t.phone) && !userNames.has(t.username ? t.username.toLowerCase() : '')) {
+        combined.push({
+          id: `tuition_${t.id}`,
+          username: `${t.username} (${t.student_class || 'Tuition'})`,
+          phone: t.phone,
+          email: t.email,
+          role: 'Student',
+          created_at: t.created_at,
+          is_tuition_applicant: true
+        });
+      }
+    }
+
+    if (roleFilter && roleFilter !== 'all') {
+      return combined.filter(u => u.role === roleFilter || (roleFilter === 'Staff' && (u.role === 'Staff' || u.role === 'Admin')));
+    }
+    return combined;
   },
 
   adminResetUserPassword: async (userId, newPassword) => {

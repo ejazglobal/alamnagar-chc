@@ -2837,8 +2837,8 @@ function renderAdminUsersTable(filtered = null) {
         <td>✉️ ${escapeHTML(u.email || 'N/A')}</td>
         <td style="font-size: 0.85rem; color: var(--text-muted);">${formattedDate}</td>
         <td style="text-align: center;">
-          <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal(${u.id}, '${escapeHTML(u.username)}')">
-            🔑 Reset Password
+          <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal('${u.id}', '${escapeHTML(u.username).replace(/'/g, "\\'")}')">
+            🔑 Reset / Create Password
           </button>
         </td>
       </tr>
