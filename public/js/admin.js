@@ -2807,7 +2807,22 @@ function renderAdminUsersTable(filtered = null) {
   const tbody = document.getElementById('users-admin-tbody');
   if (!tbody) return;
 
-  const usersToRender = filtered || allAdminUsers;
+  let usersToRender = [];
+  if (filtered !== null) {
+    usersToRender = filtered;
+  } else if (!currentRoleFilter || currentRoleFilter === 'all') {
+    usersToRender = allAdminUsers;
+  } else {
+    const target = currentRoleFilter.toLowerCase();
+    usersToRender = allAdminUsers.filter(u => {
+      const r = (u.role || '').toLowerCase();
+      if (target === 'staff') return r === 'staff' || r === 'admin' || r === 'observer' || r === 'pharmacist';
+      if (target === 'student') return r === 'student' || u.is_tuition_applicant || Boolean(u.student_class);
+      if (target === 'tutor') return r === 'tutor' || u.is_tutor_profile;
+      if (target === 'patient') return r === 'patient';
+      return r === target;
+    });
+  }
 
   if (usersToRender.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No user accounts matching filter criteria.</td></tr>';

@@ -330,9 +330,19 @@ async function initializeDatabase() {
     for (const table of tablesToEnableRLS) {
       try {
         await pool.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
-        console.log(`Row Level Security (RLS) enabled on table: ${table}`);
+        await pool.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_policies WHERE tablename = '${table}' AND policyname = 'allow_all_${table}'
+            ) THEN
+              CREATE POLICY allow_all_${table} ON ${table} FOR ALL USING (true) WITH CHECK (true);
+            END IF;
+          END $$;
+        `);
+        console.log(`Row Level Security (RLS) & permissive policy verified on table: ${table}`);
       } catch (rlsErr) {
-        console.warn(`Could not enable RLS on table ${table}: ${rlsErr.message}`);
+        console.warn(`Could not set RLS policy on table ${table}: ${rlsErr.message}`);
       }
     }
 
