@@ -277,71 +277,7 @@
           </form>
         </section>
 
-        <!-- Manage Staff Registry (Admin Only) -->
-        <section class="panel" id="admin-staff-section" style="margin-top: 1.5rem; display: none;">
-          <h2 class="panel-title">
-            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Manage Staff Registry
-          </h2>
-          
-          <div id="staff-status-banner" class="status-banner" style="margin-bottom: 1rem;"></div>
 
-          <form id="staff-create-form" style="margin-bottom: 1.5rem;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" for="staff-username">Username *</label>
-                <input type="text" id="staff-username" class="form-control" placeholder="staffuser" required>
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" for="staff-phone">Mobile Number</label>
-                <input type="tel" id="staff-phone" class="form-control" placeholder="e.g. 01712345678">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" for="staff-email">Email</label>
-                <input type="email" id="staff-email" class="form-control" placeholder="staff@chc.org">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" for="staff-password">Password *</label>
-                <div style="position: relative;">
-                  <input type="password" id="staff-password" class="form-control" placeholder="••••••" required style="padding-right: 3.5rem;">
-                  <button type="button" onclick="togglePasswordVisibility('staff-password', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 0.8rem; color: var(--primary-color); cursor: pointer; font-weight: 600; outline: none; padding: 0;">Show</button>
-                </div>
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" for="staff-permissions">Permissions *</label>
-                <select id="staff-permissions" class="form-control" style="background-color: white;" required>
-                  <option value="news">News editor only</option>
-                  <option value="doctors">Doctor editor only</option>
-                  <option value="all">Full staff access</option>
-                  <option value="observer">Observer (Read-only access)</option>
-                  <option value="pharmacist">Pharmacist (Medicine & Price Management)</option>
-                </select>
-              </div>
-            </div>
-            <button type="submit" class="btn" style="width: auto; padding: 0.5rem 1.5rem;">Add Staff Member</button>
-          </form>
-
-          <div class="table-wrapper">
-            <table class="news-manage-table">
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Permissions</th>
-                  <th style="width: 100px; text-align: center;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="staff-manage-tbody">
-                <!-- Dynamically populated -->
-                <tr>
-                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">Loading staff accounts...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
 
         <!-- Photo Gallery Management Section -->
         <section class="panel" style="margin-top: 1.5rem;">
@@ -601,10 +537,15 @@
       <!-- System User Directory & Credentials Management Panel -->
       <section class="panel" id="admin-user-directory-section" style="margin-top: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
-          <h2 class="panel-title" style="margin-bottom: 0;">
-            👥 System User Directory & Account Credentials
-          </h2>
-          <span style="font-size: 0.85rem; color: var(--text-muted);">Manage accounts for Students, Tutors, Patients, and Staff</span>
+          <div>
+            <h2 class="panel-title" style="margin-bottom: 0.25rem;">
+              👥 System User Directory & Account Credentials
+            </h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Manage accounts for Students, Tutors, Patients, and Staff</span>
+          </div>
+          <button class="btn" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem; background: var(--primary-color);" onclick="openCreateUserModal()">
+            + Create New User Account
+          </button>
         </div>
 
         <!-- Filter & Search Bar -->
@@ -701,6 +642,52 @@
           </div>
         </div>
         <button type="submit" class="btn">Confirm Password Reset</button>
+  <!-- Create New User Account Modal -->
+  <div id="admin-create-user-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closeCreateUserModal(event)">
+    <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 480px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <h3 style="margin: 0; color: var(--primary-color);">Create New System User Account</h3>
+        <button class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;" onclick="closeCreateUserModal(event)">&times;</button>
+      </div>
+      <div id="admin-create-user-status-banner" class="status-banner" style="margin-bottom: 1rem; display: none;"></div>
+      <form id="admin-create-user-form" onsubmit="submitCreateUserForm(event)">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="create-user-username">Username *</label>
+            <input type="text" id="create-user-username" class="form-control" placeholder="e.g. rafiq_staff" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="create-user-role">System Role *</label>
+            <select id="create-user-role" class="form-control" style="background: white;" required>
+              <option value="Staff">Staff</option>
+              <option value="Tutor">Tutor</option>
+              <option value="Student">Student</option>
+              <option value="Patient">Patient</option>
+              <option value="Doctor">Doctor</option>
+              <option value="Pharmacist">Pharmacist</option>
+              <option value="Observer">Observer</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="create-user-password">Password *</label>
+          <div style="position: relative;">
+            <input type="password" id="create-user-password" class="form-control" placeholder="Minimum 6 characters" required style="padding-right: 3.5rem;">
+            <button type="button" onclick="togglePasswordVisibility('create-user-password', this)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 0.8rem; color: var(--primary-color); cursor: pointer; font-weight: 600; outline: none; padding: 0;">Show</button>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="create-user-phone">Mobile Number</label>
+            <input type="tel" id="create-user-phone" class="form-control" placeholder="e.g. 01712345678">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="create-user-email">Email</label>
+            <input type="email" id="create-user-email" class="form-control" placeholder="user@chc.org">
+          </div>
+        </div>
+        <button type="submit" class="btn" style="background-color: var(--primary-color);">Create User Account</button>
       </form>
     </div>
   </div>

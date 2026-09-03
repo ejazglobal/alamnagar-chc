@@ -2935,16 +2935,63 @@ window.closeResetPasswordModal = function(e) {
   if (modal) modal.style.display = 'none';
 };
 
-window.toggleMedicineCatalogSection = function() {
-  const body = document.getElementById('medicine-catalog-collapsible-body');
-  const badge = document.getElementById('med-catalog-toggle-badge');
-  if (!body) return;
-  if (body.style.display === 'none' || !body.style.display) {
-    body.style.display = 'block';
-    if (badge) badge.textContent = '▲ Click to Collapse Catalog';
-  } else {
-    body.style.display = 'none';
-    if (badge) badge.textContent = '▼ Click to Expand Catalog';
+window.openCreateUserModal = function() {
+  const modal = document.getElementById('admin-create-user-modal');
+  if (!modal) return;
+  document.getElementById('create-user-username').value = '';
+  document.getElementById('create-user-password').value = '';
+  document.getElementById('create-user-phone').value = '';
+  document.getElementById('create-user-email').value = '';
+  const banner = document.getElementById('admin-create-user-status-banner');
+  if (banner) banner.style.display = 'none';
+  modal.style.display = 'flex';
+};
+
+window.closeCreateUserModal = function(e) {
+  if (e) e.preventDefault();
+  const modal = document.getElementById('admin-create-user-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.submitCreateUserForm = async function(e) {
+  if (e) e.preventDefault();
+  const username = document.getElementById('create-user-username').value.trim();
+  const role = document.getElementById('create-user-role').value;
+  const password = document.getElementById('create-user-password').value;
+  const phone = document.getElementById('create-user-phone').value.trim();
+  const email = document.getElementById('create-user-email').value.trim();
+  const banner = document.getElementById('admin-create-user-status-banner');
+
+  if (banner) banner.style.display = 'none';
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch('/api/admin/users/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ username, password, role, phone, email })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(`User account "${username}" (${role}) created successfully.`);
+      closeCreateUserModal();
+      await loadUsersAndRender();
+    } else {
+      if (banner) {
+        banner.textContent = data.error || 'Failed to create user account.';
+        banner.className = 'status-banner banner-danger';
+        banner.style.display = 'block';
+      } else {
+        alert(data.error || 'Failed to create user account.');
+      }
+    }
+  } catch (err) {
+    console.error('Error creating user account:', err);
+    alert('Network error creating user account.');
   }
 };
 

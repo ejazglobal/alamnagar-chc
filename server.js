@@ -1031,6 +1031,49 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
     console.error('Error resetting user password:', err);
     res.status(500).json({ error: 'Database error resetting password.' });
   }
+app.post('/api/admin/users/create', authenticateToken, async (req, res) => {
+  if (!['Admin', 'Staff'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
+  }
+  const { username, password, role, phone, email } = req.body;
+
+  if (!username || username.trim().length < 3) {
+    return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
+  }
+  if (!password || password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  }
+
+  const cleanRole = role && ['Admin', 'Staff', 'Doctor', 'Pharmacist', 'Observer', 'Tutor', 'Student', 'Patient'].includes(role) ? role : 'Staff';
+  const cleanPhone = phone ? normalizePhone(phone) : null;
+  const cleanEmail = email ? email.trim().toLowerCase() : null;
+
+  try {
+    const existingUser = await db.getUserByUsername(username.trim());
+    if (existingUser) {
+      return res.status(409).json({ error: `Username '${username}' is already in use.` });
+    }
+
+    if (cleanPhone) {
+      const existingPhone = await db.getUserByPhone(cleanPhone);
+      if (existingPhone) {
+        return res.status(409).json({ error: `Mobile phone ${cleanPhone} is already registered to another user.` });
+      }
+    }
+
+    const newUser = await db.createUser({
+      username: username.trim(),
+      password,
+      role: cleanRole,
+      phone: cleanPhone,
+      email: cleanEmail
+    });
+
+    res.json({ success: true, message: `Account '${newUser.username}' (${cleanRole}) created successfully.`, user: newUser });
+  } catch (err) {
+    console.error('Error creating user account:', err);
+    res.status(500).json({ error: 'Failed to create user account: ' + err.message });
+  }
 });
 
 app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res) => {
