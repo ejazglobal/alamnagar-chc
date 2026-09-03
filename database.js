@@ -1117,6 +1117,22 @@ module.exports = {
     query += ` ORDER BY te.created_at DESC`;
     const res = await pool.query(query, params);
     return res.rows;
+  getTutors: async () => {
+    let res = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
+    if (res.rows.length === 0) {
+      try {
+        await pool.query(`
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio) VALUES
+          ('Engr. Rafiqul Islam', '01711223344', 'rafiq.tutor@alamnagar.org', 'B.Sc in EEE (BUET)', 'Physics, Mathematics, ICT', 'both', 'Experienced mentor specializing in SSC & HSC Science & Mathematics.'),
+          ('Nusrat Jahan', '01811223344', 'nusrat.tutor@alamnagar.org', 'M.A. in English (DU)', 'English Language & Grammar, Spoken English', 'both', 'Dedicated English tutor focusing on communicative skills and foundation grammar.'),
+          ('Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.')
+        `);
+        res = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
+      } catch (sErr) {
+        console.warn('Auto-seed tutors error:', sErr.message);
+      }
+    }
+    return res.rows;
   },
 
   getAllUsers: async (roleFilter = null) => {
@@ -1140,12 +1156,16 @@ module.exports = {
     // 3. Fetch tutors from tutors table
     let tutors = [];
     try {
-      const tutorsRes = await pool.query(`
-        SELECT id, name as username, phone, email, 'Tutor' as role, created_at, qualification
-        FROM tutors
-        ORDER BY id DESC
-      `);
-      tutors = tutorsRes.rows;
+      const rawTutors = await module.exports.getTutors();
+      tutors = rawTutors.map(t => ({
+        id: t.id,
+        username: t.name,
+        phone: t.phone,
+        email: t.email,
+        role: 'Tutor',
+        created_at: t.created_at,
+        qualification: t.qualification
+      }));
     } catch (e) {
       console.warn('Tutors directory merge note:', e.message);
     }

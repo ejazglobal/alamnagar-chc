@@ -1077,6 +1077,75 @@ app.post('/api/admin/users/create', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/tuition/tutors', async (req, res) => {
+  try {
+    const tutors = await db.getTutors();
+    res.json({ success: true, tutors });
+  } catch (err) {
+    console.error('Error fetching tutors:', err);
+    res.status(500).json({ error: 'Failed to fetch tutors.' });
+  }
+});
+
+app.post('/api/tuition/admin/tutors', authenticateToken, async (req, res) => {
+  if (!['Admin', 'Staff'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access Denied: Admin permissions required.' });
+  }
+  try {
+    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio, username, password } = req.body;
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Tutor name is required.' });
+    }
+    const result = await db.pool.query(
+      `INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [
+        name.trim(),
+        phone ? normalizePhone(phone) : null,
+        email ? email.trim().toLowerCase() : null,
+        qualification ? qualification.trim() : null,
+        subjects_taught ? subjects_taught.trim() : null,
+        tuition_mode || 'both',
+        bio ? bio.trim() : null
+      ]
+    );
+
+    if (username && password) {
+      try {
+        await db.createUser({
+          username: username.trim(),
+          password,
+          role: 'Tutor',
+          phone: phone ? normalizePhone(phone) : null,
+          email: email ? email.trim().toLowerCase() : null
+        });
+      } catch (uErr) {
+        console.warn('Tutor user account creation notice:', uErr.message);
+      }
+    }
+
+    res.json({ success: true, tutor: result.rows[0], message: 'Tutor profile created successfully.' });
+  } catch (err) {
+    console.error('Error adding tutor:', err);
+    res.status(500).json({ error: 'Failed to create tutor profile.' });
+  }
+});
+
+app.delete('/api/tuition/admin/tutors/:id', authenticateToken, async (req, res) => {
+  if (!['Admin', 'Staff'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access Denied: Admin permissions required.' });
+  }
+  try {
+    const tutorId = parseInt(req.params.id, 10);
+    if (isNaN(tutorId)) return res.status(400).json({ error: 'Invalid tutor ID.' });
+    await db.pool.query("DELETE FROM tutors WHERE id = $1", [tutorId]);
+    res.json({ success: true, message: 'Tutor profile deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting tutor:', err);
+    res.status(500).json({ error: 'Failed to delete tutor profile.' });
+  }
+});
+
 app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res) => {
   if (!['Admin', 'Staff'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
