@@ -52,7 +52,7 @@ async function initializeDatabase() {
         email VARCHAR(255),
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
-        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist')),
+        role VARCHAR(50) NOT NULL CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist', 'Tutor', 'Student')),
         phone VARCHAR(50) UNIQUE,
         doctor_id INTEGER REFERENCES doctors(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -61,28 +61,9 @@ async function initializeDatabase() {
 
     // Dynamic cleanup of old check constraints on users and staff_permissions tables
     try {
-      await pool.query(`
-        DO $$
-        DECLARE r RECORD;
-        BEGIN
-          FOR r IN (
-            SELECT constraint_name 
-            FROM information_schema.table_constraints 
-            WHERE table_name = 'users' AND constraint_type = 'CHECK'
-          ) LOOP
-            EXECUTE 'ALTER TABLE users DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name);
-          END LOOP;
-
-          FOR r IN (
-            SELECT constraint_name 
-            FROM information_schema.table_constraints 
-            WHERE table_name = 'staff_permissions' AND constraint_type = 'CHECK'
-          ) LOOP
-            EXECUTE 'ALTER TABLE staff_permissions DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name);
-          END LOOP;
-        END $$;
-      `);
+      await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
       await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist', 'Tutor', 'Student'))`);
+      await pool.query(`ALTER TABLE staff_permissions DROP CONSTRAINT IF EXISTS staff_permissions_check;`);
       await pool.query(`ALTER TABLE staff_permissions ADD CONSTRAINT staff_permissions_check CHECK(permissions IN ('news', 'doctors', 'all', 'pharmacist'))`);
     } catch (cErr) {
       console.log('Role/Permissions check constraint update note:', cErr.message);
