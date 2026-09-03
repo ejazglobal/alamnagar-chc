@@ -176,11 +176,12 @@
 
       <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--border-color);">
       
-      <!-- Sub-tabs to switch between reports, prescriptions, and appointments -->
+      <!-- Sub-tabs to switch between reports, prescriptions, appointments, and tuition -->
       <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap;">
-        <button id="btn-show-reports" onclick="switchPatientTab('reports')" style="flex: 1; min-width: 130px; padding: 0.5rem; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Investigation Reports</button>
-        <button id="btn-show-prescriptions" onclick="switchPatientTab('prescriptions')" style="flex: 1; min-width: 130px; padding: 0.5rem; background: #e2e8f0; color: var(--text-dark); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Prescriptions</button>
-        <button id="btn-show-appointments" onclick="switchPatientTab('appointments')" style="flex: 1; min-width: 130px; padding: 0.5rem; background: #e2e8f0; color: var(--text-dark); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Appointments & Video Call</button>
+        <button id="btn-show-reports" onclick="switchPatientTab('reports')" style="flex: 1; min-width: 110px; padding: 0.5rem; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Reports</button>
+        <button id="btn-show-prescriptions" onclick="switchPatientTab('prescriptions')" style="flex: 1; min-width: 110px; padding: 0.5rem; background: #e2e8f0; color: var(--text-dark); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Prescriptions</button>
+        <button id="btn-show-appointments" onclick="switchPatientTab('appointments')" style="flex: 1; min-width: 110px; padding: 0.5rem; background: #e2e8f0; color: var(--text-dark); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Appointments</button>
+        <button id="btn-show-tuition" onclick="switchPatientTab('tuition')" style="flex: 1; min-width: 110px; padding: 0.5rem; background: #e2e8f0; color: var(--text-dark); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer;">Tuition & Classes</button>
       </div>
 
       <!-- Reports Panel -->
@@ -204,6 +205,17 @@
         <h3 style="color: var(--primary-color); margin-bottom: 1rem; font-size: 1.2rem;">My Appointments & Video Consultations</h3>
         <div id="appointments-list">
           <!-- Appointments rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Tuition Panel -->
+      <div id="panel-tuition" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+          <h3 style="color: var(--primary-color); margin: 0; font-size: 1.2rem;">My Community Tuition & Classes</h3>
+          <a href="tuition.html" class="btn" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.85rem; background-color: var(--accent-color); text-decoration: none; display: inline-block;">+ Enroll New Class</a>
+        </div>
+        <div id="tuition-list">
+          <!-- Tuition enrollments rendered dynamically -->
         </div>
       </div>
 

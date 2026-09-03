@@ -386,20 +386,22 @@ function escapeHTML(str) {
             .replace(/'/g, '&#039;');
 }
 
-// Switch between reports and prescriptions sub-tabs
+// Switch between reports, prescriptions, appointments, and tuition sub-tabs
 window.switchPatientTab = function(tabName) {
   const btnReports = document.getElementById('btn-show-reports');
   const btnPresc = document.getElementById('btn-show-prescriptions');
   const btnAppts = document.getElementById('btn-show-appointments');
+  const btnTuition = document.getElementById('btn-show-tuition');
   
   const panelReports = document.getElementById('panel-reports');
   const panelPresc = document.getElementById('panel-prescriptions');
   const panelAppts = document.getElementById('panel-appointments');
+  const panelTuition = document.getElementById('panel-tuition');
 
-  [btnReports, btnPresc, btnAppts].forEach(btn => {
+  [btnReports, btnPresc, btnAppts, btnTuition].forEach(btn => {
     if (btn) { btn.style.background = '#e2e8f0'; btn.style.color = 'var(--text-dark)'; }
   });
-  [panelReports, panelPresc, panelAppts].forEach(panel => {
+  [panelReports, panelPresc, panelAppts, panelTuition].forEach(panel => {
     if (panel) panel.style.display = 'none';
   });
 
@@ -414,6 +416,73 @@ window.switchPatientTab = function(tabName) {
     if (btnAppts) { btnAppts.style.background = 'var(--primary-color)'; btnAppts.style.color = 'white'; }
     if (panelAppts) panelAppts.style.display = 'block';
     loadMyAppointments();
+  } else if (tabName === 'tuition') {
+    if (btnTuition) { btnTuition.style.background = 'var(--primary-color)'; btnTuition.style.color = 'white'; }
+    if (panelTuition) panelTuition.style.display = 'block';
+    loadMyTuition();
+  }
+};
+
+// Load patient community tuition & classes
+window.loadMyTuition = async function loadMyTuition() {
+  const container = document.getElementById('tuition-list');
+  if (!container) return;
+  
+  container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading tuition classes...</div>';
+
+  try {
+    const activeToken = portalToken || localStorage.getItem('patient_portal_token') || localStorage.getItem('chc_token');
+    const activeContact = currentPhone || currentEmail || localStorage.getItem('patient_portal_phone') || localStorage.getItem('patient_portal_email') || localStorage.getItem('chc_user_phone') || localStorage.getItem('chc_user_email') || '';
+
+    const res = await fetch(`/api/tuition/my-enrollments?phone=${encodeURIComponent(activeContact)}&t=${Date.now()}`, {
+      headers: { 'Authorization': `Bearer ${activeToken}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const enrollments = data.enrollments || [];
+
+      if (enrollments.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">
+            You have not enrolled in any community tuition classes yet.<br>
+            <a href="tuition.html" style="color: var(--primary-color); font-weight: 600;">Click here to select your subject choices and enroll.</a>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = enrollments.map(e => {
+        const isOnline = e.preferred_mode === 'online';
+        const roomLink = e.class_location_or_link || `video-call.html?room=tuition-class-${e.id}`;
+        return `
+          <div class="report-card" style="border-left: 4px solid var(--accent-color); flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+              <div style="font-weight: 700; color: var(--text-dark);">${escapeHTML(e.student_name)} (${escapeHTML(e.student_class)})</div>
+              <span style="font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 600; background: #e0f2fe; color: #0369a1;">${escapeHTML(e.status.toUpperCase())}</span>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-dark);">
+              <strong>Subjects:</strong> ${escapeHTML(e.subject_choices)}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">
+              Mode: ${isOnline ? '💻 Online Live Class' : '🏫 On-Premises Classroom'} (${escapeHTML(e.preferred_time || 'Regular Schedule')})
+            </div>
+            ${e.tutor_name ? `
+              <div style="font-size: 0.85rem; color: #0f766e; font-weight: 600; margin-top: 0.25rem;">
+                👨‍🏫 Mentor: ${escapeHTML(e.tutor_name)} | Schedule: ${escapeHTML(e.assigned_schedule || 'TBD')}
+              </div>
+            ` : ''}
+            ${isOnline ? `
+              <a href="${escapeHTML(roomLink)}" class="btn" style="width: auto; margin-top: 0.5rem; padding: 0.4rem 1rem; font-size: 0.85rem; text-decoration: none;">
+                🎥 Join Live Virtual Classroom
+              </a>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    console.error('Failed to load tuition', err);
+    container.innerHTML = '<div style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Error loading tuition records.</div>';
   }
 };
 

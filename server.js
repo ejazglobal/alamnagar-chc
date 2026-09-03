@@ -2476,6 +2476,188 @@ app.post('/api/admin/clean-test-data', async (req, res) => {
   }
 });
 
+// ── TUITION & EDUCATION API ENDPOINTS ──────────────────────────────────────
+
+// 1. Get available tuition subjects catalog
+app.get('/api/tuition/subjects', async (req, res) => {
+  try {
+    const subjects = await db.getTuitionSubjects();
+    res.json({ success: true, subjects });
+  } catch (err) {
+    console.error('Error fetching tuition subjects:', err);
+    res.status(500).json({ error: 'Failed to fetch tuition subjects.' });
+  }
+});
+
+// 2. Get available tutors list
+app.get('/api/tuition/tutors', async (req, res) => {
+  try {
+    const tutors = await db.getTutors();
+    res.json({ success: true, tutors });
+  } catch (err) {
+    console.error('Error fetching tutors:', err);
+    res.status(500).json({ error: 'Failed to fetch tutors.' });
+  }
+});
+
+// 3. Submit Student Tuition Enrollment
+app.post('/api/tuition/enroll', optionalAuthenticateToken, async (req, res) => {
+  try {
+    const { student_name, phone, email, student_class, subject_choices, preferred_mode, preferred_time, notes } = req.body;
+
+    if (!student_name || typeof student_name !== 'string' || student_name.trim().length < 2) {
+      return res.status(400).json({ error: 'Student full name is required (at least 2 characters).' });
+    }
+    if (!phone || !isValidPhone(phone)) {
+      return res.status(400).json({ error: 'A valid Bangladeshi mobile phone number (11 digits e.g. 017XXXXXXXX) is required.' });
+    }
+    if (!student_class || typeof student_class !== 'string' || student_class.trim().length === 0) {
+      return res.status(400).json({ error: 'Student class or grade level is required.' });
+    }
+    if (!subject_choices || (Array.isArray(subject_choices) && subject_choices.length === 0)) {
+      return res.status(400).json({ error: 'Please select at least one subject choice.' });
+    }
+
+    const userId = req.user ? req.user.id : null;
+    const normPhone = normalizePhone(phone);
+    const validModes = ['on-premises', 'online', 'both'];
+    const selectedMode = validModes.includes(preferred_mode) ? preferred_mode : 'on-premises';
+
+    const enrollment = await db.createTuitionEnrollment({
+      user_id: userId,
+      student_name: student_name.trim(),
+      phone: normPhone || phone.trim(),
+      email: email ? email.trim() : null,
+      student_class: student_class.trim(),
+      subject_choices,
+      preferred_mode: selectedMode,
+      preferred_time: preferred_time ? preferred_time.trim() : '',
+      notes: notes ? notes.trim() : ''
+    });
+
+    console.log(`[TUITION ENROLLMENT] New student enrolled: ${student_name} (${normPhone}) for class ${student_class} [${selectedMode}]`);
+    res.json({
+      success: true,
+      message: 'Tuition enrollment application submitted successfully! Our community education coordinator will contact you shortly.',
+      enrollment
+    });
+  } catch (err) {
+    console.error('Error submitting tuition enrollment:', err);
+    res.status(500).json({ error: 'Failed to submit tuition enrollment. ' + err.message });
+  }
+});
+
+// 4. Get Student's Own Tuition Enrollments
+app.get('/api/tuition/my-enrollments', optionalAuthenticateToken, async (req, res) => {
+  try {
+    const userId = req.user ? req.user.id : null;
+    const phone = req.query.phone || (req.user ? req.user.username : null);
+
+    if (!userId && !phone) {
+      return res.status(400).json({ error: 'Please log in or provide mobile phone number to view enrollments.' });
+    }
+
+    const enrollments = await db.getTuitionEnrollmentsByUserOrPhone(userId, phone);
+    res.json({ success: true, enrollments });
+  } catch (err) {
+    console.error('Error fetching student enrollments:', err);
+    res.status(500).json({ error: 'Failed to fetch enrollments.' });
+  }
+});
+
+// 5. Admin: List All Tuition Enrollments
+app.get('/api/tuition/admin/enrollments', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied. Staff or Admin privileges required.' });
+    }
+    const statusFilter = req.query.status || null;
+    const enrollments = await db.getAllTuitionEnrollments(statusFilter);
+    res.json({ success: true, enrollments });
+  } catch (err) {
+    console.error('Admin fetching enrollments error:', err);
+    res.status(500).json({ error: 'Failed to fetch tuition enrollments.' });
+  }
+});
+
+// 6. Admin: Update Tuition Enrollment (Assign Tutor, Status, Room/Link)
+app.put('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied. Staff or Admin privileges required.' });
+    }
+    const id = req.params.id;
+    const { status, tutor_id, assigned_schedule, class_location_or_link, notes } = req.body;
+
+    const updated = await db.updateTuitionEnrollment(id, {
+      status,
+      tutor_id,
+      assigned_schedule,
+      class_location_or_link,
+      notes
+    });
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Tuition enrollment record not found.' });
+    }
+
+    res.json({ success: true, message: 'Tuition enrollment updated successfully.', enrollment: updated });
+  } catch (err) {
+    console.error('Admin updating enrollment error:', err);
+    res.status(500).json({ error: 'Failed to update tuition enrollment.' });
+  }
+});
+
+// 7. Admin: Manage Tutors (Add / Update)
+app.post('/api/tuition/admin/tutors', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio } = req.body;
+    if (!name || !qualification || !subjects_taught) {
+      return res.status(400).json({ error: 'Name, Qualification, and Subjects Taught are required.' });
+    }
+    const tutor = await db.addTutor({ name, phone, email, qualification, subjects_taught, tuition_mode, bio });
+    res.json({ success: true, message: 'Tutor profile added successfully.', tutor });
+  } catch (err) {
+    console.error('Admin adding tutor error:', err);
+    res.status(500).json({ error: 'Failed to add tutor.' });
+  }
+});
+
+app.put('/api/tuition/admin/tutors/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const tutor = await db.updateTutor(req.params.id, req.body);
+    res.json({ success: true, message: 'Tutor profile updated successfully.', tutor });
+  } catch (err) {
+    console.error('Admin updating tutor error:', err);
+    res.status(500).json({ error: 'Failed to update tutor.' });
+  }
+});
+
+// 8. Admin: Add Subject
+app.post('/api/tuition/admin/subjects', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const { subject_name_en, subject_name_bn, class_level, description } = req.body;
+    if (!subject_name_en || !class_level) {
+      return res.status(400).json({ error: 'Subject Name (English) and Class Level are required.' });
+    }
+    const subject = await db.addTuitionSubject({ subject_name_en, subject_name_bn, class_level, description });
+    res.json({ success: true, message: 'Tuition subject added successfully.', subject });
+  } catch (err) {
+    console.error('Admin adding subject error:', err);
+    res.status(500).json({ error: 'Failed to add subject.' });
+  }
+});
+
+
 // --- DOCTOR FALLBACK PATH ---
 
 app.get('/doctor', (req, res) => {

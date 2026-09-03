@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Tuition & Education - Alamnagar CHC</title>
+  <meta name="description" content="Enroll in free and community tuition services at Alamnagar CHC. Select classes, subject choices, and choose between on-premises or live online classes.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Tuition Portal Custom Styling */
+    .tuition-hero {
+      background: linear-gradient(135deg, #0f766e 0%, #0284c7 100%);
+      color: #ffffff;
+      padding: 3.5rem 1.5rem;
+      text-align: center;
+      border-radius: 0 0 24px 24px;
+      margin-bottom: 2rem;
+      box-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.3);
+    }
+    .tuition-hero h1 {
+      font-size: 2.3rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.5px;
+    }
+    .tuition-hero p {
+      font-size: 1.1rem;
+      max-width: 750px;
+      margin: 0 auto 1.5rem auto;
+      opacity: 0.92;
+    }
+    .hero-badges {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .hero-badge {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      padding: 0.5rem 1.25rem;
+      border-radius: 50px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tab-nav {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 0.5rem;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 0.75rem 1.5rem;
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: var(--transition-smooth);
+    }
+    .tab-btn.active {
+      background: var(--primary-light);
+      color: var(--primary-color);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tuition-card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e2e8f0;
+      max-width: 900px;
+      margin: 0 auto 3rem auto;
+    }
+
+    /* Mode Option Cards */
+    .mode-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin-top: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .mode-card {
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.25rem;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      text-align: center;
+      position: relative;
+    }
+    .mode-card:hover {
+      border-color: var(--primary-color);
+      transform: translateY(-2px);
+    }
+    .mode-card.selected {
+      border-color: var(--primary-color);
+      background-color: var(--primary-light);
+    }
+    .mode-card input[type="radio"] {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      accent-color: var(--primary-color);
+    }
+    .mode-icon {
+      font-size: 2.2rem;
+      margin-bottom: 0.5rem;
+    }
+    .mode-title {
+      font-weight: 700;
+      color: var(--text-dark);
+      font-size: 1.05rem;
+      margin-bottom: 0.25rem;
+    }
+    .mode-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Subject Selection Checkboxes */
+    .subjects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 0.85rem;
+      max-height: 320px;
+      overflow-y: auto;
+      padding: 0.75rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+    }
+    .subject-checkbox-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      background: #ffffff;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+    .subject-checkbox-item:hover {
+      border-color: var(--primary-color);
+      background: #f0fdfa;
+    }
+    .subject-checkbox-item input[type="checkbox"] {
+      margin-top: 0.25rem;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary-color);
+    }
+    .subject-info .sub-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+    }
+    .subject-info .sub-level {
+      font-size: 0.75rem;
+      color: var(--accent-color);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Tutor Cards */
+    .tutors-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .tutor-card {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 1.5rem;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tutor-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .tutor-avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    .tutor-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+    .tutor-qual {
+      font-size: 0.85rem;
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    .badge-status {
+      display: inline-block;
+      padding: 0.35rem 0.85rem;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .badge-pending { background: #fef3c7; color: #b45309; }
+    .badge-approved { background: #dbfce1; color: #15803d; }
+    .badge-assigned { background: #e0f2fe; color: #0369a1; }
+
+    .enrollment-item {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      background: #fafafa;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header>
+    <div class="nav-container">
+      <a href="index.html" class="logo" id="nav-logo">
+        <img src="alchc-logo.png" alt="Alamnagar CHC Logo" class="logo-img">
+        <span>Alamnagar CHC</span>
+      </a>
+      <button class="menu-toggle" onclick="toggleMobileMenu()">☰</button>
+      <nav class="nav-links" id="nav-menu">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="index.html#appointments" class="nav-link">Book Appointment</a>
+        <a href="tuition.html" class="nav-link active">Community Tuition</a>
+        <a href="patient-portal.html" class="nav-link">Patient Portal</a>
+        <a href="login.html" class="nav-link btn-admin">Login / Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="tuition-hero">
+    <div class="container">
+      <h1>🎓 Community Tuition & Education Program</h1>
+      <p>Free and subsidized educational tuition for students in the community. Enroll in academic subjects from Primary to HSC, Islamic Studies, and Skill Development taught by qualified mentors.</p>
+      <div class="hero-badges">
+        <div class="hero-badge">🏫 On-Premises Learning at Alamnagar CHC</div>
+        <div class="hero-badge">💻 Live Online Virtual Classes</div>
+        <div class="hero-badge">📚 Custom Subject Selection</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="container" style="max-width: 1100px; margin: 0 auto; padding: 0 1rem;">
+
+    <!-- Navigation Tabs -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('enroll-tab')">📝 Student Enrollment</button>
+      <button class="tab-btn" onclick="switchTab('my-tab')">🔍 My Enrollments & Classes</button>
+      <button class="tab-btn" onclick="switchTab('tutors-tab')">👨‍🏫 Community Tutors</button>
+    </div>
+
+    <!-- TAB 1: Student Enrollment Form -->
+    <div id="enroll-tab" class="tab-content">
+      <div class="tuition-card">
+        <h2 style="color: var(--primary-color); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span>📋 Student Tuition Enrollment Form</span>
+        </h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Fill out the form below to enroll for community tuition. Select your class level, subject choices, and preferred mode of learning.</p>
+
+        <div id="enroll-alert" style="display: none; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: 500;"></div>
+
+        <form id="tuition-form" onsubmit="handleEnrollmentSubmit(event)">
+          <!-- Personal Details -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+              <label for="student-name" style="font-weight: 600; margin-bottom: 0.35rem; display: block;">Student Full Name *</label>
+              <input type="text" id="student-name" class="form-control" required placeholder="e.g. Tanvir Ahmed">
+            </div>
+            <div class="form-group">
+              <label for="student-phone" style="font-weight: 600; margin-bottom: 0.35rem; display: block;">Mobile Phone Number *</label>
+              <input type="tel" id="student-phone" class="form-control" required placeholder="e.g. 01712345678">
+            </div>
+            <div class="form-group">
+              <label for="student-email" style="font-weight: 600; margin-bottom: 0.35rem; display: block;">Email Address (Optional)</label>
+              <input type="email" id="student-email" class="form-control" placeholder="student@example.com">
+            </div>
+          </div>
+
+          <!-- Class Selection -->
+          <div style="margin-bottom: 1.5rem;">
+            <label for="student-class" style="font-weight: 600; margin-bottom: 0.35rem; display: block;">Select Class / Grade Level *</label>
+            <select id="student-class" class="form-control" required onchange="filterSubjectsByClass()">
+              <option value="">-- Choose Class / Grade Level --</option>
+              <option value="Class 1-5">Class 1-5 (Primary Level)</option>
+              <option value="Class 6-8">Class 6-8 (Junior Secondary)</option>
+              <option value="SSC (Class 9-10)">SSC (Class 9-10 - Secondary)</option>
+              <option value="HSC (Class 11-12)">HSC (Class 11-12 - Higher Secondary)</option>
+              <option value="Islamic Studies">Islamic Studies & Qur'an Recitation</option>
+              <option value="Skills Development">Skills & Computer Literacy</option>
+            </select>
+          </div>
+
+          <!-- Subject Selection -->
+          <div style="margin-bottom: 1.5rem;">
+            <label style="font-weight: 600; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+              <span>Select Subject Choice(s) *</span>
+              <small style="color: var(--primary-color); cursor: pointer;" onclick="selectAllSubjects()">Select All</small>
+            </label>
+            <div id="subjects-container" class="subjects-grid">
+              <p style="color: var(--text-muted); font-style: italic; padding: 1rem;">Please select a class level above to load available subjects.</p>
+            </div>
+          </div>
+
+          <!-- Tuition Mode Selector -->
+          <div style="margin-bottom: 1.5rem;">
+            <label style="font-weight: 600; margin-bottom: 0.5rem; display: block;">Preferred Tuition Mode *</label>
+            <div class="mode-options">
+              <div class="mode-card selected" onclick="selectMode('on-premises', this)">
+                <input type="radio" name="preferred_mode" value="on-premises" checked>
+                <div class="mode-icon">🏫</div>
+                <div class="mode-title">On-Premises</div>
+                <div class="mode-desc">In-person classes at Alamnagar CHC Community Learning Center</div>
+              </div>
+
+              <div class="mode-card" onclick="selectMode('online', this)">
+                <input type="radio" name="preferred_mode" value="online">
+                <div class="mode-icon">💻</div>
+                <div class="mode-title">Online Remote</div>
+                <div class="mode-desc">Live virtual interactive video classroom via web portal</div>
+              </div>
+
+              <div class="mode-card" onclick="selectMode('both', this)">
+                <input type="radio" name="preferred_mode" value="both">
+                <div class="mode-icon">🔄</div>
+                <div class="mode-title">Hybrid / Either Mode</div>
+                <div class="mode-desc">Flexible combination of physical and online session availability</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Schedule & Notes -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+            <div class="form-group">
+              <label for="preferred-time" style="font-weight: 600; margin-bottom: 0.35rem; display: block;">Preferred Time Slot</label>
+              <select id="preferred-time" class="form-control">
+                <option value="Morning (9:00 AM - 12:00 PM)">Morning (9:00 AM - 12:00 PM)</option>
+                <option value="Afternoon (2:00 PM - 5:00 PM)">Afternoon (2:00 PM - 5:00 PM)</option>
+                <option value="Evening (5:00 PM - 8:00 PM)">Evening (5:00 PM - 8:00 PM)</option>
+                <option value="Flexible / Any Time">Flexible / Any Time</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="student-notes" style="font-weight: 600; margin-bottom: 0.35rem; display: block;">Special Goals / Notes</label>
+              <input type="text" id="student-notes" class="form-control" placeholder="e.g., Exam preparation, weak in algebra...">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.9rem; font-size: 1.1rem; font-weight: 700; border-radius: 10px;">
+            🚀 Submit Tuition Enrollment Application
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB 2: My Enrollments & Class Tracker -->
+    <div id="my-tab" class="tab-content" style="display: none;">
+      <div class="tuition-card">
+        <h2 style="color: var(--primary-color); margin-bottom: 0.5rem;">🔍 Track My Tuition Application & Classes</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Enter your registered mobile phone number to check enrollment status, assigned tutor, class schedule, and access live online classes.</p>
+
+        <div style="display: flex; gap: 0.75rem; margin-bottom: 2rem;">
+          <input type="tel" id="lookup-phone" class="form-control" placeholder="Enter mobile phone e.g. 017XXXXXXXX">
+          <button class="btn btn-primary" onclick="lookupMyEnrollments()" style="white-space: nowrap; padding: 0 1.5rem;">Fetch Status</button>
+        </div>
+
+        <div id="my-enrollments-list">
+          <p style="color: var(--text-muted); text-align: center; padding: 2rem; font-style: italic;">Enter your phone number above or log in to view your class schedules and tutor details.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Community Tutors Catalog -->
+    <div id="tutors-tab" class="tab-content" style="display: none;">
+      <div style="max-width: 1000px; margin: 0 auto 3rem auto;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <h2 style="color: var(--primary-color);">👨‍🏫 Dedicated Community Mentors & Tutors</h2>
+          <p style="color: var(--text-muted);">Our experienced tutors are committed to empowering students through personalized guidance.</p>
+        </div>
+        <div id="tutors-container" class="tutors-grid">
+          <p style="color: var(--text-muted); text-align: center;">Loading tutor list...</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let allSubjects = [];
+    let selectedModeValue = 'on-premises';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchSubjects();
+      fetchTutors();
+      checkLoggedInUser();
+    });
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+      
+      event.target.classList.add('active');
+      document.getElementById(tabId).style.display = 'block';
+    }
+
+    function selectMode(mode, element) {
+      selectedModeValue = mode;
+      document.querySelectorAll('.mode-card').forEach(card => card.classList.remove('selected'));
+      element.classList.add('selected');
+      element.querySelector('input[type="radio"]').checked = true;
+    }
+
+    async function fetchSubjects() {
+      try {
+        const res = await fetch(`/api/tuition/subjects?t=${Date.now()}`);
+        const data = await res.json();
+        if (data.success) {
+          allSubjects = data.subjects;
+        }
+      } catch (err) {
+        console.error('Error loading subjects:', err);
+      }
+    }
+
+    async function fetchTutors() {
+      try {
+        const res = await fetch(`/api/tuition/tutors?t=${Date.now()}`);
+        const data = await res.json();
+        if (data.success && data.tutors) {
+          renderTutors(data.tutors);
+        }
+      } catch (err) {
+        console.error('Error loading tutors:', err);
+      }
+    }
+
+    function renderTutors(tutors) {
+      const container = document.getElementById('tutors-container');
+      if (tutors.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">No tutors currently listed.</p>`;
+        return;
+      }
+      container.innerHTML = tutors.map(t => `
+        <div class="tutor-card">
+          <div>
+            <div class="tutor-header">
+              <div class="tutor-avatar">${t.name.charAt(0)}</div>
+              <div>
+                <div class="tutor-name">${escapeHtml(t.name)}</div>
+                <div class="tutor-qual">${escapeHtml(t.qualification)}</div>
+              </div>
+            </div>
+            <div style="font-size: 0.9rem; color: var(--text-dark); margin-bottom: 0.5rem;">
+              <strong>Subjects:</strong> ${escapeHtml(t.subjects_taught)}
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+              ${escapeHtml(t.bio || 'Experienced community educator.')}
+            </div>
+          </div>
+          <div style="border-top: 1px solid #eee; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+            <span class="badge-status badge-assigned" style="font-size: 0.75rem;">Mode: ${t.tuition_mode.toUpperCase()}</span>
+            <span style="font-size: 0.85rem; color: var(--primary-color); font-weight: 600;">📞 ${escapeHtml(t.phone || 'Available via portal')}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterSubjectsByClass() {
+      const selectedClass = document.getElementById('student-class').value;
+      const container = document.getElementById('subjects-container');
+      
+      if (!selectedClass) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-style: italic; padding: 1rem;">Please select a class level above to load available subjects.</p>`;
+        return;
+      }
+
+      const filtered = allSubjects.filter(s => s.class_level.toLowerCase() === selectedClass.toLowerCase());
+      const displaySubjects = filtered.length > 0 ? filtered : allSubjects;
+
+      container.innerHTML = displaySubjects.map(sub => `
+        <label class="subject-checkbox-item">
+          <input type="checkbox" name="subject_choice" value="${escapeHtml(sub.subject_name_en)}">
+          <div class="subject-info">
+            <div class="sub-name">${escapeHtml(sub.subject_name_en)} <span style="font-weight: normal; color: #64748b;">(${escapeHtml(sub.subject_name_bn)})</span></div>
+            <div class="sub-level">${escapeHtml(sub.class_level)} - ${escapeHtml(sub.description || '')}</div>
+          </div>
+        </label>
+      `).join('');
+    }
+
+    function selectAllSubjects() {
+      document.querySelectorAll('#subjects-container input[type="checkbox"]').forEach(cb => cb.checked = true);
+    }
+
+    async function handleEnrollmentSubmit(e) {
+      e.preventDefault();
+      const alertEl = document.getElementById('enroll-alert');
+      alertEl.style.display = 'none';
+
+      const name = document.getElementById('student-name').value.trim();
+      const phone = document.getElementById('student-phone').value.trim();
+      const email = document.getElementById('student-email').value.trim();
+      const studentClass = document.getElementById('student-class').value;
+      const preferredTime = document.getElementById('preferred-time').value;
+      const notes = document.getElementById('student-notes').value.trim();
+
+      const selectedSubjects = Array.from(document.querySelectorAll('input[name="subject_choice"]:checked')).map(cb => cb.value);
+
+      if (selectedSubjects.length === 0) {
+        alertEl.style.display = 'block';
+        alertEl.style.background = '#fee2e2';
+        alertEl.style.color = '#991b1b';
+        alertEl.innerText = '❌ Please check at least one subject choice.';
+        return;
+      }
+
+      const payload = {
+        student_name: name,
+        phone: phone,
+        email: email,
+        student_class: studentClass,
+        subject_choices: selectedSubjects,
+        preferred_mode: selectedModeValue,
+        preferred_time: preferredTime,
+        notes: notes
+      };
+
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/tuition/enroll', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alertEl.style.display = 'block';
+          alertEl.style.background = '#d1fae5';
+          alertEl.style.color = '#065f46';
+          alertEl.innerHTML = `✅ ${data.message}`;
+          document.getElementById('tuition-form').reset();
+          filterSubjectsByClass();
+
+          // Auto trigger lookup in Tab 2
+          document.getElementById('lookup-phone').value = phone;
+          setTimeout(() => {
+            switchTab('my-tab');
+            lookupMyEnrollments();
+          }, 1500);
+        } else {
+          alertEl.style.display = 'block';
+          alertEl.style.background = '#fee2e2';
+          alertEl.style.color = '#991b1b';
+          alertEl.innerText = `❌ ${data.error || 'Enrollment failed.'}`;
+        }
+      } catch (err) {
+        console.error('Enrollment error:', err);
+        alertEl.style.display = 'block';
+        alertEl.style.background = '#fee2e2';
+        alertEl.style.color = '#991b1b';
+        alertEl.innerText = '❌ System error submitting application. Please try again.';
+      }
+    }
+
+    async function lookupMyEnrollments() {
+      const phoneInput = document.getElementById('lookup-phone').value.trim();
+      const container = document.getElementById('my-enrollments-list');
+
+      const token = localStorage.getItem('token');
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      let url = `/api/tuition/my-enrollments?t=${Date.now()}`;
+      if (phoneInput) url += `&phone=${encodeURIComponent(phoneInput)}`;
+
+      try {
+        const res = await fetch(url, { headers });
+        const data = await res.json();
+
+        if (data.success && data.enrollments && data.enrollments.length > 0) {
+          container.innerHTML = data.enrollments.map(e => {
+            const statusClass = e.status === 'assigned' ? 'badge-assigned' : (e.status === 'approved' ? 'badge-approved' : 'badge-pending');
+            const isOnline = e.preferred_mode === 'online';
+            const roomLink = e.class_location_or_link || `video-call.html?room=tuition-class-${e.id}`;
+
+            return `
+              <div class="enrollment-item">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                  <div>
+                    <h3 style="margin: 0; color: var(--text-dark);">${escapeHtml(e.student_name)}</h3>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Class: <strong>${escapeHtml(e.student_class)}</strong> | Enrolled: ${new Date(e.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <span class="badge-status ${statusClass}">${escapeHtml(e.status.toUpperCase())}</span>
+                </div>
+                
+                <div style="margin-bottom: 0.75rem; font-size: 0.95rem;">
+                  <strong>Subjects Chosen:</strong> ${escapeHtml(e.subject_choices)}
+                </div>
+
+                <div style="margin-bottom: 0.75rem; font-size: 0.9rem;">
+                  <strong>Mode:</strong> ${isOnline ? '💻 Online Remote Class' : '🏫 On-Premises Classroom'} (${escapeHtml(e.preferred_time || 'Standard Schedule')})
+                </div>
+
+                ${e.tutor_name ? `
+                  <div style="background: #ffffff; border: 1px dashed #0284c7; padding: 0.85rem; border-radius: 8px; margin-top: 0.75rem;">
+                    <div style="font-weight: 700; color: #0284c7;">👨‍🏫 Assigned Tutor: ${escapeHtml(e.tutor_name)}</div>
+                    <div style="font-size: 0.85rem; color: #334155;">Schedule: ${escapeHtml(e.assigned_schedule || 'Schedule will be finalized shortly')}</div>
+                    ${e.tutor_phone ? `<div style="font-size: 0.85rem; color: #334155;">Contact: ${escapeHtml(e.tutor_phone)}</div>` : ''}
+                  </div>
+                ` : '<div style="font-size: 0.85rem; color: var(--warning); font-style: italic;">⏳ Tutor assignment in progress by community coordinator.</div>'}
+
+                ${isOnline ? `
+                  <div style="margin-top: 1rem;">
+                    <a href="${escapeHtml(roomLink)}" class="btn btn-primary" style="display: inline-block; padding: 0.6rem 1.25rem; font-weight: 600; text-decoration: none; border-radius: 8px;">
+                      🎥 Join Live Virtual Classroom
+                    </a>
+                  </div>
+                ` : (e.class_location_or_link ? `
+                  <div style="margin-top: 0.75rem; font-size: 0.85rem; color: #059669; font-weight: 600;">
+                    📍 Premises Location: ${escapeHtml(e.class_location_or_link)}
+                  </div>
+                ` : '')}
+              </div>
+            `;
+          }).join('');
+        } else {
+          container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No tuition enrollment applications found for this contact details.</p>`;
+        }
+      } catch (err) {
+        console.error('Error fetching enrollments:', err);
+        container.innerHTML = `<p style="color: var(--danger); text-align: center; padding: 2rem;">Failed to retrieve enrollment records.</p>`;
+      }
+    }
+
+    async function checkLoggedInUser() {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+          const user = await res.json();
+          if (user && user.username) {
+            document.getElementById('student-phone').value = user.phone || user.username || '';
+            document.getElementById('student-email').value = user.email || '';
+            document.getElementById('lookup-phone').value = user.phone || user.username || '';
+            lookupMyEnrollments();
+          }
+        } catch (e) {}
+      }
+    }
+
+    function toggleMobileMenu() {
+      const menu = document.getElementById('nav-menu');
+      menu.classList.toggle('active');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

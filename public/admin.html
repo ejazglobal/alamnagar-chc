@@ -583,6 +583,54 @@
             <button class="btn" id="med-next-btn" style="width: auto; padding: 0.3rem 0.75rem; font-size: 0.8rem;" onclick="changeMedicinePage(1)" disabled>Next</button>
           </div>
         </div>
+      <!-- Community Tuition & Education Management Panel -->
+      <section class="panel" id="admin-tuition-section" style="margin-top: 1.5rem; grid-column: 1/-1;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+          <h2 class="panel-title" style="margin-bottom: 0;">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 01-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+            </svg>
+            Community Tuition & Education Applications
+          </h2>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn" style="width: auto; font-size: 0.85rem; padding: 0.4rem 0.85rem; background-color: var(--accent-color);" onclick="openAddTutorModal()">+ Add New Tutor</button>
+            <button type="button" class="btn" style="width: auto; font-size: 0.85rem; padding: 0.4rem 0.85rem;" onclick="openAddSubjectModal()">+ Add Subject Choice</button>
+          </div>
+        </div>
+
+        <div id="tuition-admin-status-banner" class="status-banner" style="margin-bottom: 1rem; display: none;"></div>
+
+        <!-- Filter bar -->
+        <div class="filters-bar" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <div class="filter-btn-group" id="tuition-filter-group" style="display: flex; gap: 0.25rem;">
+            <button class="filter-btn active" onclick="filterTuitionAdmin('all', this)">All Applications</button>
+            <button class="filter-btn" onclick="filterTuitionAdmin('pending', this)">Pending</button>
+            <button class="filter-btn" onclick="filterTuitionAdmin('approved', this)">Approved</button>
+            <button class="filter-btn" onclick="filterTuitionAdmin('assigned', this)">Assigned</button>
+          </div>
+          <input type="search" id="tuition-search-input" class="search-input" placeholder="Search student name, phone, class..." oninput="searchTuitionAdmin(this.value)" style="flex: 1;">
+        </div>
+
+        <div class="table-wrapper">
+          <table class="news-manage-table">
+            <thead>
+              <tr>
+                <th>Student Details</th>
+                <th>Class & Mode</th>
+                <th>Subject Choice(s)</th>
+                <th>Assigned Tutor & Room / Link</th>
+                <th>Status</th>
+                <th style="width: 140px; text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tuition-admin-tbody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading tuition applications...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
     </div>
@@ -725,6 +773,102 @@
         </div>
 
         <button type="submit" class="btn" id="med-save-btn">Save Medicine</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manage Tuition Application Modal -->
+  <div id="admin-tuition-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closeAdminTuitionModal(event)">
+    <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 550px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <h3 style="margin: 0; color: var(--primary-color);">Manage Tuition Application</h3>
+        <button class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;" onclick="closeAdminTuitionModal(event)">&times;</button>
+      </div>
+
+      <div id="tuition-modal-status" class="status-banner" style="margin-bottom: 1rem; display: none;"></div>
+
+      <form id="admin-tuition-form" onsubmit="saveTuitionAssignment(event)">
+        <input type="hidden" id="tuition-edit-id" value="">
+        <div style="background: #f8fafc; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem;">
+          <div style="font-weight: 700; color: var(--text-dark);" id="tuition-modal-student-name">Student Name</div>
+          <div style="color: var(--text-muted);" id="tuition-modal-sub-info">Class & Contact</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tuition-status-select">Enrollment Status *</label>
+          <select id="tuition-status-select" class="form-control" required style="background-color: white;">
+            <option value="pending">Pending Verification</option>
+            <option value="approved">Approved</option>
+            <option value="assigned">Assigned & Active</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tuition-tutor-select">Assign Tutor / Mentor</label>
+          <select id="tuition-tutor-select" class="form-control" style="background-color: white;">
+            <option value="">-- Unassigned --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tuition-schedule-input">Assigned Weekly Schedule</label>
+          <input type="text" id="tuition-schedule-input" class="form-control" placeholder="e.g. Mon & Wed (4:00 PM - 5:30 PM)">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tuition-location-link">Class Room Number or Live Virtual Video Call Link</label>
+          <input type="text" id="tuition-location-link" class="form-control" placeholder="e.g. Room 102 OR video-call.html?room=tuition-class-1">
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">For On-Premises enter building room; for Online enter virtual meeting room URL.</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tuition-admin-notes">Internal Coordinator Notes</label>
+          <input type="text" id="tuition-admin-notes" class="form-control" placeholder="Coordinator notes...">
+        </div>
+
+        <button type="submit" class="btn" style="background-color: var(--primary-color);">Save Tuition Assignment</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Tutor Modal -->
+  <div id="admin-tutor-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closeAdminTutorModal(event)">
+    <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 500px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <h3 style="margin: 0; color: var(--primary-color);">Add Community Tutor</h3>
+        <button class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;" onclick="closeAdminTutorModal(event)">&times;</button>
+      </div>
+
+      <form id="admin-tutor-form" onsubmit="saveTutorForm(event)">
+        <div class="form-group">
+          <label class="form-label" for="tutor-name-input">Tutor Full Name *</label>
+          <input type="text" id="tutor-name-input" class="form-control" required placeholder="e.g. Dr. Alamgir Hossain">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="tutor-qual-input">Qualification *</label>
+          <input type="text" id="tutor-qual-input" class="form-control" required placeholder="e.g. M.Sc in Mathematics (DU)">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="tutor-subjects-input">Subjects Taught *</label>
+          <input type="text" id="tutor-subjects-input" class="form-control" required placeholder="e.g. Higher Math, Physics, ICT">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <div class="form-group">
+            <label class="form-label" for="tutor-phone-input">Mobile Phone</label>
+            <input type="tel" id="tutor-phone-input" class="form-control" placeholder="017XXXXXXXX">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="tutor-mode-input">Teaching Mode</label>
+            <select id="tutor-mode-input" class="form-control" style="background-color: white;">
+              <option value="both">Both (Premises & Online)</option>
+              <option value="on-premises">On-Premises Only</option>
+              <option value="online">Online Remote Only</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn" style="background-color: var(--accent-color);">Add Tutor Profile</button>
       </form>
     </div>
   </div>

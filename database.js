@@ -204,6 +204,103 @@ async function initializeDatabase() {
       )
     `);
 
+    // 11. Create tuition tables
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tuition_subjects (
+        id SERIAL PRIMARY KEY,
+        subject_name_en VARCHAR(255) NOT NULL,
+        subject_name_bn VARCHAR(255) NOT NULL,
+        class_level VARCHAR(100) NOT NULL,
+        description TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tutors (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        qualification VARCHAR(255) NOT NULL,
+        subjects_taught TEXT NOT NULL,
+        tuition_mode VARCHAR(50) DEFAULT 'both',
+        bio TEXT,
+        status VARCHAR(50) DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tuition_enrollments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        student_name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50) NOT NULL,
+        email VARCHAR(255),
+        student_class VARCHAR(100) NOT NULL,
+        subject_choices TEXT NOT NULL,
+        preferred_mode VARCHAR(50) NOT NULL CHECK(preferred_mode IN ('on-premises', 'online', 'both')),
+        preferred_time VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'assigned', 'completed', 'cancelled')),
+        tutor_id INTEGER REFERENCES tutors(id) ON DELETE SET NULL,
+        assigned_schedule VARCHAR(255),
+        class_location_or_link TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Seed default subjects if empty
+    try {
+      const subjectCheck = await pool.query('SELECT COUNT(*) FROM tuition_subjects');
+      if (parseInt(subjectCheck.rows[0].count) === 0) {
+        const defaultSubjects = [
+          ['Mathematics', 'গণিত', 'Class 1-5', 'Basic arithmetic, geometry, and problem solving'],
+          ['English Language & Grammar', 'ইংরেজি ভাষা ও ব্যাকরণ', 'Class 1-5', 'Reading, writing, vocabulary and foundation grammar'],
+          ['General Science', 'সাধারণ বিজ্ঞান', 'Class 6-8', 'Introduction to physics, chemistry, biology and environmental science'],
+          ['Mathematics & Algebra', 'গণিত ও বীজগণিত', 'Class 6-8', 'Algebraic expressions, equations, and geometry'],
+          ['ICT & Computer Literacy', 'আইসিটি ও কম্পিউটার শিক্ষা', 'Class 6-8', 'Computer basics, office tools, and internet safety'],
+          ['Physics', 'পদার্থবিজ্ঞান', 'SSC (Class 9-10)', 'Motion, mechanics, electricity, light, and wave physics'],
+          ['Chemistry', 'রসায়ন', 'SSC (Class 9-10)', 'Chemical reactions, periodic table, acids, bases and organic basics'],
+          ['Higher Mathematics', 'উচ্চতর গণিত', 'SSC (Class 9-10)', 'Coordinate geometry, trigonometry, vectors and calculus foundations'],
+          ['Biology', 'জীববিজ্ঞান', 'SSC (Class 9-10)', 'Cell biology, genetics, human physiology and botany'],
+          ['Physics (Advanced)', 'উচ্চতর পদার্থবিজ্ঞান', 'HSC (Class 11-12)', 'Thermodynamics, optics, quantum physics and electrodynamics'],
+          ['Chemistry (Organic & Physical)', 'রসায়ন (জৈব ও ভৌত)', 'HSC (Class 11-12)', 'Organic reaction mechanisms, electrochemistry and kinetics'],
+          ['Higher Math & Calculus', 'উচ্চতর গণিত ও ক্যালকুলাস', 'HSC (Class 11-12)', 'Differential calculus, integral calculus, matrices and vectors'],
+          ['ICT & Programming Fundamentals', 'আইসিটি ও প্রোগ্রামিং', 'HSC (Class 11-12)', 'C programming, web design basics, database principles'],
+          ['Holy Qur\'an & Tajweed', 'পবিত্র কুরআন ও তাজবীদ', 'Islamic Studies', 'Proper recitation, memorization, and Islamic ethics'],
+          ['Spoken English & Communication', 'স্পোকেন ইংলিশ', 'Skills Development', 'Practical conversation, public speaking and business communication']
+        ];
+        for (const sub of defaultSubjects) {
+          await pool.query(
+            `INSERT INTO tuition_subjects (subject_name_en, subject_name_bn, class_level, description) VALUES ($1, $2, $3, $4)`,
+            sub
+          );
+        }
+        console.log('Seeded default tuition subjects catalog.');
+      }
+    } catch (sErr) {
+      console.warn('Tuition subjects seed notice:', sErr.message);
+    }
+
+    // Seed default tutors if empty
+    try {
+      const tutorCheck = await pool.query('SELECT COUNT(*) FROM tutors');
+      if (parseInt(tutorCheck.rows[0].count) === 0) {
+        await pool.query(`
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio) VALUES
+          ('Engr. Rafiqul Islam', '01711223344', 'rafiq.tutor@alamnagar.org', 'B.Sc in EEE (BUET)', 'Physics, Mathematics, ICT', 'both', 'Experienced mentor specializing in SSC & HSC Science & Mathematics.'),
+          ('Nusrat Jahan', '01811223344', 'nusrat.tutor@alamnagar.org', 'M.A. in English (DU)', 'English Language & Grammar, Spoken English', 'both', 'Dedicated English tutor focusing on communicative skills and foundation grammar.'),
+          ('Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.')
+        `);
+        console.log('Seeded default community tutors.');
+      }
+    } catch (tErr) {
+      console.warn('Tutors seed notice:', tErr.message);
+    }
+
     console.log("PostgreSQL database tables verified/created.");
 
     // Enable Row Level Security (RLS) on all public tables to resolve Supabase linter warnings
@@ -217,7 +314,10 @@ async function initializeDatabase() {
       'otp_verifications',
       'medicines',
       'prescriptions',
-      'patient_reports'
+      'patient_reports',
+      'tuition_subjects',
+      'tutors',
+      'tuition_enrollments'
     ];
 
     for (const table of tablesToEnableRLS) {
@@ -941,6 +1041,107 @@ module.exports = {
     return res.rows;
   },
 
+
+  // --- TUITION & EDUCATION HELPERS ---
+  getTuitionSubjects: async () => {
+    const res = await pool.query(`SELECT * FROM tuition_subjects WHERE is_active = true ORDER BY class_level ASC, id ASC`);
+    return res.rows;
+  },
+
+  addTuitionSubject: async (subjectData) => {
+    const { subject_name_en, subject_name_bn, class_level, description } = subjectData;
+    const res = await pool.query(
+      `INSERT INTO tuition_subjects (subject_name_en, subject_name_bn, class_level, description) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [subject_name_en, subject_name_bn || subject_name_en, class_level, description || '']
+    );
+    return res.rows[0];
+  },
+
+  getTutors: async () => {
+    const res = await pool.query(`SELECT * FROM tutors WHERE status = 'active' ORDER BY id ASC`);
+    return res.rows;
+  },
+
+  addTutor: async (tutorData) => {
+    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio } = tutorData;
+    const res = await pool.query(
+      `INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '']
+    );
+    return res.rows[0];
+  },
+
+  updateTutor: async (id, tutorData) => {
+    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio, status } = tutorData;
+    const res = await pool.query(
+      `UPDATE tutors SET name = $1, phone = $2, email = $3, qualification = $4, subjects_taught = $5, tuition_mode = $6, bio = $7, status = $8 WHERE id = $9 RETURNING *`,
+      [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '', status || 'active', id]
+    );
+    return res.rows[0];
+  },
+
+  createTuitionEnrollment: async (enrollmentData) => {
+    const { user_id, student_name, phone, email, student_class, subject_choices, preferred_mode, preferred_time, notes } = enrollmentData;
+    const subjectsStr = Array.isArray(subject_choices) ? subject_choices.join(', ') : subject_choices;
+    const res = await pool.query(
+      `INSERT INTO tuition_enrollments (user_id, student_name, phone, email, student_class, subject_choices, preferred_mode, preferred_time, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [user_id || null, student_name, phone, email || null, student_class, subjectsStr, preferred_mode || 'on-premises', preferred_time || '', notes || '']
+    );
+    return res.rows[0];
+  },
+
+  getTuitionEnrollmentsByUserOrPhone: async (userId, phone) => {
+    let query = `
+      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone, t.qualification as tutor_qualification 
+      FROM tuition_enrollments te 
+      LEFT JOIN tutors t ON te.tutor_id = t.id 
+      WHERE 1=0
+    `;
+    const params = [];
+    if (userId) {
+      params.push(userId);
+      query += ` OR te.user_id = $${params.length}`;
+    }
+    if (phone) {
+      params.push(phone);
+      query += ` OR REGEXP_REPLACE(te.phone, '^88', '') = REGEXP_REPLACE($${params.length}, '^88', '') OR LOWER(te.email) = LOWER($${params.length})`;
+    }
+    query += ` ORDER BY te.created_at DESC`;
+    const res = await pool.query(query, params);
+    return res.rows;
+  },
+
+  getAllTuitionEnrollments: async (statusFilter = null) => {
+    let query = `
+      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone
+      FROM tuition_enrollments te 
+      LEFT JOIN tutors t ON te.tutor_id = t.id
+    `;
+    const params = [];
+    if (statusFilter) {
+      params.push(statusFilter);
+      query += ` WHERE te.status = $1`;
+    }
+    query += ` ORDER BY te.created_at DESC`;
+    const res = await pool.query(query, params);
+    return res.rows;
+  },
+
+  updateTuitionEnrollment: async (id, updateData) => {
+    const { status, tutor_id, assigned_schedule, class_location_or_link, notes } = updateData;
+    const res = await pool.query(
+      `UPDATE tuition_enrollments 
+       SET status = COALESCE($1, status),
+           tutor_id = COALESCE($2, tutor_id),
+           assigned_schedule = COALESCE($3, assigned_schedule),
+           class_location_or_link = COALESCE($4, class_location_or_link),
+           notes = COALESCE($5, notes)
+       WHERE id = $6 RETURNING *`,
+      [status || null, tutor_id || null, assigned_schedule || null, class_location_or_link || null, notes || null, id]
+    );
+    return res.rows[0];
+  },
 
   // --- SYSTEM MAINTENANCE & CLEANUP HELPERS ---
   cleanTestData: async (options = { deletePatientUsers: true }) => {

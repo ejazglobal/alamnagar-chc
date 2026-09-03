@@ -53,6 +53,7 @@ async function unlockDashboard(role) {
   renderDoctorsManageTable();
   renderGalleryManageTable();
   await loadAdminMedicines(1);
+  await loadAdminTuitionEnrollments();
   
   if (role === 'Admin') {
     const staffSec = document.getElementById('admin-staff-section');
@@ -2446,5 +2447,253 @@ function showMedicineMainStatus(msg, type = 'info') {
     banner.style.display = 'none';
   }, 5000);
 }
+
+
+// ── COMMUNITY TUITION & EDUCATION ADMIN MANAGEMENT ───────────────────────
+let adminTuitionEnrollments = [];
+let adminTutorsList = [];
+let currentTuitionFilter = 'all';
+
+window.loadAdminTuitionEnrollments = async function loadAdminTuitionEnrollments() {
+  const tbody = document.getElementById('tuition-admin-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading tuition applications...</td></tr>';
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    
+    // Fetch tutors for assignment dropdown
+    const tutorsRes = await fetch(`/api/tuition/tutors?t=${Date.now()}`);
+    if (tutorsRes.ok) {
+      const tData = await tutorsRes.json();
+      adminTutorsList = tData.tutors || [];
+    }
+
+    // Fetch enrollments
+    const res = await fetch(`/api/tuition/admin/enrollments?t=${Date.now()}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      adminTuitionEnrollments = data.enrollments || [];
+      renderAdminTuitionTable();
+    } else {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Failed to load tuition applications.</td></tr>';
+    }
+  } catch (err) {
+    console.error('Error loading tuition applications:', err);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Error fetching tuition data.</td></tr>';
+  }
+};
+
+window.renderAdminTuitionTable = function renderAdminTuitionTable(dataToRender = null) {
+  const tbody = document.getElementById('tuition-admin-tbody');
+  if (!tbody) return;
+
+  const items = dataToRender || adminTuitionEnrollments;
+  if (!items || items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No tuition enrollment applications found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(item => {
+    const isOnline = item.preferred_mode === 'online';
+    const statusBadge = item.status === 'assigned' ? 'status-approved' : (item.status === 'approved' ? 'status-pending' : 'status-cancelled');
+    const assignedTutorName = item.tutor_name || 'Unassigned';
+
+    return `
+      <tr>
+        <td>
+          <div style="font-weight: 700; color: var(--text-dark);">${escapeHTML(item.student_name)}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">📞 ${escapeHTML(item.phone)} ${item.email ? `| ✉️ ${escapeHTML(item.email)}` : ''}</div>
+          <div style="font-size: 0.75rem; color: #64748b;">Enrolled: ${new Date(item.created_at).toLocaleDateString()}</div>
+        </td>
+        <td>
+          <div style="font-weight: 600; color: var(--primary-color);">${escapeHTML(item.student_class)}</div>
+          <div style="font-size: 0.8rem; color: var(--text-dark); font-weight: 500;">
+            ${isOnline ? '💻 Online Live Class' : '🏫 On-Premises Classroom'}
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHTML(item.preferred_time || 'Flexible')}</div>
+        </td>
+        <td>
+          <div style="font-size: 0.85rem; max-width: 200px; word-wrap: break-word;">${escapeHTML(item.subject_choices)}</div>
+        </td>
+        <td>
+          <div style="font-weight: 600; color: #0284c7;">👨‍🏫 ${escapeHTML(assignedTutorName)}</div>
+          ${item.assigned_schedule ? `<div style="font-size: 0.78rem; color: var(--text-dark);">🕒 ${escapeHTML(item.assigned_schedule)}</div>` : ''}
+          ${item.class_location_or_link ? `<div style="font-size: 0.75rem; color: #059669; font-weight: 600;">📍 ${escapeHTML(item.class_location_or_link)}</div>` : ''}
+        </td>
+        <td>
+          <span class="badge ${statusBadge}">${escapeHTML(item.status.toUpperCase())}</span>
+        </td>
+        <td style="text-align: center;">
+          <button class="btn" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="openAdminTuitionModal(${item.id})">Manage</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+};
+
+window.filterTuitionAdmin = function filterTuitionAdmin(status, btnElement) {
+  currentTuitionFilter = status;
+  if (btnElement) {
+    const parent = btnElement.closest('.filter-btn-group');
+    if (parent) {
+      parent.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btnElement.classList.add('active');
+    }
+  }
+
+  if (status === 'all') {
+    renderAdminTuitionTable();
+  } else {
+    const filtered = adminTuitionEnrollments.filter(item => item.status === status);
+    renderAdminTuitionTable(filtered);
+  }
+};
+
+window.searchTuitionAdmin = function searchTuitionAdmin(query) {
+  if (!query || query.trim() === '') {
+    filterTuitionAdmin(currentTuitionFilter, null);
+    return;
+  }
+  const q = query.toLowerCase();
+  const filtered = adminTuitionEnrollments.filter(i => 
+    (i.student_name && i.student_name.toLowerCase().includes(q)) ||
+    (i.phone && i.phone.includes(q)) ||
+    (i.student_class && i.student_class.toLowerCase().includes(q)) ||
+    (i.subject_choices && i.subject_choices.toLowerCase().includes(q))
+  );
+  renderAdminTuitionTable(filtered);
+};
+
+window.openAdminTuitionModal = function openAdminTuitionModal(id) {
+  const item = adminTuitionEnrollments.find(e => e.id === id);
+  if (!item) return;
+
+  document.getElementById('tuition-edit-id').value = item.id;
+  document.getElementById('tuition-modal-student-name').textContent = item.student_name;
+  document.getElementById('tuition-modal-sub-info').textContent = `Class: ${item.student_class} | Mode: ${item.preferred_mode.toUpperCase()} | Phone: ${item.phone}`;
+  document.getElementById('tuition-status-select').value = item.status || 'pending';
+  document.getElementById('tuition-schedule-input').value = item.assigned_schedule || '';
+  document.getElementById('tuition-location-link').value = item.class_location_or_link || (item.preferred_mode === 'online' ? `video-call.html?room=tuition-class-${item.id}` : 'Room 101, CHC Learning Center');
+  document.getElementById('tuition-admin-notes').value = item.notes || '';
+
+  // Populate Tutors select
+  const tutorSelect = document.getElementById('tuition-tutor-select');
+  if (tutorSelect) {
+    tutorSelect.innerHTML = '<option value="">-- Unassigned --</option>' + adminTutorsList.map(t => `
+      <option value="${t.id}" ${item.tutor_id === t.id ? 'selected' : ''}>${escapeHTML(t.name)} (${escapeHTML(t.qualification)})</option>
+    `).join('');
+  }
+
+  const modal = document.getElementById('admin-tuition-modal');
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closeAdminTuitionModal = function closeAdminTuitionModal(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('admin-tuition-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.saveTuitionAssignment = async function saveTuitionAssignment(e) {
+  e.preventDefault();
+  const id = document.getElementById('tuition-edit-id').value;
+  const status = document.getElementById('tuition-status-select').value;
+  const tutorId = document.getElementById('tuition-tutor-select').value;
+  const schedule = document.getElementById('tuition-schedule-input').value.trim();
+  const locationLink = document.getElementById('tuition-location-link').value.trim();
+  const notes = document.getElementById('tuition-admin-notes').value.trim();
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch(`/api/tuition/admin/enrollments/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        status,
+        tutor_id: tutorId ? parseInt(tutorId) : null,
+        assigned_schedule: schedule,
+        class_location_or_link: locationLink,
+        notes
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      closeAdminTuitionModal();
+      loadAdminTuitionEnrollments();
+      const banner = document.getElementById('tuition-admin-status-banner');
+      if (banner) {
+        banner.className = 'status-banner success';
+        banner.textContent = 'Tuition enrollment updated successfully.';
+        banner.style.display = 'block';
+        setTimeout(() => banner.style.display = 'none', 4000);
+      }
+    } else {
+      alert(data.error || 'Failed to update tuition assignment.');
+    }
+  } catch (err) {
+    console.error('Save tuition assignment error:', err);
+    alert('Network error saving tuition assignment.');
+  }
+};
+
+window.openAddTutorModal = function openAddTutorModal() {
+  const form = document.getElementById('admin-tutor-form');
+  if (form) form.reset();
+  const modal = document.getElementById('admin-tutor-modal');
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closeAdminTutorModal = function closeAdminTutorModal(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('admin-tutor-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.saveTutorForm = async function saveTutorForm(e) {
+  e.preventDefault();
+  const name = document.getElementById('tutor-name-input').value.trim();
+  const qualification = document.getElementById('tutor-qual-input').value.trim();
+  const subjects = document.getElementById('tutor-subjects-input').value.trim();
+  const phone = document.getElementById('tutor-phone-input').value.trim();
+  const mode = document.getElementById('tutor-mode-input').value;
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch('/api/tuition/admin/tutors', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name,
+        qualification,
+        subjects_taught: subjects,
+        phone,
+        tuition_mode: mode
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      closeAdminTutorModal();
+      loadAdminTuitionEnrollments();
+      alert('New community tutor profile added successfully!');
+    } else {
+      alert(data.error || 'Failed to add tutor.');
+    }
+  } catch (err) {
+    console.error('Save tutor error:', err);
+    alert('Error saving tutor profile.');
+  }
+};
 
 
