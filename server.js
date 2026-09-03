@@ -1077,6 +1077,38 @@ app.post('/api/admin/users/create', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/tuition/subjects', async (req, res) => {
+  try {
+    const subjects = await db.getTuitionSubjects();
+    res.json({ success: true, subjects });
+  } catch (err) {
+    console.error('Error fetching tuition subjects:', err);
+    res.status(500).json({ error: 'Failed to fetch subjects.' });
+  }
+});
+
+app.post('/api/tuition/admin/subjects', authenticateToken, async (req, res) => {
+  if (!['Admin', 'Staff'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
+  }
+  try {
+    const { subject_name_en, subject_name_bn, class_level, description } = req.body;
+    if (!subject_name_en || subject_name_en.trim().length === 0) {
+      return res.status(400).json({ error: 'Subject name in English is required.' });
+    }
+    const subject = await db.addTuitionSubject({
+      subject_name_en: subject_name_en.trim(),
+      subject_name_bn: subject_name_bn ? subject_name_bn.trim() : null,
+      class_level: class_level ? class_level.trim() : 'General',
+      description: description ? description.trim() : null
+    });
+    res.json({ success: true, subject, message: 'Tuition subject choice added successfully.' });
+  } catch (err) {
+    console.error('Error adding subject choice:', err);
+    res.status(500).json({ error: 'Failed to add subject choice.' });
+  }
+});
+
 app.get('/api/tuition/tutors', async (req, res) => {
   try {
     const tutors = await db.getTutors();

@@ -1135,6 +1135,18 @@ module.exports = {
       }
     }
     return res.rows;
+  getTuitionSubjects: async () => {
+    const res = await pool.query(`SELECT * FROM tuition_subjects ORDER BY id DESC`);
+    return res.rows;
+  },
+
+  addTuitionSubject: async ({ subject_name_en, subject_name_bn, class_level, description }) => {
+    const res = await pool.query(
+      `INSERT INTO tuition_subjects (subject_name_en, subject_name_bn, class_level, description)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [subject_name_en, subject_name_bn || null, class_level || 'General', description || null]
+    );
+    return res.rows[0];
   },
 
   getAllUsers: async (roleFilter = null) => {
@@ -1158,8 +1170,17 @@ module.exports = {
     // 3. Fetch tutors from tutors table
     let tutors = [];
     try {
-      const rawTutors = await module.exports.getTutors();
-      tutors = rawTutors.map(t => ({
+      let tutorsRes = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
+      if (tutorsRes.rows.length === 0) {
+        await pool.query(`
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio) VALUES
+          ('Engr. Rafiqul Islam', '01711223344', 'rafiq.tutor@alamnagar.org', 'B.Sc in EEE (BUET)', 'Physics, Mathematics, ICT', 'both', 'Experienced mentor specializing in SSC & HSC Science & Mathematics.'),
+          ('Nusrat Jahan', '01811223344', 'nusrat.tutor@alamnagar.org', 'M.A. in English (DU)', 'English Language & Grammar, Spoken English', 'both', 'Dedicated English tutor focusing on communicative skills and foundation grammar.'),
+          ('Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.')
+        `);
+        tutorsRes = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
+      }
+      tutors = tutorsRes.rows.map(t => ({
         id: t.id,
         username: t.name,
         phone: t.phone,

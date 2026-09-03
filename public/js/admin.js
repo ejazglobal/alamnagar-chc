@@ -2691,6 +2691,7 @@ window.saveTutorForm = async function saveTutorForm(e) {
     if (res.ok) {
       closeAdminTutorModal();
       loadAdminTuitionEnrollments();
+      loadUsersAndRender();
       alert('New community tutor profile added successfully!');
     } else {
       alert(data.error || 'Failed to add tutor.');
@@ -2698,6 +2699,59 @@ window.saveTutorForm = async function saveTutorForm(e) {
   } catch (err) {
     console.error('Save tutor error:', err);
     alert('Error saving tutor profile.');
+  }
+};
+
+window.openAddSubjectModal = function() {
+  const form = document.getElementById('admin-subject-form');
+  if (form) form.reset();
+  const banner = document.getElementById('subject-modal-status');
+  if (banner) banner.style.display = 'none';
+  const modal = document.getElementById('admin-subject-modal');
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closeAddSubjectModal = function(e) {
+  if (e) e.preventDefault();
+  const modal = document.getElementById('admin-subject-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.saveSubjectForm = async function(e) {
+  if (e) e.preventDefault();
+  const subject_name_en = document.getElementById('subject-name-en').value.trim();
+  const subject_name_bn = document.getElementById('subject-name-bn').value.trim();
+  const class_level = document.getElementById('subject-class-level').value;
+  const description = document.getElementById('subject-description').value.trim();
+  const banner = document.getElementById('subject-modal-status');
+
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch('/api/tuition/admin/subjects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ subject_name_en, subject_name_bn, class_level, description })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(`Subject choice "${subject_name_en}" added successfully!`);
+      closeAddSubjectModal();
+    } else {
+      if (banner) {
+        banner.textContent = data.error || 'Failed to add subject.';
+        banner.className = 'status-banner banner-danger';
+        banner.style.display = 'block';
+      } else {
+        alert(data.error || 'Failed to add subject.');
+      }
+    }
+  } catch (err) {
+    console.error('Error saving subject choice:', err);
+    alert('Network error saving subject choice.');
   }
 };
 
