@@ -82,7 +82,7 @@ async function initializeDatabase() {
           END LOOP;
         END $$;
       `);
-      await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist', 'Tutor'))`);
+      await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist', 'Tutor', 'Student'))`);
       await pool.query(`ALTER TABLE staff_permissions ADD CONSTRAINT staff_permissions_check CHECK(permissions IN ('news', 'doctors', 'all', 'pharmacist'))`);
     } catch (cErr) {
       console.log('Role/Permissions check constraint update note:', cErr.message);
