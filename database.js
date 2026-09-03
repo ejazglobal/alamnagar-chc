@@ -1126,10 +1126,25 @@ module.exports = {
       console.warn('Tuition enrollments directory merge note:', e.message);
     }
 
+    // 3. Fetch tutors from tutors table
+    let tutors = [];
+    try {
+      const tutorsRes = await pool.query(`
+        SELECT id, name as username, phone, email, 'Tutor' as role, created_at, qualification
+        FROM tutors
+        ORDER BY id DESC
+      `);
+      tutors = tutorsRes.rows;
+    } catch (e) {
+      console.warn('Tutors directory merge note:', e.message);
+    }
+
     const userPhones = new Set(users.map(u => u.phone).filter(Boolean));
     const userNames = new Set(users.map(u => u.username ? u.username.toLowerCase() : '').filter(Boolean));
 
     const combined = [...users];
+
+    // Merge tuition student applicants
     for (const t of tuitionStudents) {
       if (!userPhones.has(t.phone) && !userNames.has(t.username ? t.username.toLowerCase() : '')) {
         combined.push({
@@ -1139,13 +1154,36 @@ module.exports = {
           email: t.email,
           role: 'Student',
           created_at: t.created_at,
-          is_tuition_applicant: true
+          is_tuition_applicant: true,
+          student_class: t.student_class
+        });
+      }
+    }
+
+    // Merge tutor profiles
+    for (const tut of tutors) {
+      if (!userPhones.has(tut.phone) && !userNames.has(tut.username ? tut.username.toLowerCase() : '')) {
+        combined.push({
+          id: `tutor_${tut.id}`,
+          username: `${tut.username} (${tut.qualification || 'Tutor'})`,
+          phone: tut.phone,
+          email: tut.email,
+          role: 'Tutor',
+          created_at: tut.created_at,
+          is_tutor_profile: true
         });
       }
     }
 
     if (roleFilter && roleFilter !== 'all') {
-      return combined.filter(u => u.role === roleFilter || (roleFilter === 'Staff' && (u.role === 'Staff' || u.role === 'Admin')));
+      const rf = roleFilter.toLowerCase();
+      return combined.filter(u => {
+        const r = (u.role || '').toLowerCase();
+        if (rf === 'staff') return r === 'staff' || r === 'admin' || r === 'observer' || r === 'pharmacist';
+        if (rf === 'student') return r === 'student' || u.is_tuition_applicant || Boolean(u.student_class);
+        if (rf === 'tutor') return r === 'tutor' || u.is_tutor_profile;
+        return r === rf;
+      });
     }
     return combined;
   },

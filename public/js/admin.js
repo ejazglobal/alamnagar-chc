@@ -55,9 +55,9 @@ async function unlockDashboard(role) {
   await loadAdminMedicines(1);
   await loadAdminTuitionEnrollments();
   
-  if (role === 'Admin') {
+  if (role === 'Admin' || role === 'Staff') {
     const staffSec = document.getElementById('admin-staff-section');
-    if (staffSec) staffSec.style.display = 'block';
+    if (staffSec && role === 'Admin') staffSec.style.display = 'block';
     setupStaffDashboardEvents();
     await loadStaffAndRender();
 
@@ -2851,10 +2851,26 @@ window.filterUsersAdmin = function(role, btn) {
   document.querySelectorAll('#users-filter-group .filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 
-  if (role === 'all') {
+  if (!role || role === 'all') {
     renderAdminUsersTable(allAdminUsers);
   } else {
-    const filtered = allAdminUsers.filter(u => u.role === role || (role === 'Staff' && (u.role === 'Staff' || u.role === 'Admin')));
+    const targetRole = role.toLowerCase();
+    const filtered = allAdminUsers.filter(u => {
+      const uRole = (u.role || '').toLowerCase();
+      if (targetRole === 'staff') {
+        return uRole === 'staff' || uRole === 'admin' || uRole === 'observer' || uRole === 'pharmacist';
+      }
+      if (targetRole === 'student') {
+        return uRole === 'student' || u.is_tuition_applicant || Boolean(u.student_class);
+      }
+      if (targetRole === 'tutor') {
+        return uRole === 'tutor' || u.is_tutor_profile;
+      }
+      if (targetRole === 'patient') {
+        return uRole === 'patient';
+      }
+      return uRole === targetRole;
+    });
     renderAdminUsersTable(filtered);
   }
 };
