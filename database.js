@@ -1179,33 +1179,29 @@ module.exports = {
 
     // Merge tuition student applicants
     for (const t of tuitionStudents) {
-      if (!userPhones.has(t.phone) && !userNames.has(t.username ? t.username.toLowerCase() : '')) {
-        combined.push({
-          id: `tuition_${t.id}`,
-          username: `${t.username} (${t.student_class || 'Tuition'})`,
-          phone: t.phone,
-          email: t.email,
-          role: 'Student',
-          created_at: t.created_at,
-          is_tuition_applicant: true,
-          student_class: t.student_class
-        });
-      }
+      combined.push({
+        id: `tuition_${t.id}`,
+        username: `${t.username} (${t.student_class || 'Tuition'})`,
+        phone: t.phone,
+        email: t.email,
+        role: 'Student',
+        created_at: t.created_at,
+        is_tuition_applicant: true,
+        student_class: t.student_class
+      });
     }
 
     // Merge tutor profiles
     for (const tut of tutors) {
-      if (!userPhones.has(tut.phone) && !userNames.has(tut.username ? tut.username.toLowerCase() : '')) {
-        combined.push({
-          id: `tutor_${tut.id}`,
-          username: `${tut.username} (${tut.qualification || 'Tutor'})`,
-          phone: tut.phone,
-          email: tut.email,
-          role: 'Tutor',
-          created_at: tut.created_at,
-          is_tutor_profile: true
-        });
-      }
+      combined.push({
+        id: `tutor_${tut.id}`,
+        username: `${tut.username} (${tut.qualification || 'Tutor'})`,
+        phone: tut.phone,
+        email: tut.email,
+        role: 'Tutor',
+        created_at: tut.created_at,
+        is_tutor_profile: true
+      });
     }
 
     if (roleFilter && roleFilter !== 'all') {

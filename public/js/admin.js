@@ -2645,7 +2645,7 @@ window.saveTuitionAssignment = async function saveTuitionAssignment(e) {
   }
 };
 
-window.openAddTutorModal = function openAddTutorModal() {
+window.openAdminTutorModal = window.openAddTutorModal = function openAddTutorModal() {
   const form = document.getElementById('admin-tutor-form');
   if (form) form.reset();
   const modal = document.getElementById('admin-tutor-modal');
@@ -3108,5 +3108,18 @@ window.deleteUserAccountAdmin = async function(id) {
   } catch (err) {
     console.error('Error deleting user:', err);
     alert('Network error deleting user account.');
+  }
+};
+
+window.toggleMedicineCatalogSection = function() {
+  const body = document.getElementById('medicine-catalog-collapsible-body');
+  const badge = document.getElementById('med-catalog-toggle-badge');
+  if (!body) return;
+  if (body.style.display === 'none' || !body.style.display) {
+    body.style.display = 'block';
+    if (badge) badge.textContent = '▲ Click to Collapse Catalog';
+  } else {
+    body.style.display = 'none';
+    if (badge) badge.textContent = '▼ Click to Expand Catalog';
   }
 };
