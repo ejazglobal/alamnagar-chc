@@ -1028,23 +1028,26 @@ function renderAuthNav() {
 
   const role = localStorage.getItem('chc_user_role');
   const name = localStorage.getItem('chc_user_name');
+  const path = window.location.pathname.toLowerCase();
+  const isTuitionPage = path.endsWith('tuition.html');
+  const isPortalPage = path.endsWith('patient-portal.html');
+  const isAdminPage = path.endsWith('admin.html');
 
   const tuitionLinkText = (TRANSLATIONS[currentLanguage] && TRANSLATIONS[currentLanguage]["nav-tuition"]) ? TRANSLATIONS[currentLanguage]["nav-tuition"] : 'Community Tuition';
 
   if (role) {
     let portalLink = '';
     if (role === 'Admin' || role === 'Staff') {
-      portalLink = `<a href="admin.html" class="nav-link btn-admin" id="link-admin" data-i18n="nav-admin">${TRANSLATIONS[currentLanguage]["nav-admin"]}</a>`;
+      portalLink = `<a href="admin.html" class="nav-link ${isAdminPage ? 'active' : ''} btn-admin" id="link-admin" data-i18n="nav-admin">${TRANSLATIONS[currentLanguage]["nav-admin"]}</a>`;
     } else {
-      portalLink = `<span class="nav-link" style="color: var(--primary-color); font-weight:600;">${currentLanguage === 'bn' ? 'স্বাগতম, ' : 'Welcome, '}${escapeHTML(name)}</span>`;
+      portalLink = `<span class="nav-link" style="color: var(--primary-color); font-weight:600;">${currentLanguage === 'bn' ? 'স্বাগতম, ' : 'Welcome, '}${escapeHTML(name)} (${escapeHTML(role)})</span>`;
     }
 
     navMenu.innerHTML = `
-      <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
-      <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
-      <a href="tuition.html" class="nav-link" id="link-tuition" data-i18n="nav-tuition">${tuitionLinkText}</a>
-      <a href="patient-portal.html" class="nav-link" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
-      <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">${TRANSLATIONS[currentLanguage]["nav-news"]}</a>
+      <a href="index.html" class="nav-link ${(!isTuitionPage && !isPortalPage && !isAdminPage) ? 'active' : ''}" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
+      <a href="index.html#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
+      <a href="tuition.html" class="nav-link ${isTuitionPage ? 'active' : ''}" id="link-tuition" data-i18n="nav-tuition">${tuitionLinkText}</a>
+      <a href="patient-portal.html" class="nav-link ${isPortalPage ? 'active' : ''}" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
       ${portalLink}
       <a href="#" class="nav-link" id="link-logout" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);" data-i18n="nav-logout">${TRANSLATIONS[currentLanguage]["nav-logout"]}</a>
     `;
@@ -1061,15 +1064,15 @@ function renderAuthNav() {
     }
   } else {
     navMenu.innerHTML = `
-      <a href="index.html" class="nav-link active" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
-      <a href="#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
-      <a href="tuition.html" class="nav-link" id="link-tuition" data-i18n="nav-tuition">${tuitionLinkText}</a>
-      <a href="patient-portal.html" class="nav-link" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
-      <a href="#news" class="nav-link" id="link-news" data-i18n="nav-news">${TRANSLATIONS[currentLanguage]["nav-news"]}</a>
+      <a href="index.html" class="nav-link ${(!isTuitionPage && !isPortalPage && !isAdminPage) ? 'active' : ''}" id="link-home" data-i18n="nav-home">${TRANSLATIONS[currentLanguage]["nav-home"]}</a>
+      <a href="index.html#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
+      <a href="tuition.html" class="nav-link ${isTuitionPage ? 'active' : ''}" id="link-tuition" data-i18n="nav-tuition">${tuitionLinkText}</a>
+      <a href="patient-portal.html" class="nav-link ${isPortalPage ? 'active' : ''}" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
       <a href="login.html" class="nav-link btn-admin" id="link-auth-btn" data-i18n="nav-login">${TRANSLATIONS[currentLanguage]["nav-login"]}</a>
     `;
   }
 }
+window.renderAuthNav = renderAuthNav;
 
 window.logoutUser = function(e) {
   if (e) e.preventDefault();

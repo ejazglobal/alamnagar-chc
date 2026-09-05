@@ -2649,8 +2649,72 @@ window.saveTuitionAssignment = async function saveTuitionAssignment(e) {
 window.openAdminTutorModal = window.openAddTutorModal = function openAddTutorModal() {
   const form = document.getElementById('admin-tutor-form');
   if (form) form.reset();
+  const editingInput = document.getElementById('tutor-id-editing');
+  if (editingInput) editingInput.value = '';
+  const title = document.getElementById('admin-tutor-modal-title');
+  if (title) title.textContent = 'Add Community Tutor';
+  const submitBtn = document.querySelector('#admin-tutor-form button[type="submit"]');
+  if (submitBtn) submitBtn.textContent = 'Add Tutor Profile';
   const modal = document.getElementById('admin-tutor-modal');
   if (modal) modal.style.display = 'flex';
+};
+
+window.openEditTutorModal = async function openEditTutorModal(tutorOrUserId) {
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch(`/api/tuition/tutors?t=${Date.now()}`);
+    const data = await res.json();
+    let tutors = data.tutors || [];
+
+    let targetTutor = tutors.find(t => String(t.id) === String(tutorOrUserId) || String(t.user_id) === String(tutorOrUserId));
+
+    if (!targetTutor) {
+      // Find from user directory
+      const user = (window.allAdminUsers || []).find(u => String(u.id) === String(tutorOrUserId));
+      if (user) {
+        targetTutor = {
+          id: `user_${user.id}`,
+          user_id: user.id,
+          name: user.username,
+          phone: user.phone || '',
+          email: user.email || '',
+          qualification: 'Community Mentor',
+          subjects_taught: 'Physics, Higher Math, ICT',
+          tuition_mode: 'both'
+        };
+      }
+    }
+
+    if (!targetTutor) {
+      alert('Tutor record not found.');
+      return;
+    }
+
+    const form = document.getElementById('admin-tutor-form');
+    if (form) form.reset();
+
+    const editingInput = document.getElementById('tutor-id-editing');
+    if (editingInput) editingInput.value = targetTutor.id;
+
+    document.getElementById('tutor-name-input').value = targetTutor.name || '';
+    document.getElementById('tutor-qual-input').value = targetTutor.qualification || '';
+    document.getElementById('tutor-subjects-input').value = targetTutor.subjects_taught || '';
+    document.getElementById('tutor-phone-input').value = targetTutor.phone || '';
+    if (document.getElementById('tutor-mode-input')) {
+      document.getElementById('tutor-mode-input').value = targetTutor.tuition_mode || 'both';
+    }
+
+    const title = document.getElementById('admin-tutor-modal-title');
+    if (title) title.textContent = `Edit Tutor Profile & Assigned Subjects (${targetTutor.name})`;
+    const submitBtn = document.querySelector('#admin-tutor-form button[type="submit"]');
+    if (submitBtn) submitBtn.textContent = 'Save Tutor Changes';
+
+    const modal = document.getElementById('admin-tutor-modal');
+    if (modal) modal.style.display = 'flex';
+  } catch (err) {
+    console.error('Error fetching tutor details for edit:', err);
+    alert('Failed to load tutor details.');
+  }
 };
 
 window.closeAdminTutorModal = function closeAdminTutorModal(e) {
@@ -2661,18 +2725,23 @@ window.closeAdminTutorModal = function closeAdminTutorModal(e) {
 
 window.saveTutorForm = async function saveTutorForm(e) {
   e.preventDefault();
+  const editingId = document.getElementById('tutor-id-editing') ? document.getElementById('tutor-id-editing').value : '';
   const name = document.getElementById('tutor-name-input').value.trim();
   const qualification = document.getElementById('tutor-qual-input').value.trim();
   const subjects = document.getElementById('tutor-subjects-input').value.trim();
   const phone = document.getElementById('tutor-phone-input').value.trim();
-  const mode = document.getElementById('tutor-mode-input').value;
+  const mode = document.getElementById('tutor-mode-input') ? document.getElementById('tutor-mode-input').value : 'both';
   const username = document.getElementById('tutor-username-input') ? document.getElementById('tutor-username-input').value.trim() : '';
   const password = document.getElementById('tutor-password-input') ? document.getElementById('tutor-password-input').value : '';
 
   try {
     const token = localStorage.getItem('chc_token');
-    const res = await fetch('/api/tuition/admin/tutors', {
-      method: 'POST',
+    const isEdit = Boolean(editingId);
+    const url = isEdit ? `/api/tuition/admin/tutors/${editingId}` : '/api/tuition/admin/tutors';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -2693,9 +2762,9 @@ window.saveTutorForm = async function saveTutorForm(e) {
       closeAdminTutorModal();
       loadAdminTuitionEnrollments();
       loadUsersAndRender();
-      alert('New community tutor profile added successfully!');
+      alert(isEdit ? 'Tutor profile & assigned subjects updated successfully!' : 'New community tutor profile added successfully!');
     } else {
-      alert(data.error || 'Failed to add tutor.');
+      alert(data.error || 'Failed to save tutor.');
     }
   } catch (err) {
     console.error('Save tutor error:', err);
@@ -2943,6 +3012,11 @@ function renderAdminUsersTable(filtered = null) {
         <td>✉️ ${escapeHTML(u.email || 'N/A')}</td>
         <td style="font-size: 0.85rem; color: var(--text-muted);">${formattedDate}</td>
         <td style="text-align: center; white-space: nowrap;">
+          ${u.role === 'Tutor' ? `
+            <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #059669; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openEditTutorModal('${u.id}')" title="Assign / Edit Subjects & Qualification">
+              📚 Subjects
+            </button>
+          ` : ''}
           <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #0284c7; color: white; width: auto; display: inline-block; margin-right: 0.2rem;" onclick="openResetPasswordModal('${u.id}')" title="Reset Password & Send Notification">
             🔑 Password
           </button>
@@ -3207,6 +3281,19 @@ window.deleteUserAccountAdmin = async function(id) {
 window.toggleMedicineCatalogSection = function() {
   const body = document.getElementById('medicine-catalog-collapsible-body');
   const badge = document.getElementById('med-catalog-toggle-badge');
+  if (!body) return;
+  if (body.style.display === 'none' || !body.style.display) {
+    body.style.display = 'block';
+    if (badge) badge.textContent = '▲ Click to Collapse Catalog';
+  } else {
+    body.style.display = 'none';
+    if (badge) badge.textContent = '▼ Click to Expand Catalog';
+  }
+};
+
+window.toggleTuitionSubjectsSection = function() {
+  const body = document.getElementById('tuition-subjects-collapsible-body');
+  const badge = document.getElementById('tuition-subjects-toggle-badge');
   if (!body) return;
   if (body.style.display === 'none' || !body.style.display) {
     body.style.display = 'block';

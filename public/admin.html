@@ -534,37 +534,45 @@
         </div>
       </section>
 
-      <!-- Tuition Subjects Catalog Panel -->
+      <!-- Tuition Subjects Catalog Panel (Collapsible) -->
       <section class="panel" id="admin-tuition-subjects-section" style="margin-top: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; cursor: pointer;" onclick="toggleTuitionSubjectsSection()">
           <div>
-            <h2 class="panel-title" style="margin-bottom: 0.25rem;">
+            <h2 class="panel-title" style="margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
               📚 Tuition Subjects & Course Catalog
+              <span id="tuition-subjects-toggle-badge" style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; padding: 0.2rem 0.65rem; border-radius: 50px; font-weight: 600; cursor: pointer;">▼ Click to Expand Catalog</span>
             </h2>
             <span style="font-size: 0.85rem; color: var(--text-muted);">Manage active tuition subjects offered to students on the public registration portal</span>
           </div>
-          <button class="btn" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem; background: var(--primary-color);" onclick="openAddSubjectModal()">
-            + Add New Subject Choice
-          </button>
+          <div style="display: flex; gap: 0.5rem;" onclick="event.stopPropagation()">
+            <button type="button" class="btn" style="width: auto; font-size: 0.85rem; padding: 0.4rem 0.85rem; background: #0284c7; color: white;" onclick="toggleTuitionSubjectsSection()">
+              Toggle Catalog
+            </button>
+            <button class="btn" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem; background: var(--primary-color);" onclick="openAddSubjectModal()">
+              + Add New Subject Choice
+            </button>
+          </div>
         </div>
 
-        <div class="table-wrapper">
-          <table class="news-manage-table">
-            <thead>
-              <tr>
-                <th style="width: 70px;">ID</th>
-                <th>Subject Name (English & Bangla)</th>
-                <th>Class Level / Category</th>
-                <th>Course Outline / Description</th>
-                <th style="width: 100px; text-align: center;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="tuition-subjects-admin-tbody">
-              <tr>
-                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading tuition subjects catalog...</td>
-              </tr>
-            </tbody>
-          </table>
+        <div id="tuition-subjects-collapsible-body" style="display: none; margin-top: 1.25rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+          <div class="table-wrapper">
+            <table class="news-manage-table">
+              <thead>
+                <tr>
+                  <th style="width: 70px;">ID</th>
+                  <th>Subject Name (English & Bangla)</th>
+                  <th>Class Level / Category</th>
+                  <th>Course Outline / Description</th>
+                  <th style="width: 100px; text-align: center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tuition-subjects-admin-tbody">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading tuition subjects catalog...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -891,11 +899,12 @@
   <div id="admin-tutor-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closeAdminTutorModal(event)">
     <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 500px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">
       <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
-        <h3 style="margin: 0; color: var(--primary-color);">Add Community Tutor</h3>
+        <h3 id="admin-tutor-modal-title" style="margin: 0; color: var(--primary-color);">Add Community Tutor</h3>
         <button class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;" onclick="closeAdminTutorModal(event)">&times;</button>
       </div>
 
       <form id="admin-tutor-form" onsubmit="saveTutorForm(event)">
+        <input type="hidden" id="tutor-id-editing" value="">
         <div class="form-group">
           <label class="form-label" for="tutor-name-input">Tutor Full Name *</label>
           <input type="text" id="tutor-name-input" class="form-control" required placeholder="e.g. Dr. Alamgir Hossain">

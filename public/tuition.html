@@ -444,12 +444,18 @@
       checkLoggedInUser();
     });
 
-    function switchTab(tabId) {
+    function switchTab(tabId, el) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
       
-      event.target.classList.add('active');
-      document.getElementById(tabId).style.display = 'block';
+      const activeBtn = el || document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
+      if (activeBtn) activeBtn.classList.add('active');
+      const targetTab = document.getElementById(tabId);
+      if (targetTab) targetTab.style.display = 'block';
+
+      if (tabId === 'tutor-classes-tab') {
+        loadTutorAssignedClasses();
+      }
     }
 
     function selectMode(mode, element) {
@@ -686,7 +692,11 @@
     }
 
     async function checkLoggedInUser() {
-      const token = localStorage.getItem('token') || localStorage.getItem('chc_token');
+      if (typeof window.renderAuthNav === 'function') {
+        window.renderAuthNav();
+      }
+
+      const token = localStorage.getItem('chc_token') || localStorage.getItem('token');
       const role = localStorage.getItem('chc_user_role');
       
       if (role === 'Tutor' || role === 'Admin' || role === 'Staff') {
@@ -700,15 +710,31 @@
 
       if (token) {
         try {
-          const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+          const res = await fetch(`/api/auth/me?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${token}` } });
           const user = await res.json();
-          if (user && user.username) {
-            document.getElementById('student-phone').value = user.phone || user.username || '';
-            document.getElementById('student-email').value = user.email || '';
-            document.getElementById('lookup-phone').value = user.phone || user.username || '';
-            lookupMyEnrollments();
+          if (user && (user.username || user.role)) {
+            if (user.username && !localStorage.getItem('chc_user_name')) {
+              localStorage.setItem('chc_user_name', user.username);
+            }
+            if (user.role && !localStorage.getItem('chc_user_role')) {
+              localStorage.setItem('chc_user_role', user.role);
+            }
+            if (typeof window.renderAuthNav === 'function') window.renderAuthNav();
+
+            if (document.getElementById('student-phone')) {
+              document.getElementById('student-phone').value = user.phone || user.username || '';
+            }
+            if (document.getElementById('student-email')) {
+              document.getElementById('student-email').value = user.email || '';
+            }
+            if (document.getElementById('lookup-phone')) {
+              document.getElementById('lookup-phone').value = user.phone || user.username || '';
+              lookupMyEnrollments();
+            }
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn('Auth me check notice:', e.message);
+        }
       }
     }
 
