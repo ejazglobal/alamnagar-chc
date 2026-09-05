@@ -2707,6 +2707,17 @@ app.get('/api/tuition/admin/enrollments', authenticateToken, async (req, res) =>
   }
 });
 
+// 5b. Public / Admin: Fetch Active Tutors List for Enrollment Dropdown
+app.get('/api/tuition/tutors', async (req, res) => {
+  try {
+    const tutors = await db.getTutors();
+    res.json({ success: true, tutors });
+  } catch (err) {
+    console.error('Error fetching tuition tutors list:', err);
+    res.status(500).json({ error: 'Failed to fetch tutors.' });
+  }
+});
+
 // 6. Admin: Update Tuition Enrollment (Assign Tutor, Status, Room/Link)
 app.put('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, res) => {
   try {
@@ -2716,9 +2727,35 @@ app.put('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, res
     const id = req.params.id;
     const { status, tutor_id, assigned_schedule, class_location_or_link, notes } = req.body;
 
+    let cleanTutorId = tutor_id;
+    if (typeof tutor_id === 'string' && tutor_id.startsWith('user_')) {
+      const uId = parseInt(tutor_id.replace('user_', ''), 10);
+      if (!isNaN(uId)) {
+        const tutors = await db.getTutors();
+        let matchedTutor = tutors.find(t => t.user_id == uId);
+        if (!matchedTutor) {
+          const userObj = await db.getUserByUsername(uId) || (await db.getAllUsers()).find(u => u.id == uId);
+          if (userObj) {
+            matchedTutor = await db.addTutor({
+              name: userObj.username,
+              phone: userObj.phone,
+              email: userObj.email,
+              qualification: 'Community Mentor',
+              subjects_taught: 'General Subjects',
+              tuition_mode: 'both',
+              user_id: uId
+            });
+          }
+        }
+        if (matchedTutor) {
+          cleanTutorId = matchedTutor.id;
+        }
+      }
+    }
+
     const updated = await db.updateTuitionEnrollment(id, {
       status,
-      tutor_id,
+      tutor_id: cleanTutorId ? parseInt(cleanTutorId) : null,
       assigned_schedule,
       class_location_or_link,
       notes

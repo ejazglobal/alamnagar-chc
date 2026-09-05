@@ -1080,6 +1080,31 @@ module.exports = {
         console.warn('Auto-seed tutors error:', sErr.message);
       }
     }
+
+    // Merge registered user accounts with role 'Tutor' if not already represented
+    try {
+      const tutorUsersRes = await pool.query(`SELECT id, username, phone, email FROM users WHERE role = 'Tutor'`);
+      const existingUserIds = new Set(res.rows.map(t => t.user_id).filter(Boolean));
+      const existingPhones = new Set(res.rows.map(t => t.phone).filter(Boolean));
+
+      for (const u of tutorUsersRes.rows) {
+        if (!existingUserIds.has(u.id) && (!u.phone || !existingPhones.has(u.phone))) {
+          res.rows.push({
+            id: `user_${u.id}`,
+            user_id: u.id,
+            name: u.username,
+            phone: u.phone,
+            email: u.email,
+            qualification: 'Community Mentor',
+            subjects_taught: 'General Subjects',
+            tuition_mode: 'both'
+          });
+        }
+      }
+    } catch (uErr) {
+      console.warn('Tutor users merge note:', uErr.message);
+    }
+
     return res.rows;
   },
 
