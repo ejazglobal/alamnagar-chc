@@ -749,33 +749,82 @@
         });
         const data = await res.json();
         if (data.success && data.classes && data.classes.length > 0) {
-          container.innerHTML = data.classes.map(c => {
-            const hasLink = Boolean(c.class_location_or_link && c.class_location_or_link.trim() !== '');
-            const isOnline = c.preferred_mode === 'online' || hasLink;
-            const roomLink = c.class_location_or_link || `video-call.html?room=chc-cls-${c.id}-${Math.random().toString(36).substr(2,9)}`;
+          // Smart Batch Grouping: Group students sharing the same room link OR class schedule
+          const batchesMap = new Map();
+
+          data.classes.forEach(c => {
+            const linkKey = (c.class_location_or_link || '').trim();
+            const groupKey = linkKey ? linkKey : `${c.student_class}_${c.assigned_schedule || 'pending'}`;
+
+            if (!batchesMap.has(groupKey)) {
+              batchesMap.set(groupKey, {
+                groupKey,
+                student_class: c.student_class,
+                subject_choices: c.subject_choices,
+                assigned_schedule: c.assigned_schedule,
+                class_location_or_link: c.class_location_or_link,
+                preferred_mode: c.preferred_mode,
+                students: []
+              });
+            }
+            batchesMap.get(groupKey).students.push(c);
+          });
+
+          const batches = Array.from(batchesMap.values());
+
+          container.innerHTML = batches.map(b => {
+            const rawLocation = (b.class_location_or_link || '').trim();
+            const isUrl = rawLocation.startsWith('http://') || rawLocation.startsWith('https://') || rawLocation.includes('.html');
+            const roomLink = isUrl 
+              ? (rawLocation.startsWith('http') ? rawLocation : `https://ashiana.online/${rawLocation.replace(/^\//, '')}`)
+              : `video-call.html?room=chc-cls-${b.students[0].id}-${Math.random().toString(36).substr(2,7)}`;
+            
+            const isOnline = b.preferred_mode === 'online' || isUrl;
+            const studentCount = b.students.length;
+
+            const studentListHtml = b.students.map(st => `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.75rem; background: #f8fafc; border-radius: 6px; margin-top: 0.35rem; border: 1px solid #e2e8f0; font-size: 0.85rem;">
+                <div>
+                  <strong style="color: var(--text-dark);">👤 ${escapeHtml(st.student_name)}</strong>
+                  ${st.email ? `<span style="color: #64748b; margin-left: 0.4rem; font-size: 0.8rem;">(${escapeHtml(st.email)})</span>` : ''}
+                </div>
+                <div style="color: #0d9488; font-weight: 600;">
+                  📞 ${escapeHtml(st.phone)}
+                </div>
+              </div>
+            `).join('');
 
             return `
-              <div class="enrollment-item" style="border-left: 4px solid #0284c7; background: #ffffff;">
+              <div class="enrollment-item" style="border-left: 5px solid #0284c7; background: #ffffff; padding: 1.25rem; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 1.25rem;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
                   <div>
-                    <h3 style="margin: 0; color: var(--text-dark);">${escapeHtml(c.student_name)}</h3>
-                    <div style="font-size: 0.85rem; color: var(--text-muted);">Class: <strong>${escapeHtml(c.student_class)}</strong> | Contact: 📞 ${escapeHtml(c.phone)} ${c.email ? `(${escapeHtml(c.email)})` : ''}</div>
+                    <h3 style="margin: 0; color: #0369a1; font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem;">
+                      🎓 ${escapeHtml(b.student_class)} Batch
+                      <span style="font-size: 0.8rem; font-weight: 600; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.6rem; border-radius: 12px;">
+                        ${studentCount} Student${studentCount > 1 ? 's' : ''}
+                      </span>
+                    </h3>
+                    <div style="font-size: 0.85rem; color: #64748b; margin-top: 0.25rem;">
+                      Subjects: <strong>${escapeHtml(b.subject_choices)}</strong>
+                    </div>
                   </div>
-                  <span class="badge-status badge-assigned">${escapeHtml((c.status || 'ASSIGNED').toUpperCase())}</span>
-                </div>
-                
-                <div style="margin-bottom: 0.5rem; font-size: 0.9rem;">
-                  <strong>Subject Choices:</strong> ${escapeHtml(c.subject_choices)}
+                  <span class="badge-status badge-assigned" style="background: #e0f2fe; color: #0369a1; font-weight: 700;">ASSIGNED BATCH</span>
                 </div>
 
-                <div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #334155;">
-                  <strong>Schedule:</strong> 🕒 ${escapeHtml(c.assigned_schedule || 'Schedule pending')}
+                <div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: #334155; background: #f0fdfa; padding: 0.6rem 0.85rem; border-radius: 6px; border: 1px solid #ccfbf1;">
+                  <strong>🕒 Weekly Schedule:</strong> ${escapeHtml(b.assigned_schedule || 'Schedule pending')} 
+                  ${!isUrl && rawLocation ? `<span style="margin-left: 1rem;"><strong>📍 Location:</strong> ${escapeHtml(rawLocation)}</span>` : ''}
                 </div>
 
-                ${(isOnline || hasLink) ? `
-                  <div style="margin-top: 0.75rem;">
-                    <a href="${escapeHtml(roomLink)}" class="btn" style="background: #0284c7; color: white; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1.25rem; font-weight: 600; text-decoration: none; border-radius: 8px;">
-                      🎥 Launch / Join Virtual Classroom
+                <div style="margin-bottom: 0.75rem;">
+                  <div style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.3rem;">Enrolled Batch Students:</div>
+                  ${studentListHtml}
+                </div>
+
+                ${(isOnline || isUrl) ? `
+                  <div style="margin-top: 1rem;">
+                    <a href="${escapeHtml(roomLink)}" class="btn" style="background: #0284c7; color: white; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.4rem; font-weight: 600; text-decoration: none; border-radius: 8px; box-shadow: 0 2px 6px rgba(2,132,199,0.25);">
+                      🎥 Launch Group Virtual Classroom (${studentCount} Student${studentCount > 1 ? 's' : ''})
                     </a>
                   </div>
                 ` : ''}
