@@ -625,65 +625,131 @@
       const phoneInput = document.getElementById('lookup-phone').value.trim();
       const container = document.getElementById('my-enrollments-list');
 
-      const token = localStorage.getItem('token');
-      const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (!phoneInput) {
+        container.innerHTML = '<p style="color: var(--danger); text-align: center; padding: 1rem;">Please enter your registered mobile phone number.</p>';
+        return;
+      }
 
-      let url = `/api/tuition/my-enrollments?t=${Date.now()}`;
-      if (phoneInput) url += `&phone=${encodeURIComponent(phoneInput)}`;
+      container.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem; color: #0d9488;">
+          <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem;">📲 Sending SMS Verification Code...</div>
+          <p style="color: #64748b; font-size: 0.85rem;">Sending a 6-digit OTP security code to <strong>${escapeHtml(phoneInput)}</strong>.</p>
+        </div>
+      `;
 
       try {
-        const res = await fetch(url, { headers });
+        const res = await fetch(`/api/tuition/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phoneInput })
+        });
         const data = await res.json();
 
-        if (data.success && data.enrollments && data.enrollments.length > 0) {
-          container.innerHTML = data.enrollments.map(e => {
-            const statusClass = e.status === 'assigned' ? 'badge-assigned' : (e.status === 'approved' ? 'badge-approved' : 'badge-pending');
-            const isOnline = e.preferred_mode === 'online';
-            const roomLink = e.class_location_or_link || `video-call.html?room=chc-cls-${e.id}-${Math.random().toString(36).substr(2,9)}`;
-
-            return `
-              <div class="enrollment-item">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-                  <div>
-                    <h3 style="margin: 0; color: var(--text-dark);">${escapeHtml(e.student_name)}</h3>
-                    <div style="font-size: 0.85rem; color: var(--text-muted);">Class: <strong>${escapeHtml(e.student_class)}</strong> | Enrolled: ${new Date(e.created_at).toLocaleDateString()}</div>
-                  </div>
-                  <span class="badge-status ${statusClass}">${escapeHtml(e.status.toUpperCase())}</span>
-                </div>
-                
-                <div style="margin-bottom: 0.75rem; font-size: 0.95rem;">
-                  <strong>Subjects Chosen:</strong> ${escapeHtml(e.subject_choices)}
-                </div>
-
-                <div style="margin-bottom: 0.75rem; font-size: 0.9rem;">
-                  <strong>Mode:</strong> ${isOnline ? '💻 Online Remote Class' : '🏫 On-Premises Classroom'} (${escapeHtml(e.preferred_time || 'Standard Schedule')})
-                </div>
-
-                ${e.tutor_name ? `
-                  <div style="background: #ffffff; border: 1px dashed #0284c7; padding: 0.85rem; border-radius: 8px; margin-top: 0.75rem;">
-                    <div style="font-weight: 700; color: #0284c7;">👨‍🏫 Assigned Tutor: ${escapeHtml(e.tutor_name)}</div>
-                    <div style="font-size: 0.85rem; color: #334155;">Schedule: ${escapeHtml(e.assigned_schedule || 'Schedule will be finalized shortly')}</div>
-                  </div>
-                ` : '<div style="font-size: 0.85rem; color: var(--warning); font-style: italic;">⏳ Tutor assignment in progress by community coordinator.</div>'}
-
-                ${(isOnline || e.class_location_or_link) ? `
-                  <div style="margin-top: 1rem;">
-                    <a href="${escapeHtml(roomLink)}" class="btn btn-primary" style="display: inline-block; padding: 0.6rem 1.25rem; font-weight: 600; text-decoration: none; border-radius: 8px;">
-                      🎥 Join Live Virtual Classroom
-                    </a>
-                  </div>
-                ` : ''}
+        if (res.ok && data.success) {
+          container.innerHTML = `
+            <div style="background: #f0fdfa; border: 2px solid #0d9488; padding: 1.75rem; border-radius: 12px; text-align: center; max-width: 480px; margin: 0 auto; box-shadow: 0 4px 12px rgba(13,148,136,0.1);">
+              <h3 style="color: #0d9488; margin-top: 0; margin-bottom: 0.5rem; font-size: 1.2rem;">🔐 SMS Security Verification</h3>
+              <p style="color: #475569; font-size: 0.85rem; margin-bottom: 1rem;">
+                We sent a 6-digit OTP code to <strong>${escapeHtml(phoneInput)}</strong>.<br>Enter the code below to verify ownership & unlock class link.
+              </p>
+              
+              <div style="margin-bottom: 1rem;">
+                <input type="text" id="lookup-otp-input" maxlength="6" placeholder="Enter 6-digit OTP" style="font-size: 1.35rem; letter-spacing: 6px; text-align: center; width: 220px; padding: 0.6rem; border: 2px solid #0d9488; border-radius: 8px; font-weight: 700; color: #0f766e; background: #ffffff;">
               </div>
-            `;
-          }).join('');
+              
+              <div>
+                <button onclick="verifyLookupOTP('${escapeHtml(phoneInput)}')" class="btn" style="background: #0d9488; color: white; padding: 0.65rem 1.75rem; font-weight: 700; border-radius: 8px; cursor: pointer; border: none; font-size: 0.95rem;">
+                  Verify & Unlock Class Link
+                </button>
+              </div>
+              <div id="lookup-otp-error" style="color: var(--danger); font-size: 0.85rem; margin-top: 0.75rem; display: none;"></div>
+            </div>
+          `;
         } else {
-          container.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No tuition enrollment applications found for this contact details.</p>`;
+          container.innerHTML = `<p style="color: var(--danger); text-align: center; padding: 1.5rem; font-weight: 600;">❌ ${escapeHtml(data.error || 'No tuition application found registered to this mobile phone number.')}</p>`;
         }
       } catch (err) {
-        console.error('Error fetching enrollments:', err);
-        container.innerHTML = `<p style="color: var(--danger); text-align: center; padding: 2rem;">Failed to retrieve enrollment records.</p>`;
+        console.error('Tuition lookup OTP send error:', err);
+        container.innerHTML = '<p style="color: var(--danger); text-align: center; padding: 1rem;">Network error sending SMS OTP. Please try again.</p>';
       }
+    }
+
+    async function verifyLookupOTP(phone) {
+      const otpInput = document.getElementById('lookup-otp-input');
+      const errorEl = document.getElementById('lookup-otp-error');
+      const container = document.getElementById('my-enrollments-list');
+
+      if (!otpInput || !otpInput.value.trim()) {
+        if (errorEl) { errorEl.textContent = 'Please enter the 6-digit OTP code sent via SMS.'; errorEl.style.display = 'block'; }
+        return;
+      }
+
+      const otp = otpInput.value.trim();
+
+      try {
+        const res = await fetch('/api/tuition/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, otp })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success && data.enrollments && data.enrollments.length > 0) {
+          renderEnrollmentCards(data.enrollments, container);
+        } else {
+          if (errorEl) { errorEl.textContent = `❌ ${data.error || 'Invalid or expired OTP code.'}`; errorEl.style.display = 'block'; }
+        }
+      } catch (err) {
+        console.error('Error verifying lookup OTP:', err);
+        if (errorEl) { errorEl.textContent = 'Network error verifying OTP code.'; errorEl.style.display = 'block'; }
+      }
+    }
+
+    function renderEnrollmentCards(enrollments, container) {
+      container.innerHTML = enrollments.map(e => {
+        const statusClass = e.status === 'assigned' ? 'badge-assigned' : (e.status === 'approved' ? 'badge-approved' : 'badge-pending');
+        const rawLocation = (e.class_location_or_link || '').trim();
+        const isUrl = rawLocation.startsWith('http://') || rawLocation.startsWith('https://') || rawLocation.includes('.html');
+        const isOnline = e.preferred_mode === 'online' || isUrl;
+        const roomLink = isUrl 
+          ? (rawLocation.startsWith('http') ? rawLocation : `https://ashiana.online/${rawLocation.replace(/^\//, '')}`)
+          : `video-call.html?room=chc-cls-${e.id}-${Math.random().toString(36).substr(2,9)}`;
+
+        return `
+          <div class="enrollment-item">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+              <div>
+                <h3 style="margin: 0; color: var(--text-dark);">${escapeHtml(e.student_name)}</h3>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">Class: <strong>${escapeHtml(e.student_class)}</strong> | Enrolled: ${new Date(e.created_at).toLocaleDateString()}</div>
+              </div>
+              <span class="badge-status ${statusClass}">${escapeHtml(e.status.toUpperCase())}</span>
+            </div>
+            
+            <div style="margin-bottom: 0.75rem; font-size: 0.95rem;">
+              <strong>Subjects Chosen:</strong> ${escapeHtml(e.subject_choices)}
+            </div>
+
+            <div style="margin-bottom: 0.75rem; font-size: 0.9rem;">
+              <strong>Mode:</strong> ${isOnline ? '💻 Online Remote Class' : '🏫 On-Premises Classroom'} (${escapeHtml(e.preferred_time || 'Standard Schedule')})
+            </div>
+
+            ${e.tutor_name ? `
+              <div style="background: #ffffff; border: 1px dashed #0284c7; padding: 0.85rem; border-radius: 8px; margin-top: 0.75rem;">
+                <div style="font-weight: 700; color: #0284c7;">👨‍🏫 Assigned Tutor: ${escapeHtml(e.tutor_name)}</div>
+                <div style="font-size: 0.85rem; color: #334155;">Schedule: ${escapeHtml(e.assigned_schedule || 'Schedule will be finalized shortly')}</div>
+              </div>
+            ` : '<div style="font-size: 0.85rem; color: var(--warning); font-style: italic;">⏳ Tutor assignment in progress by community coordinator.</div>'}
+
+            ${(isOnline || isUrl) ? `
+              <div style="margin-top: 1rem;">
+                <a href="${escapeHtml(roomLink)}" class="btn btn-primary" style="display: inline-block; padding: 0.6rem 1.25rem; font-weight: 600; text-decoration: none; border-radius: 8px;">
+                  🎥 Join Live Virtual Classroom
+                </a>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
     }
 
     async function checkLoggedInUser() {

@@ -2708,7 +2708,7 @@ app.post('/api/tuition/enroll', optionalAuthenticateToken, async (req, res) => {
   }
 });
 
-// 4. Get Student's Own Tuition Enrollments
+// 4. Get Student's Own Tuition Enrollments (Logged-in User)
 app.get('/api/tuition/my-enrollments', optionalAuthenticateToken, async (req, res) => {
   try {
     const userId = req.user ? req.user.id : null;
@@ -2723,6 +2723,56 @@ app.get('/api/tuition/my-enrollments', optionalAuthenticateToken, async (req, re
   } catch (err) {
     console.error('Error fetching student enrollments:', err);
     res.status(500).json({ error: 'Failed to fetch enrollments.' });
+  }
+});
+
+// 4a. Public Student Lookup: Request SMS OTP
+app.post('/api/tuition/send-otp', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone || typeof phone !== 'string' || phone.trim().length === 0) {
+      return res.status(400).json({ error: 'Mobile phone number is required.' });
+    }
+
+    const cleanPhone = phone.trim();
+    const enrollments = await db.getTuitionEnrollmentsByUserOrPhone(null, cleanPhone);
+    if (!enrollments || enrollments.length === 0) {
+      return res.status(404).json({ error: 'No tuition enrollment record found registered to this mobile phone number.' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await db.createOTP(null, cleanPhone, otp, expiresAt);
+    
+    mailer.sendSMS(cleanPhone, `[আলমনগর সিএইচসি] আপনার টিউশন তথ্য ও ক্লাস লিংকে প্রবেশের ওটিপি কোড: ${otp}`);
+    
+    console.log(`[TUITION OTP] Generated OTP ${otp} for phone ${cleanPhone}`);
+    res.json({ success: true, message: 'SMS verification code sent successfully.', phone: cleanPhone });
+  } catch (err) {
+    console.error('Error sending tuition lookup OTP:', err);
+    res.status(500).json({ error: 'Failed to send SMS OTP code.' });
+  }
+});
+
+// 4b. Public Student Lookup: Verify SMS OTP & Return Secure Enrollments
+app.post('/api/tuition/verify-otp', async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) {
+      return res.status(400).json({ error: 'Mobile phone number and OTP code are required.' });
+    }
+
+    const isValid = await db.verifyOTP(null, phone.trim(), otp.trim());
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired SMS OTP verification code. Please check and try again.' });
+    }
+
+    const enrollments = await db.getTuitionEnrollmentsByUserOrPhone(null, phone.trim());
+    res.json({ success: true, message: 'Identity verified successfully!', enrollments });
+  } catch (err) {
+    console.error('Error verifying tuition lookup OTP:', err);
+    res.status(500).json({ error: 'Failed to verify OTP code.' });
   }
 });
 
