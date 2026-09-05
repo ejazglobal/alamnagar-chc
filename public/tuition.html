@@ -640,7 +640,7 @@
           container.innerHTML = data.enrollments.map(e => {
             const statusClass = e.status === 'assigned' ? 'badge-assigned' : (e.status === 'approved' ? 'badge-approved' : 'badge-pending');
             const isOnline = e.preferred_mode === 'online';
-            const roomLink = e.class_location_or_link || `video-call.html?room=tuition-class-${e.id}`;
+            const roomLink = e.class_location_or_link || `video-call.html?room=chc-cls-${e.id}-${Math.random().toString(36).substr(2,9)}`;
 
             return `
               <div class="enrollment-item">
@@ -752,7 +752,7 @@
           container.innerHTML = data.classes.map(c => {
             const hasLink = Boolean(c.class_location_or_link && c.class_location_or_link.trim() !== '');
             const isOnline = c.preferred_mode === 'online' || hasLink;
-            const roomLink = c.class_location_or_link || `video-call.html?room=tuition-class-${c.id}`;
+            const roomLink = c.class_location_or_link || `video-call.html?room=chc-cls-${c.id}-${Math.random().toString(36).substr(2,9)}`;
 
             return `
               <div class="enrollment-item" style="border-left: 4px solid #0284c7; background: #ffffff;">

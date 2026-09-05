@@ -453,7 +453,7 @@ window.loadMyTuition = async function loadMyTuition() {
 
       container.innerHTML = enrollments.map(e => {
         const isOnline = e.preferred_mode === 'online';
-        const roomLink = e.class_location_or_link || `video-call.html?room=tuition-class-${e.id}`;
+        const roomLink = e.class_location_or_link || `video-call.html?room=chc-cls-${e.id}-${Math.random().toString(36).substr(2,9)}`;
         return `
           <div class="report-card" style="border-left: 4px solid var(--accent-color); flex-direction: column; align-items: flex-start; gap: 0.5rem;">
             <div style="display: flex; justify-content: space-between; width: 100%;">

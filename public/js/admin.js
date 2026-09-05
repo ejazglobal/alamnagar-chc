@@ -2577,9 +2577,13 @@ window.openAdminTuitionModal = function openAdminTuitionModal(id) {
   document.getElementById('tuition-edit-id').value = item.id;
   document.getElementById('tuition-modal-student-name').textContent = item.student_name;
   document.getElementById('tuition-modal-sub-info').textContent = `Class: ${item.student_class} | Mode: ${item.preferred_mode.toUpperCase()} | Phone: ${item.phone}`;
-  document.getElementById('tuition-status-select').value = item.status || 'pending';
-  document.getElementById('tuition-schedule-input').value = item.assigned_schedule || '';
-  document.getElementById('tuition-location-link').value = item.class_location_or_link || (item.preferred_mode === 'online' ? `video-call.html?room=tuition-class-${item.id}` : 'Room 101, CHC Learning Center');
+  const token = Array.from(window.crypto ? window.crypto.getRandomValues(new Uint8Array(8)) : [1,2,3,4,5,6,7,8], b => b.toString(16).padStart(2, '0')).join('');
+  const defaultSecureRoom = `video-call.html?room=chc-cls-${token}`;
+  let currentLocation = item.class_location_or_link || '';
+  if (!currentLocation || currentLocation.includes('tuition-class-')) {
+    currentLocation = item.preferred_mode === 'online' ? defaultSecureRoom : 'Room 101, CHC Learning Center';
+  }
+  document.getElementById('tuition-location-link').value = currentLocation;
   document.getElementById('tuition-admin-notes').value = item.notes || '';
 
   // Populate Tutors select

@@ -241,6 +241,17 @@ async function initializeDatabase() {
       )
     `);
 
+    try {
+      // Migrate predictable tuition-class-X room links to secure random cryptographic tokens
+      await pool.query(`
+        UPDATE tuition_enrollments 
+        SET class_location_or_link = 'video-call.html?room=chc-cls-' || MD5(RANDOM()::text || id::text)
+        WHERE class_location_or_link LIKE '%tuition-class-%'
+      `);
+    } catch (migErr) {
+      console.log('Tuition room link security migration notice:', migErr.message);
+    }
+
     // Seed default subjects if empty
     try {
       const subjectCheck = await pool.query('SELECT COUNT(*) FROM tuition_subjects');
@@ -1304,10 +1315,13 @@ module.exports = {
   createTuitionEnrollment: async (enrollmentData) => {
     const { user_id, student_name, phone, email, student_class, subject_choices, preferred_mode, preferred_time, notes } = enrollmentData;
     const subjectsStr = Array.isArray(subject_choices) ? subject_choices.join(', ') : subject_choices;
+    const crypto = require('crypto');
+    const defaultRoomLink = preferred_mode === 'online' ? `video-call.html?room=chc-cls-${crypto.randomBytes(8).toString('hex')}` : null;
+
     const res = await pool.query(
-      `INSERT INTO tuition_enrollments (user_id, student_name, phone, email, student_class, subject_choices, preferred_mode, preferred_time, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [user_id || null, student_name, phone, email || null, student_class, subjectsStr, preferred_mode || 'on-premises', preferred_time || '', notes || '']
+      `INSERT INTO tuition_enrollments (user_id, student_name, phone, email, student_class, subject_choices, preferred_mode, preferred_time, notes, class_location_or_link)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [user_id || null, student_name, phone, email || null, student_class, subjectsStr, preferred_mode || 'on-premises', preferred_time || '', notes || '', defaultRoomLink]
     );
     return res.rows[0];
   },
