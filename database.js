@@ -274,9 +274,9 @@ async function initializeDatabase() {
       console.warn('Tuition subjects seed notice:', sErr.message);
     }
 
-    // Seed default tutors if empty
+    // Seed default tutors if missing
     try {
-      const tutorCheck = await pool.query('SELECT COUNT(*) FROM tutors');
+      const tutorCheck = await pool.query("SELECT COUNT(*) FROM tutors WHERE email IN ('rafiq.tutor@alamnagar.org', 'nusrat.tutor@alamnagar.org', 'mahmud.tutor@alamnagar.org')");
       if (parseInt(tutorCheck.rows[0].count) === 0) {
         await pool.query(`
           INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio) VALUES
@@ -1058,7 +1058,28 @@ module.exports = {
   },
 
   getTutors: async () => {
-    const res = await pool.query(`SELECT * FROM tutors WHERE status = 'active' ORDER BY id ASC`);
+    let res = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
+    const hasDefault = res.rows.some(t => t.email === 'rafiq.tutor@alamnagar.org');
+    if (res.rows.length === 0 || !hasDefault) {
+      try {
+        await pool.query(`
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+          SELECT 'Engr. Rafiqul Islam', '01711223344', 'rafiq.tutor@alamnagar.org', 'B.Sc in EEE (BUET)', 'Physics, Mathematics, ICT', 'both', 'Experienced mentor specializing in SSC & HSC Science & Mathematics.'
+          WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'rafiq.tutor@alamnagar.org');
+          
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+          SELECT 'Nusrat Jahan', '01811223344', 'nusrat.tutor@alamnagar.org', 'M.A. in English (DU)', 'English Language & Grammar, Spoken English', 'both', 'Dedicated English tutor focusing on communicative skills and foundation grammar.'
+          WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'nusrat.tutor@alamnagar.org');
+          
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+          SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.'
+          WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'mahmud.tutor@alamnagar.org');
+        `);
+        res = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
+      } catch (sErr) {
+        console.warn('Auto-seed tutors error:', sErr.message);
+      }
+    }
     return res.rows;
   },
 
@@ -1101,23 +1122,7 @@ module.exports = {
     return res.rows;
   },
 
-  getTutors: async () => {
-    let res = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
-    if (res.rows.length === 0) {
-      try {
-        await pool.query(`
-          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio) VALUES
-          ('Engr. Rafiqul Islam', '01711223344', 'rafiq.tutor@alamnagar.org', 'B.Sc in EEE (BUET)', 'Physics, Mathematics, ICT', 'both', 'Experienced mentor specializing in SSC & HSC Science & Mathematics.'),
-          ('Nusrat Jahan', '01811223344', 'nusrat.tutor@alamnagar.org', 'M.A. in English (DU)', 'English Language & Grammar, Spoken English', 'both', 'Dedicated English tutor focusing on communicative skills and foundation grammar.'),
-          ('Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.')
-        `);
-        res = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
-      } catch (sErr) {
-        console.warn('Auto-seed tutors error:', sErr.message);
-      }
-    }
-    return res.rows;
-  },
+
 
   getTuitionSubjects: async () => {
     const res = await pool.query(`SELECT * FROM tuition_subjects ORDER BY id DESC`);
@@ -1155,12 +1160,20 @@ module.exports = {
     let tutors = [];
     try {
       let tutorsRes = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
-      if (tutorsRes.rows.length === 0) {
+      const hasDefaultTutor = tutorsRes.rows.some(t => t.email === 'rafiq.tutor@alamnagar.org');
+      if (tutorsRes.rows.length === 0 || !hasDefaultTutor) {
         await pool.query(`
-          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio) VALUES
-          ('Engr. Rafiqul Islam', '01711223344', 'rafiq.tutor@alamnagar.org', 'B.Sc in EEE (BUET)', 'Physics, Mathematics, ICT', 'both', 'Experienced mentor specializing in SSC & HSC Science & Mathematics.'),
-          ('Nusrat Jahan', '01811223344', 'nusrat.tutor@alamnagar.org', 'M.A. in English (DU)', 'English Language & Grammar, Spoken English', 'both', 'Dedicated English tutor focusing on communicative skills and foundation grammar.'),
-          ('Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.')
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+          SELECT 'Engr. Rafiqul Islam', '01711223344', 'rafiq.tutor@alamnagar.org', 'B.Sc in EEE (BUET)', 'Physics, Mathematics, ICT', 'both', 'Experienced mentor specializing in SSC & HSC Science & Mathematics.'
+          WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'rafiq.tutor@alamnagar.org');
+          
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+          SELECT 'Nusrat Jahan', '01811223344', 'nusrat.tutor@alamnagar.org', 'M.A. in English (DU)', 'English Language & Grammar, Spoken English', 'both', 'Dedicated English tutor focusing on communicative skills and foundation grammar.'
+          WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'nusrat.tutor@alamnagar.org');
+          
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+          SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.'
+          WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'mahmud.tutor@alamnagar.org');
         `);
         tutorsRes = await pool.query(`SELECT * FROM tutors ORDER BY id DESC`);
       }
