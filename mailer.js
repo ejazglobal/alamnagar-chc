@@ -737,7 +737,7 @@ function sendTuitionAssignmentNotification(enrollment) {
           <p style="margin: 5px 0;"><strong>Student Name:</strong> ${student_name}</p>
           <p style="margin: 5px 0;"><strong>Class Level:</strong> ${student_class}</p>
           <p style="margin: 5px 0;"><strong>Subjects:</strong> ${subject_choices}</p>
-          <p style="margin: 5px 0;"><strong>Assigned Tutor:</strong> 👨‍🏫 ${tutor_name || 'Assigned Mentor'} ${tutor_phone ? `(Contact: ${tutor_phone})` : ''}</p>
+          <p style="margin: 5px 0;"><strong>Assigned Tutor:</strong> 👨‍🏫 ${tutor_name || 'Assigned Mentor'}</p>
           <p style="margin: 5px 0;"><strong>Weekly Schedule:</strong> 🕒 ${assigned_schedule || 'As scheduled'}</p>
           <p style="margin: 5px 0;"><strong>Location / Mode:</strong> ${isOnline ? '💻 Live Virtual Classroom' : '🏫 On-Premises Classroom'}</p>
           ${class_location_or_link ? `<p style="margin: 5px 0;"><strong>Class Link / Room:</strong> 📍 ${class_location_or_link}</p>` : ''}

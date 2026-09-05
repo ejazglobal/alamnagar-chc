@@ -1074,7 +1074,11 @@ app.post('/api/tuition/admin/subjects', authenticateToken, async (req, res) => {
 
 app.get('/api/tuition/tutors', async (req, res) => {
   try {
-    const tutors = await db.getTutors();
+    const rawTutors = await db.getTutors();
+    const tutors = rawTutors.map(t => ({
+      ...t,
+      phone: req.headers.authorization ? t.phone : 'Available via portal'
+    }));
     res.json({ success: true, tutors });
   } catch (err) {
     console.error('Error fetching tutors:', err);
@@ -2611,7 +2615,11 @@ app.get('/api/tuition/subjects', async (req, res) => {
 // 2. Get available tutors list
 app.get('/api/tuition/tutors', async (req, res) => {
   try {
-    const tutors = await db.getTutors();
+    const rawTutors = await db.getTutors();
+    const tutors = rawTutors.map(t => ({
+      ...t,
+      phone: req.headers.authorization ? t.phone : 'Available via portal'
+    }));
     res.json({ success: true, tutors });
   } catch (err) {
     console.error('Error fetching tutors:', err);
