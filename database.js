@@ -63,6 +63,7 @@ async function initializeDatabase() {
     try {
       await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
       await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist', 'Tutor', 'Student'))`);
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`);
       await pool.query(`ALTER TABLE staff_permissions DROP CONSTRAINT IF EXISTS staff_permissions_check;`);
       await pool.query(`ALTER TABLE staff_permissions ADD CONSTRAINT staff_permissions_check CHECK(permissions IN ('news', 'doctors', 'all', 'pharmacist'))`);
     } catch (cErr) {
@@ -1062,10 +1063,10 @@ module.exports = {
   },
 
   addTutor: async (tutorData) => {
-    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio } = tutorData;
+    const { name, phone, email, qualification, subjects_taught, tuition_mode, bio, user_id } = tutorData;
     const res = await pool.query(
-      `INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '']
+      `INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '', user_id || null]
     );
     return res.rows[0];
   },
@@ -1293,6 +1294,39 @@ module.exports = {
       [status || null, tutor_id || null, assigned_schedule || null, class_location_or_link || null, notes || null, id]
     );
     return res.rows[0];
+  },
+
+  updateUserInfo: async (id, userData) => {
+    const { phone, email, role, is_active } = userData;
+    const normalizedPhone = normalizePhone(phone);
+    const cleanEmail = email ? email.trim().toLowerCase() : null;
+    const isActiveBool = is_active !== undefined ? Boolean(is_active) : true;
+
+    const res = await pool.query(
+      `UPDATE users 
+       SET phone = COALESCE($1, phone),
+           email = COALESCE($2, email),
+           role = COALESCE($3, role),
+           is_active = COALESCE($4, is_active)
+       WHERE id = $5 RETURNING id, username, phone, email, role, is_active, created_at`,
+      [normalizedPhone, cleanEmail, role || null, isActiveBool, id]
+    );
+    return res.rows[0];
+  },
+
+  deleteUser: async (id) => {
+    const res = await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
+    return { changes: res.rowCount };
+  },
+
+  deleteTutor: async (id) => {
+    const res = await pool.query(`DELETE FROM tutors WHERE id = $1`, [id]);
+    return { changes: res.rowCount };
+  },
+
+  deleteTuitionEnrollment: async (id) => {
+    const res = await pool.query(`DELETE FROM tuition_enrollments WHERE id = $1`, [id]);
+    return { changes: res.rowCount };
   },
 
   // --- SYSTEM MAINTENANCE & CLEANUP HELPERS ---

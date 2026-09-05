@@ -3034,7 +3034,14 @@ window.openEditUserModal = function(id) {
   document.getElementById('edit-user-phone').value = user.phone || '';
   document.getElementById('edit-user-email').value = user.email || '';
   if (document.getElementById('edit-user-role')) {
-    document.getElementById('edit-user-role').value = user.role || 'Patient';
+    const r = user.role || 'Patient';
+    const roleSelect = document.getElementById('edit-user-role');
+    const matchedOpt = Array.from(roleSelect.options).find(o => o.value.toLowerCase() === r.toLowerCase());
+    if (matchedOpt) {
+      roleSelect.value = matchedOpt.value;
+    } else {
+      roleSelect.value = 'Staff';
+    }
   }
   if (document.getElementById('edit-user-status')) {
     document.getElementById('edit-user-status').value = isSuspended ? 'suspended' : 'active';

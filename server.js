@@ -994,44 +994,7 @@ app.delete('/api/admin/staff/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// --- ADMIN USER DIRECTORY & RESET ENDPOINTS ---
-app.get('/api/admin/users', authenticateToken, async (req, res) => {
-  if (!['Admin', 'Staff'].includes(req.user.role)) {
-    return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
-  }
-  try {
-    const roleFilter = req.query.role || null;
-    const users = await db.getAllUsers(roleFilter);
-    res.json({ success: true, users });
-  } catch (err) {
-    console.error('Error fetching users:', err);
-    res.status(500).json({ error: 'Database error fetching users.' });
-  }
-});
-
-app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'Admin') {
-    return res.status(403).json({ error: 'Access Denied: Admin only.' });
-  }
-  const userId = parseInt(req.params.id, 10);
-  const { password } = req.body;
-  if (isNaN(userId)) {
-    return res.status(400).json({ error: 'Invalid user ID.' });
-  }
-  if (!password || password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
-  }
-  try {
-    const result = await db.updateUserPassword(userId, password);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-    res.json({ message: 'User password reset successfully.' });
-  } catch (err) {
-    console.error('Error resetting user password:', err);
-    res.status(500).json({ error: 'Database error resetting password.' });
-  }
-});
+// --- ADMIN USER CREATION ENDPOINT ---
 app.post('/api/admin/users/create', authenticateToken, async (req, res) => {
   if (!['Admin', 'Staff'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
@@ -2849,6 +2812,7 @@ app.get('/api/tuition/tutor/my-classes', authenticateToken, async (req, res) => 
 });
 
 // 9. Admin User Directory & Password Settings
+// 9. Admin User Directory & Account Credentials Management
 app.get('/api/admin/users', authenticateToken, async (req, res) => {
   try {
     if (!['Admin', 'Staff'].includes(req.user.role)) {
@@ -2869,7 +2833,7 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
       return res.status(403).json({ error: 'Access denied.' });
     }
     const rawId = req.params.id;
-    const { newPassword } = req.body;
+    const newPassword = req.body.newPassword || req.body.password;
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
@@ -2883,7 +2847,6 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
         return res.status(404).json({ error: 'Tuition student record not found.' });
       }
 
-      // Create or update login account for tuition student
       updatedUser = await db.createUser({
         username: student.phone || student.student_name.toLowerCase().replace(/\s+/g, '_'),
         password: newPassword,
@@ -2891,6 +2854,22 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
         phone: student.phone,
         role: 'Student'
       });
+    } else if (rawId.toString().startsWith('tutor_')) {
+      const tutorId = rawId.replace('tutor_', '');
+      const tutors = await db.getTutors();
+      const tutor = tutors.find(t => t.id == tutorId);
+      if (!tutor) {
+        return res.status(404).json({ error: 'Tutor profile record not found.' });
+      }
+
+      updatedUser = await db.createUser({
+        username: tutor.phone || tutor.name.toLowerCase().replace(/\s+/g, '_'),
+        password: newPassword,
+        email: tutor.email,
+        phone: tutor.phone,
+        role: 'Tutor'
+      });
+      await db.updateTutor(tutorId, { user_id: updatedUser.id });
     } else {
       updatedUser = await db.adminResetUserPassword(rawId, newPassword);
     }
@@ -2899,15 +2878,132 @@ app.post('/api/admin/users/:id/reset-password', authenticateToken, async (req, r
       return res.status(404).json({ error: 'User record not found.' });
     }
 
-    // Send SMS / Email notification to user if contact is present
     if (updatedUser.phone) {
-      mailer.sendSMS(updatedUser.phone, `[আলমনগর সিএইচসি] আপনার শিক্ষার্থী পোর্টাল অ্যাকাউন্ট আপডেট করা হয়েছে। ইউজারনেম: ${updatedUser.username}, পাসওয়ার্ড: ${newPassword}`);
+      mailer.sendSMS(updatedUser.phone, `[আলমনগর সিএইচসি] আপনার ইউজারনেম: ${updatedUser.username}, নতুন পাসওয়ার্ড: ${newPassword}`);
     }
 
-    res.json({ success: true, message: `Password for ${updatedUser.username} set successfully. SMS sent to student.`, user: updatedUser });
+    res.json({ success: true, message: `Password for ${updatedUser.username} set successfully.`, user: updatedUser });
   } catch (err) {
     console.error('Error resetting user password:', err);
     res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
+app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied. Admin or Staff privileges required.' });
+    }
+    const rawId = req.params.id;
+    const { phone, email, role, status, is_active } = req.body;
+    const isActiveBool = status !== undefined ? status === 'active' : (is_active !== undefined ? Boolean(is_active) : true);
+
+    if (rawId.toString().startsWith('tutor_')) {
+      const tutorId = rawId.replace('tutor_', '');
+      const tutor = await db.updateTutor(tutorId, { phone, email, status: status || 'active' });
+      if (tutor && tutor.user_id) {
+        await db.updateUserInfo(tutor.user_id, { phone, email, role: 'Tutor', is_active: isActiveBool });
+      }
+      return res.json({ success: true, message: 'Tutor profile updated successfully.', user: tutor });
+    }
+
+    if (rawId.toString().startsWith('tuition_')) {
+      const enrollmentId = rawId.replace('tuition_', '');
+      return res.json({ success: true, message: 'Student application info updated.' });
+    }
+
+    const numericId = parseInt(rawId, 10);
+    if (isNaN(numericId)) {
+      return res.status(400).json({ error: 'Invalid User ID.' });
+    }
+
+    const cleanRole = role && ['Admin', 'Staff', 'Doctor', 'Pharmacist', 'Observer', 'Tutor', 'Student', 'Patient'].includes(role) ? role : null;
+    const updatedUser = await db.updateUserInfo(numericId, { phone, email, role: cleanRole, is_active: isActiveBool });
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User account not found.' });
+    }
+
+    if (cleanRole === 'Tutor') {
+      const existingTutors = await db.getTutors();
+      const tutorExists = existingTutors.some(t => t.user_id === numericId || (t.phone && updatedUser.phone && t.phone === updatedUser.phone));
+      if (!tutorExists) {
+        await db.addTutor({
+          name: updatedUser.username,
+          phone: updatedUser.phone,
+          email: updatedUser.email,
+          qualification: 'Community Mentor',
+          subjects_taught: 'General Subjects',
+          tuition_mode: 'both',
+          bio: 'Community tutor mentor',
+          user_id: numericId
+        });
+      }
+    }
+
+    res.json({ success: true, message: `Account '${updatedUser.username}' updated successfully.`, user: updatedUser });
+  } catch (err) {
+    console.error('Error updating user info:', err);
+    res.status(500).json({ error: 'Failed to update user account: ' + err.message });
+  }
+});
+
+app.delete('/api/admin/users/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    const rawId = req.params.id;
+    if (rawId.toString().startsWith('tutor_')) {
+      const tutorId = rawId.replace('tutor_', '');
+      await db.deleteTutor(tutorId);
+      return res.json({ success: true, message: 'Tutor profile deleted successfully.' });
+    }
+    if (rawId.toString().startsWith('tuition_')) {
+      const enrollmentId = rawId.replace('tuition_', '');
+      await db.deleteTuitionEnrollment(enrollmentId);
+      return res.json({ success: true, message: 'Tuition application deleted successfully.' });
+    }
+    const numericId = parseInt(rawId, 10);
+    if (isNaN(numericId)) {
+      return res.status(400).json({ error: 'Invalid User ID.' });
+    }
+    if (numericId === 1) {
+      return res.status(400).json({ error: 'Cannot delete primary Admin account.' });
+    }
+    const deleted = await db.deleteUser(numericId);
+    if (deleted.changes === 0) {
+      return res.status(404).json({ error: 'User account not found.' });
+    }
+    res.json({ success: true, message: 'User account deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting user account:', err);
+    res.status(500).json({ error: 'Failed to delete user account.' });
+  }
+});
+
+app.delete('/api/tuition/admin/tutors/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    await db.deleteTutor(req.params.id);
+    res.json({ success: true, message: 'Tutor profile deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting tutor:', err);
+    res.status(500).json({ error: 'Failed to delete tutor profile.' });
+  }
+});
+
+app.delete('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    await db.deleteTuitionEnrollment(req.params.id);
+    res.json({ success: true, message: 'Tuition enrollment deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting tuition enrollment:', err);
+    res.status(500).json({ error: 'Failed to delete tuition enrollment.' });
   }
 });
 
