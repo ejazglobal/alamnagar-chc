@@ -259,7 +259,7 @@ async function initializeDatabase() {
           ['Chemistry (Organic & Physical)', 'রসায়ন (জৈব ও ভৌত)', 'HSC (Class 11-12)', 'Organic reaction mechanisms, electrochemistry and kinetics'],
           ['Higher Math & Calculus', 'উচ্চতর গণিত ও ক্যালকুলাস', 'HSC (Class 11-12)', 'Differential calculus, integral calculus, matrices and vectors'],
           ['ICT & Programming Fundamentals', 'আইসিটি ও প্রোগ্রামিং', 'HSC (Class 11-12)', 'C programming, web design basics, database principles'],
-          ['Holy Qur\'an & Tajweed', 'পবিত্র কুরআন ও তাজবীদ', 'Islamic Studies', 'Proper recitation, memorization, and Islamic ethics'],
+          ['Holy Qur\'\'an & Tajweed', 'পবিত্র কুরআন ও তাজবীদ', 'Islamic Studies', 'Proper recitation, memorization, and Islamic ethics'],
           ['Spoken English & Communication', 'স্পোকেন ইংলিশ', 'Skills Development', 'Practical conversation, public speaking and business communication']
         ];
         for (const sub of defaultSubjects) {
@@ -288,7 +288,7 @@ async function initializeDatabase() {
       `);
       await pool.query(`
         INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
-        SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.'
+        SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur''an & Tajweed', 'on-premises', 'Certified Qur''an teacher providing Tajweed and Islamic morals instruction.'
         WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'mahmud.tutor@alamnagar.org');
       `);
       await pool.query(`
@@ -1082,7 +1082,7 @@ module.exports = {
       `);
       await pool.query(`
         INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
-        SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.'
+        SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur''an & Tajweed', 'on-premises', 'Certified Qur''an teacher providing Tajweed and Islamic morals instruction.'
         WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'mahmud.tutor@alamnagar.org');
       `);
       await pool.query(`
@@ -1241,7 +1241,7 @@ module.exports = {
         `);
         await pool.query(`
           INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
-          SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.'
+          SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur''an & Tajweed', 'on-premises', 'Certified Qur''an teacher providing Tajweed and Islamic morals instruction.'
           WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'mahmud.tutor@alamnagar.org');
         `);
         await pool.query(`
