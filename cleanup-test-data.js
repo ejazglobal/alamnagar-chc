@@ -91,6 +91,18 @@ async function runCleanup() {
       const delPatients = await client.query("DELETE FROM users WHERE role = 'Patient'");
       console.log(` -> Deleted ${delPatients.rowCount} row(s) from 'users' (Patient role).`);
 
+      const delEnrollments = await client.query('DELETE FROM tuition_enrollments');
+      console.log(` -> Deleted ${delEnrollments.rowCount} row(s) from 'tuition_enrollments'.`);
+
+      const delTutors = await client.query('DELETE FROM tutors');
+      console.log(` -> Deleted ${delTutors.rowCount} row(s) from 'tutors'.`);
+
+      const delUserTutors = await client.query("DELETE FROM users WHERE LOWER(role) = 'tutor' OR email LIKE '%tutor%'");
+      console.log(` -> Deleted ${delUserTutors.rowCount} row(s) from 'users' (Tutor role).`);
+
+      await client.query("ALTER SEQUENCE tutors_id_seq RESTART WITH 1");
+      console.log(" -> Reset 'tutors_id_seq' sequence back to 1.");
+
       await client.query('COMMIT');
       console.log(' -> Database transactions successfully committed.');
     } catch (dbErr) {

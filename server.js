@@ -1235,6 +1235,32 @@ app.delete('/api/admin/users/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Admin Endpoint: Wipe all tutors and reset tutor sequence counter back to 1
+app.post('/api/admin/reset-tutors', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin only.' });
+  }
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("UPDATE tuition_enrollments SET assigned_tutor_id = NULL, status = 'pending'");
+    const delTutors = await client.query('DELETE FROM tutors');
+    const delUserTutors = await client.query("DELETE FROM users WHERE LOWER(role) = 'tutor' OR email LIKE '%tutor%'");
+    await client.query("ALTER SEQUENCE tutors_id_seq RESTART WITH 1");
+    await client.query('COMMIT');
+    res.json({
+      success: true,
+      message: `Tutor directory reset successfully. Deleted ${delTutors.rowCount} tutor record(s) and ${delUserTutors.rowCount} tutor account(s). Sequence tutors_id_seq reset back to 1.`
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error resetting tutors:', err);
+    res.status(500).json({ error: 'Failed to reset tutors: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // --- FORGOT PASSWORD ENDPOINTS ---
 app.post('/api/auth/forgot-password', async (req, res) => {
   const { usernameOrContact } = req.body;
