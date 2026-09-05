@@ -23,7 +23,7 @@ async function runTutorReset() {
     await client.query('BEGIN');
 
     // 1. Unassign assigned tutors from enrollments
-    const unassignRes = await client.query(`UPDATE tuition_enrollments SET assigned_tutor_id = NULL, status = 'pending'`);
+    const unassignRes = await client.query(`UPDATE tuition_enrollments SET tutor_id = NULL, status = 'pending'`);
     console.log(` -> Unassigned tutors from ${unassignRes.rowCount} tuition enrollment batch(es).`);
 
     // 2. Clear all rows from tutors table

@@ -1243,7 +1243,7 @@ app.post('/api/admin/reset-tutors', authenticateToken, async (req, res) => {
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query("UPDATE tuition_enrollments SET assigned_tutor_id = NULL, status = 'pending'");
+    await client.query("UPDATE tuition_enrollments SET tutor_id = NULL, status = 'pending'");
     const delTutors = await client.query('DELETE FROM tutors');
     const delUserTutors = await client.query("DELETE FROM users WHERE LOWER(role) = 'tutor' OR email LIKE '%tutor%'");
     await client.query("ALTER SEQUENCE tutors_id_seq RESTART WITH 1");
