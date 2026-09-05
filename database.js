@@ -387,9 +387,9 @@ async function initializeDatabase() {
       try {
         await pool.query("ALTER TABLE users ALTER COLUMN email DROP NOT NULL");
         await pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key");
-        // Drop and recreate user role check constraint to include Observer
+        // Drop and recreate user role check constraint to include Observer, Pharmacist, Tutor, Student
         await pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
-        await pool.query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer'))");
+        await pool.query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('Admin', 'Staff', 'Patient', 'Doctor', 'Observer', 'Pharmacist', 'Tutor', 'Student'))");
       } catch (e) {
         console.warn("Could not alter constraints:", e.message);
       }
