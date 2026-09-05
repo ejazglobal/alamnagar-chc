@@ -534,6 +534,40 @@
         </div>
       </section>
 
+      <!-- Tuition Subjects Catalog Panel -->
+      <section class="panel" id="admin-tuition-subjects-section" style="margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <h2 class="panel-title" style="margin-bottom: 0.25rem;">
+              📚 Tuition Subjects & Course Catalog
+            </h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Manage active tuition subjects offered to students on the public registration portal</span>
+          </div>
+          <button class="btn" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem; background: var(--primary-color);" onclick="openAddSubjectModal()">
+            + Add New Subject Choice
+          </button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="news-manage-table">
+            <thead>
+              <tr>
+                <th style="width: 70px;">ID</th>
+                <th>Subject Name (English & Bangla)</th>
+                <th>Class Level / Category</th>
+                <th>Course Outline / Description</th>
+                <th style="width: 100px; text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tuition-subjects-admin-tbody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading tuition subjects catalog...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- System User Directory & Credentials Management Panel -->
       <section class="panel" id="admin-user-directory-section" style="margin-top: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
@@ -907,6 +941,8 @@
         <button type="submit" class="btn" style="background-color: var(--accent-color);">Add Tutor Profile</button>
       </form>
     </div>
+  </div>
+
   <!-- Add Subject Choice Modal -->
   <div id="admin-subject-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;" onclick="closeAddSubjectModal(event)">
     <div class="modal-content" style="background: white; border-radius: 8px; width: 90%; max-width: 480px; padding: 1.5rem; box-shadow: var(--shadow-lg);" onclick="event.stopPropagation()">

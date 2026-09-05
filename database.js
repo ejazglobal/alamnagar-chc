@@ -1367,6 +1367,11 @@ module.exports = {
     return { changes: res.rowCount };
   },
 
+  deleteTuitionSubject: async (id) => {
+    const res = await pool.query(`DELETE FROM tuition_subjects WHERE id = $1`, [id]);
+    return { changes: res.rowCount };
+  },
+
   // --- SYSTEM MAINTENANCE & CLEANUP HELPERS ---
   cleanTestData: async (options = { deletePatientUsers: true }) => {
     const client = await pool.connect();

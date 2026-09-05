@@ -3044,7 +3044,7 @@ app.delete('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, 
   }
 });
 
-// 10. Admin: Add Subject
+// 10. Admin: Add & Delete Subject
 app.post('/api/tuition/admin/subjects', authenticateToken, async (req, res) => {
   try {
     if (!['Admin', 'Staff'].includes(req.user.role)) {
@@ -3059,6 +3059,19 @@ app.post('/api/tuition/admin/subjects', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Admin adding subject error:', err);
     res.status(500).json({ error: 'Failed to add subject.' });
+  }
+});
+
+app.delete('/api/tuition/admin/subjects/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+    await db.deleteTuitionSubject(req.params.id);
+    res.json({ success: true, message: 'Tuition subject choice deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting tuition subject:', err);
+    res.status(500).json({ error: 'Failed to delete subject choice.' });
   }
 });
 

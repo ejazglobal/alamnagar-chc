@@ -54,6 +54,7 @@ async function unlockDashboard(role) {
   renderGalleryManageTable();
   await loadAdminMedicines(1);
   await loadAdminTuitionEnrollments();
+  await loadTuitionSubjectsAndRender();
   
   if (role === 'Admin' || role === 'Staff') {
     const staffSec = document.getElementById('admin-staff-section');
@@ -2740,6 +2741,7 @@ window.saveSubjectForm = async function(e) {
     if (res.ok && data.success) {
       alert(`Subject choice "${subject_name_en}" added successfully!`);
       closeAddSubjectModal();
+      await loadTuitionSubjectsAndRender();
     } else {
       if (banner) {
         banner.textContent = data.error || 'Failed to add subject.';
@@ -2752,6 +2754,69 @@ window.saveSubjectForm = async function(e) {
   } catch (err) {
     console.error('Error saving subject choice:', err);
     alert('Network error saving subject choice.');
+  }
+};
+
+window.loadTuitionSubjectsAndRender = async function() {
+  const tbody = document.getElementById('tuition-subjects-admin-tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch('/api/tuition/subjects?t=' + Date.now());
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const subjects = data.subjects || [];
+
+    if (subjects.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No tuition subjects created yet. Click "+ Add New Subject Choice" to add course subjects.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = subjects.map(s => `
+      <tr>
+        <td><strong style="color: var(--primary-color);">#${s.id}</strong></td>
+        <td>
+          <strong style="color: var(--text-dark);">${escapeHTML(s.subject_name_en)}</strong>
+          ${s.subject_name_bn ? `<div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHTML(s.subject_name_bn)}</div>` : ''}
+        </td>
+        <td>
+          <span style="padding: 0.2rem 0.6rem; border-radius: 50px; font-weight: 600; font-size: 0.75rem; background: #e0f2fe; color: #0369a1;">
+            ${escapeHTML(s.class_level || 'General')}
+          </span>
+        </td>
+        <td style="font-size: 0.85rem; color: var(--text-muted);">${escapeHTML(s.description || 'N/A')}</td>
+        <td style="text-align: center;">
+          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #ef4444; color: white; width: auto;" onclick="deleteTuitionSubject('${s.id}')" title="Delete Subject Choice">
+            🗑️ Delete
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('Error fetching tuition subjects catalog:', err);
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 1.5rem 0;">Error loading subjects catalog.</td></tr>';
+  }
+};
+
+window.deleteTuitionSubject = async function(id) {
+  if (!confirm('Are you sure you want to delete this subject choice?')) return;
+  try {
+    const token = localStorage.getItem('chc_token');
+    const res = await fetch(`/api/tuition/admin/subjects/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert('Subject choice deleted successfully.');
+      await loadTuitionSubjectsAndRender();
+    } else {
+      alert(data.error || 'Failed to delete subject choice.');
+    }
+  } catch (err) {
+    console.error('Error deleting subject choice:', err);
+    alert('Network error deleting subject choice.');
   }
 };
 
