@@ -668,17 +668,13 @@
                   </div>
                 ` : '<div style="font-size: 0.85rem; color: var(--warning); font-style: italic;">⏳ Tutor assignment in progress by community coordinator.</div>'}
 
-                ${isOnline ? `
+                ${(isOnline || e.class_location_or_link) ? `
                   <div style="margin-top: 1rem;">
                     <a href="${escapeHtml(roomLink)}" class="btn btn-primary" style="display: inline-block; padding: 0.6rem 1.25rem; font-weight: 600; text-decoration: none; border-radius: 8px;">
                       🎥 Join Live Virtual Classroom
                     </a>
                   </div>
-                ` : (e.class_location_or_link ? `
-                  <div style="margin-top: 0.75rem; font-size: 0.85rem; color: #059669; font-weight: 600;">
-                    📍 Premises Location: ${escapeHtml(e.class_location_or_link)}
-                  </div>
-                ` : '')}
+                ` : ''}
               </div>
             `;
           }).join('');
@@ -755,7 +751,8 @@
         const data = await res.json();
         if (data.success && data.classes && data.classes.length > 0) {
           container.innerHTML = data.classes.map(c => {
-            const isOnline = c.preferred_mode === 'online';
+            const hasLink = Boolean(c.class_location_or_link && c.class_location_or_link.trim() !== '');
+            const isOnline = c.preferred_mode === 'online' || hasLink;
             const roomLink = c.class_location_or_link || `video-call.html?room=tuition-class-${c.id}`;
 
             return `
@@ -765,7 +762,7 @@
                     <h3 style="margin: 0; color: var(--text-dark);">${escapeHtml(c.student_name)}</h3>
                     <div style="font-size: 0.85rem; color: var(--text-muted);">Class: <strong>${escapeHtml(c.student_class)}</strong> | Contact: 📞 ${escapeHtml(c.phone)} ${c.email ? `(${escapeHtml(c.email)})` : ''}</div>
                   </div>
-                  <span class="badge-status badge-assigned">${escapeHtml(c.status.toUpperCase())}</span>
+                  <span class="badge-status badge-assigned">${escapeHtml((c.status || 'ASSIGNED').toUpperCase())}</span>
                 </div>
                 
                 <div style="margin-bottom: 0.5rem; font-size: 0.9rem;">
@@ -776,17 +773,13 @@
                   <strong>Schedule:</strong> 🕒 ${escapeHtml(c.assigned_schedule || 'Schedule pending')}
                 </div>
 
-                ${isOnline ? `
-                  <div>
-                    <a href="${escapeHtml(roomLink)}" class="btn" style="background: #0284c7; color: white; display: inline-block; padding: 0.6rem 1.25rem; font-weight: 600; text-decoration: none; border-radius: 8px;">
-                      🎥 Launch Virtual Classroom
+                ${(isOnline || hasLink) ? `
+                  <div style="margin-top: 0.75rem;">
+                    <a href="${escapeHtml(roomLink)}" class="btn" style="background: #0284c7; color: white; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1.25rem; font-weight: 600; text-decoration: none; border-radius: 8px;">
+                      🎥 Launch / Join Virtual Classroom
                     </a>
                   </div>
-                ` : (c.class_location_or_link ? `
-                  <div style="font-size: 0.85rem; color: #059669; font-weight: 600;">
-                    📍 Premises Room: ${escapeHtml(c.class_location_or_link)}
-                  </div>
-                ` : '')}
+                ` : ''}
               </div>
             `;
           }).join('');

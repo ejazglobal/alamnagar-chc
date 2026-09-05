@@ -1284,7 +1284,7 @@ module.exports = {
 
   getTuitionEnrollmentsByUserOrPhone: async (userId, phone) => {
     let query = `
-      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone, t.qualification as tutor_qualification 
+      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone, t.email as tutor_email, t.qualification as tutor_qualification 
       FROM tuition_enrollments te 
       LEFT JOIN tutors t ON te.tutor_id = t.id 
       WHERE 1=0
@@ -1305,7 +1305,7 @@ module.exports = {
 
   getAllTuitionEnrollments: async (statusFilter = null) => {
     let query = `
-      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone
+      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone, t.email as tutor_email, t.qualification as tutor_qualification
       FROM tuition_enrollments te 
       LEFT JOIN tutors t ON te.tutor_id = t.id
     `;

@@ -703,17 +703,24 @@ function sendTuitionEnrollmentNotification(enrollment) {
 }
 
 function sendTuitionAssignmentNotification(enrollment) {
-  const { student_name, phone, email, student_class, subject_choices, preferred_mode, status, tutor_name, tutor_phone, assigned_schedule, class_location_or_link } = enrollment;
-  const isOnline = preferred_mode === 'online';
-  const roomLink = class_location_or_link || `https://ashiana.online/video-call.html?room=tuition-class-${enrollment.id}`;
+  const { student_name, phone, email, student_class, subject_choices, preferred_mode, status, tutor_name, tutor_phone, tutor_email, assigned_schedule, class_location_or_link } = enrollment;
+  const hasLink = Boolean(class_location_or_link && class_location_or_link.trim() !== '');
+  const isOnline = preferred_mode === 'online' || hasLink;
 
-  const smsMsg = `[আলমনগর সিএইচসি] প্রিয় ${student_name}, আপনার টিউশন শ্রেণি অনুমোদিত ও বরাদ্দ করা হয়েছে! শিক্ষক: ${tutor_name || 'মেন্টর'}, সময়: ${assigned_schedule || 'নির্ধারিত'}। বিস্তারিত: https://ashiana.online/tuition.html`;
+  let rawRoomLink = class_location_or_link || `video-call.html?room=tuition-class-${enrollment.id}`;
+  let roomLink = rawRoomLink;
+  if (!roomLink.startsWith('http') && !roomLink.startsWith('https')) {
+    roomLink = `https://ashiana.online/${roomLink.replace(/^\//, '')}`;
+  }
+
+  // 1. Notify Student
+  const smsMsg = `[আলমনগর সিএইচসি] প্রিয় ${student_name}, আপনার টিউশন শ্রেণি অনুমোদিত ও বরাদ্দ করা হয়েছে! শিক্ষক: ${tutor_name || 'মেন্টর'}, সময়: ${assigned_schedule || 'নির্ধারিত'}। ক্লাস লিংক: ${roomLink}`;
   if (phone) {
     sendSMS(phone, smsMsg);
   }
 
   if (email) {
-    const subject = `Tuition Assignment Finalized - ${student_class} (${status.toUpperCase()})`;
+    const subject = `Tuition Assignment Finalized - ${student_class} (${(status || 'APPROVED').toUpperCase()})`;
     const emailHtml = `<!DOCTYPE html>
     <html>
     <head><style>body { font-family: sans-serif; line-height: 1.6; color: #333; }</style></head>
@@ -733,14 +740,12 @@ function sendTuitionAssignmentNotification(enrollment) {
           <p style="margin: 5px 0;"><strong>Assigned Tutor:</strong> 👨‍🏫 ${tutor_name || 'Assigned Mentor'} ${tutor_phone ? `(Contact: ${tutor_phone})` : ''}</p>
           <p style="margin: 5px 0;"><strong>Weekly Schedule:</strong> 🕒 ${assigned_schedule || 'As scheduled'}</p>
           <p style="margin: 5px 0;"><strong>Location / Mode:</strong> ${isOnline ? '💻 Live Virtual Classroom' : '🏫 On-Premises Classroom'}</p>
-          ${!isOnline && class_location_or_link ? `<p style="margin: 5px 0;"><strong>Classroom:</strong> 📍 ${class_location_or_link}</p>` : ''}
+          ${class_location_or_link ? `<p style="margin: 5px 0;"><strong>Class Link / Room:</strong> 📍 ${class_location_or_link}</p>` : ''}
         </div>
 
-        ${isOnline ? `
-          <div style="text-align: center; margin: 25px 0;">
-            <a href="${roomLink}" style="background: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">🎥 Join Live Virtual Classroom</a>
-          </div>
-        ` : ''}
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${roomLink}" style="background: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">🎥 Join Live Virtual Classroom</a>
+        </div>
 
         <p style="font-size: 13px; color: #475569;">You can track your schedule anytime by visiting the <a href="https://ashiana.online/tuition.html" style="color: #0d9488;">Community Tuition Portal</a>.</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 25px 0 10px 0;">
@@ -750,6 +755,47 @@ function sendTuitionAssignmentNotification(enrollment) {
     </html>`;
 
     sendEmail(email, subject, emailHtml);
+  }
+
+  // 2. Notify Assigned Tutor
+  if (tutor_email || tutor_phone) {
+    const tutorSms = `[আলমনগর সিএইচসি] প্রিয় মেন্টর ${tutor_name || ''}, আপনার ব্যাচে নতুন শিক্ষার্থী ${student_name} (${student_class}) যুক্ত করা হয়েছে। সময়: ${assigned_schedule || 'নির্ধারিত'}। ক্লাস লিংক: ${roomLink}`;
+    if (tutor_phone) sendSMS(tutor_phone, tutorSms);
+
+    if (tutor_email) {
+      const tutorSubject = `New Student Batch Assignment - ${student_name} (${student_class})`;
+      const tutorEmailHtml = `<!DOCTYPE html>
+      <html>
+      <head><style>body { font-family: sans-serif; line-height: 1.6; color: #333; }</style></head>
+      <body>
+        <div style="max-width: 600px; margin: 20px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+          <h2 style="color: #0284c7; text-align: center; margin-bottom: 5px;">👨‍🏫 New Tuition Student Batch Assigned</h2>
+          <p style="text-align: center; color: #64748b; margin-top: 0;">Alamnagar Community Tuition Program</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
+          <p>Dear <strong>${tutor_name || 'Tutor'}</strong>,</p>
+          <p>You have been assigned as the mentor for student <strong>${student_name}</strong>. Below are the class batch details:</p>
+          
+          <div style="background: #e0f2fe; padding: 18px; border-radius: 10px; border: 1px solid #7dd3fc; margin: 20px 0;">
+            <h3 style="color: #0369a1; margin-top: 0; margin-bottom: 10px;">📋 Batch Details</h3>
+            <p style="margin: 5px 0;"><strong>Student Name:</strong> ${student_name}</p>
+            <p style="margin: 5px 0;"><strong>Class Level:</strong> ${student_class}</p>
+            <p style="margin: 5px 0;"><strong>Subjects:</strong> ${subject_choices}</p>
+            <p style="margin: 5px 0;"><strong>Student Phone:</strong> 📞 ${phone}</p>
+            <p style="margin: 5px 0;"><strong>Weekly Schedule:</strong> 🕒 ${assigned_schedule || 'As scheduled'}</p>
+            <p style="margin: 5px 0;"><strong>Classroom Link / Location:</strong> 📍 ${class_location_or_link || roomLink}</p>
+          </div>
+
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${roomLink}" style="background: #0284c7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">🎥 Launch Virtual Classroom</a>
+          </div>
+
+          <p style="font-size: 13px; color: #475569;">Manage your assigned batches anytime by logging into the <a href="https://ashiana.online/tuition.html" style="color: #0284c7;">Tutor Portal</a>.</p>
+        </div>
+      </body>
+      </html>`;
+
+      sendEmail(tutor_email, tutorSubject, tutorEmailHtml);
+    }
   }
 }
 
