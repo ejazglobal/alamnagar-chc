@@ -707,6 +707,7 @@ function sendTuitionAssignmentNotification(enrollment) {
   
   const rawLocation = (class_location_or_link || '').trim();
   const isUrl = rawLocation.startsWith('http://') || rawLocation.startsWith('https://') || rawLocation.includes('.html');
+  const isOnline = preferred_mode === 'online' || isUrl;
   
   let locationDetail = '';
   let roomLink = `https://ashiana.online/tuition.html`;
