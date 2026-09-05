@@ -2619,7 +2619,7 @@ window.saveTuitionAssignment = async function saveTuitionAssignment(e) {
       },
       body: JSON.stringify({
         status,
-        tutor_id: tutorId ? parseInt(tutorId) : null,
+        tutor_id: tutorId || null,
         assigned_schedule: schedule,
         class_location_or_link: locationLink,
         notes
@@ -2662,15 +2662,21 @@ window.openAdminTutorModal = window.openAddTutorModal = function openAddTutorMod
 window.openEditTutorModal = async function openEditTutorModal(tutorOrUserId) {
   try {
     const token = localStorage.getItem('chc_token');
-    const res = await fetch(`/api/tuition/tutors?t=${Date.now()}`);
-    const data = await res.json();
-    let tutors = data.tutors || [];
+    let targetTutor = null;
 
-    let targetTutor = tutors.find(t => String(t.id) === String(tutorOrUserId) || String(t.user_id) === String(tutorOrUserId));
+    // 1. Check fetched tutors list
+    try {
+      const res = await fetch(`/api/tuition/tutors?t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        let tutors = data.tutors || [];
+        targetTutor = tutors.find(t => String(t.id) === String(tutorOrUserId) || String(t.user_id) === String(tutorOrUserId));
+      }
+    } catch (e) {}
 
-    if (!targetTutor) {
-      // Find from user directory
-      const user = (window.allAdminUsers || []).find(u => String(u.id) === String(tutorOrUserId));
+    // 2. Check local allAdminUsers array
+    if (!targetTutor && typeof allAdminUsers !== 'undefined' && Array.isArray(allAdminUsers)) {
+      const user = allAdminUsers.find(u => String(u.id) === String(tutorOrUserId));
       if (user) {
         targetTutor = {
           id: `user_${user.id}`,
@@ -2685,8 +2691,34 @@ window.openEditTutorModal = async function openEditTutorModal(tutorOrUserId) {
       }
     }
 
+    // 3. Fetch from /api/admin/users if still not found
     if (!targetTutor) {
-      alert('Tutor record not found.');
+      try {
+        const uRes = await fetch(`/api/admin/users?t=${Date.now()}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (uRes.ok) {
+          const uData = await uRes.json();
+          const users = Array.isArray(uData) ? uData : (uData.users || []);
+          const matchedUser = users.find(u => String(u.id) === String(tutorOrUserId));
+          if (matchedUser) {
+            targetTutor = {
+              id: `user_${matchedUser.id}`,
+              user_id: matchedUser.id,
+              name: matchedUser.username,
+              phone: matchedUser.phone || '',
+              email: matchedUser.email || '',
+              qualification: 'Community Mentor',
+              subjects_taught: 'Physics, Higher Math, ICT',
+              tuition_mode: 'both'
+            };
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (!targetTutor) {
+      alert('Tutor profile details not found in system.');
       return;
     }
 
@@ -2697,8 +2729,8 @@ window.openEditTutorModal = async function openEditTutorModal(tutorOrUserId) {
     if (editingInput) editingInput.value = targetTutor.id;
 
     document.getElementById('tutor-name-input').value = targetTutor.name || '';
-    document.getElementById('tutor-qual-input').value = targetTutor.qualification || '';
-    document.getElementById('tutor-subjects-input').value = targetTutor.subjects_taught || '';
+    document.getElementById('tutor-qual-input').value = targetTutor.qualification || 'Community Mentor';
+    document.getElementById('tutor-subjects-input').value = targetTutor.subjects_taught || 'Physics, Mathematics, ICT';
     document.getElementById('tutor-phone-input').value = targetTutor.phone || '';
     if (document.getElementById('tutor-mode-input')) {
       document.getElementById('tutor-mode-input').value = targetTutor.tuition_mode || 'both';

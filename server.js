@@ -2727,35 +2727,40 @@ app.put('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, res
     const id = req.params.id;
     const { status, tutor_id, assigned_schedule, class_location_or_link, notes } = req.body;
 
-    let cleanTutorId = tutor_id;
-    if (typeof tutor_id === 'string' && tutor_id.startsWith('user_')) {
-      const uId = parseInt(tutor_id.replace('user_', ''), 10);
-      if (!isNaN(uId)) {
-        const tutors = await db.getTutors();
-        let matchedTutor = tutors.find(t => t.user_id == uId);
-        if (!matchedTutor) {
-          const userObj = await db.getUserByUsername(uId) || (await db.getAllUsers()).find(u => u.id == uId);
-          if (userObj) {
-            matchedTutor = await db.addTutor({
-              name: userObj.username,
-              phone: userObj.phone,
-              email: userObj.email,
+    let cleanTutorId = null;
+    if (tutor_id) {
+      const strTutorId = tutor_id.toString();
+      if (strTutorId.startsWith('user_')) {
+        const uId = parseInt(strTutorId.replace('user_', ''), 10);
+        if (!isNaN(uId)) {
+          const existing = await db.pool.query("SELECT * FROM tutors WHERE user_id = $1", [uId]);
+          if (existing.rows.length > 0) {
+            cleanTutorId = existing.rows[0].id;
+          } else {
+            const userObj = (await db.getAllUsers()).find(u => u.id == uId);
+            const newTutor = await db.addTutor({
+              name: userObj ? userObj.username : `Tutor ${uId}`,
+              phone: userObj ? userObj.phone : null,
+              email: userObj ? userObj.email : null,
               qualification: 'Community Mentor',
               subjects_taught: 'General Subjects',
               tuition_mode: 'both',
               user_id: uId
             });
+            cleanTutorId = newTutor.id;
           }
         }
-        if (matchedTutor) {
-          cleanTutorId = matchedTutor.id;
+      } else {
+        const numId = parseInt(strTutorId, 10);
+        if (!isNaN(numId)) {
+          cleanTutorId = numId;
         }
       }
     }
 
     const updated = await db.updateTuitionEnrollment(id, {
       status,
-      tutor_id: cleanTutorId ? parseInt(cleanTutorId) : null,
+      tutor_id: cleanTutorId,
       assigned_schedule,
       class_location_or_link,
       notes

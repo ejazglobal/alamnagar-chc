@@ -1127,20 +1127,49 @@ module.exports = {
   },
 
   getTutorAssignedClasses: async (tutorUserId, tutorId = null) => {
+    let userRow = null;
+    if (tutorUserId) {
+      try {
+        const uRes = await pool.query(`SELECT id, username, phone, email, role FROM users WHERE id = $1`, [tutorUserId]);
+        userRow = uRes.rows[0];
+      } catch (e) {}
+    }
+
     let query = `
-      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone
+      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone, t.subjects_taught as tutor_subjects
       FROM tuition_enrollments te
       JOIN tutors t ON te.tutor_id = t.id
       WHERE 1=0
     `;
     const params = [];
-    if (tutorId) {
-      params.push(tutorId);
-      query += ` OR te.tutor_id = $${params.length}`;
-    }
-    if (tutorUserId) {
-      params.push(tutorUserId);
-      query += ` OR t.user_id = $${params.length}`;
+    if (userRow && (userRow.role === 'Admin' || userRow.role === 'Staff')) {
+      query = `
+        SELECT te.*, t.name as tutor_name, t.phone as tutor_phone, t.subjects_taught as tutor_subjects
+        FROM tuition_enrollments te
+        LEFT JOIN tutors t ON te.tutor_id = t.id
+        WHERE te.tutor_id IS NOT NULL
+      `;
+    } else {
+      if (tutorId) {
+        params.push(tutorId);
+        query += ` OR te.tutor_id = $${params.length}`;
+      }
+      if (tutorUserId) {
+        params.push(tutorUserId);
+        query += ` OR t.user_id = $${params.length}`;
+      }
+      if (userRow && userRow.phone) {
+        params.push(userRow.phone);
+        query += ` OR t.phone = $${params.length} OR REGEXP_REPLACE(t.phone, '^88', '') = REGEXP_REPLACE($${params.length}, '^88', '')`;
+      }
+      if (userRow && userRow.email) {
+        params.push(userRow.email);
+        query += ` OR LOWER(t.email) = LOWER($${params.length})`;
+      }
+      if (userRow && userRow.username) {
+        params.push(userRow.username);
+        query += ` OR LOWER(t.name) = LOWER($${params.length})`;
+      }
     }
     query += ` ORDER BY te.created_at DESC`;
     const res = await pool.query(query, params);
