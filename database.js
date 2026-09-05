@@ -1086,10 +1086,59 @@ module.exports = {
 
   updateTutor: async (id, tutorData) => {
     const { name, phone, email, qualification, subjects_taught, tuition_mode, bio, status, user_id } = tutorData;
-    const res = await pool.query(
-      `UPDATE tutors SET name = $1, phone = $2, email = $3, qualification = $4, subjects_taught = $5, tuition_mode = $6, bio = $7, status = $8, user_id = COALESCE($9, user_id) WHERE id = $10 RETURNING *`,
-      [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '', status || 'active', user_id || null, id]
-    );
+
+    let targetTutorId = null;
+    let targetUserId = null;
+
+    if (typeof id === 'string' && id.startsWith('user_')) {
+      targetUserId = parseInt(id.replace('user_', ''), 10);
+    } else if (typeof id === 'string' && id.startsWith('tutor_')) {
+      targetTutorId = parseInt(id.replace('tutor_', ''), 10);
+    } else {
+      const parsed = parseInt(id, 10);
+      if (!isNaN(parsed)) {
+        targetTutorId = parsed;
+      }
+    }
+
+    if (user_id) {
+      const parsedUid = parseInt(user_id, 10);
+      if (!isNaN(parsedUid)) targetUserId = parsedUid;
+    }
+
+    let res = null;
+    if (targetTutorId) {
+      res = await pool.query(
+        `UPDATE tutors SET name = $1, phone = $2, email = $3, qualification = $4, subjects_taught = $5, tuition_mode = $6, bio = $7, status = $8, user_id = COALESCE($9, user_id) WHERE id = $10 RETURNING *`,
+        [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '', status || 'active', targetUserId || null, targetTutorId]
+      );
+    }
+
+    if ((!res || res.rows.length === 0) && targetUserId) {
+      res = await pool.query(
+        `UPDATE tutors SET name = $1, phone = $2, email = $3, qualification = $4, subjects_taught = $5, tuition_mode = $6, bio = $7, status = $8 WHERE user_id = $9 RETURNING *`,
+        [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '', status || 'active', targetUserId]
+      );
+    }
+
+    if (!res || res.rows.length === 0) {
+      res = await pool.query(
+        `INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio, status, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [name, phone || null, email || null, qualification, subjects_taught, tuition_mode || 'both', bio || '', status || 'active', targetUserId || null]
+      );
+    }
+
+    if (targetUserId) {
+      try {
+        await pool.query(
+          `UPDATE users SET username = COALESCE($1, username), phone = COALESCE($2, phone), email = COALESCE($3, email) WHERE id = $4`,
+          [name || null, phone || null, email || null, targetUserId]
+        );
+      } catch (uErr) {
+        console.warn('Notice updating user record for tutor:', uErr.message);
+      }
+    }
+
     return res.rows[0];
   },
 
