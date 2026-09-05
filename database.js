@@ -291,6 +291,11 @@ async function initializeDatabase() {
         SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.'
         WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'mahmud.tutor@alamnagar.org');
       `);
+      await pool.query(`
+        INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+        SELECT 'Dr. Alamgir Hossain', '01511223344', 'alamgir.tutor@alamnagar.org', 'Ph.D in Chemistry (DU)', 'Chemistry (Organic & Physical), Biology', 'both', 'Senior community educator specializing in HSC Organic & Physical Chemistry.'
+        WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'alamgir.tutor@alamnagar.org');
+      `);
       console.log('Verified default community tutors catalog.');
     } catch (tErr) {
       console.warn('Tutors seed notice:', tErr.message);
@@ -1080,6 +1085,11 @@ module.exports = {
         SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.'
         WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'mahmud.tutor@alamnagar.org');
       `);
+      await pool.query(`
+        INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+        SELECT 'Dr. Alamgir Hossain', '01511223344', 'alamgir.tutor@alamnagar.org', 'Ph.D in Chemistry (DU)', 'Chemistry (Organic & Physical), Biology', 'both', 'Senior community educator specializing in HSC Organic & Physical Chemistry.'
+        WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'alamgir.tutor@alamnagar.org');
+      `);
     } catch (sErr) {
       console.warn('Auto-seed tutors error:', sErr.message);
     }
@@ -1233,6 +1243,11 @@ module.exports = {
           INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
           SELECT 'Hafiz Maulana Mahmud', '01911223344', 'mahmud.tutor@alamnagar.org', 'Al-Hadith & Islamic Studies (Darul Uloom)', 'Holy Qur\'an & Tajweed', 'on-premises', 'Certified Qur\'an teacher providing Tajweed and Islamic morals instruction.'
           WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'mahmud.tutor@alamnagar.org');
+        `);
+        await pool.query(`
+          INSERT INTO tutors (name, phone, email, qualification, subjects_taught, tuition_mode, bio)
+          SELECT 'Dr. Alamgir Hossain', '01511223344', 'alamgir.tutor@alamnagar.org', 'Ph.D in Chemistry (DU)', 'Chemistry (Organic & Physical), Biology', 'both', 'Senior community educator specializing in HSC Organic & Physical Chemistry.'
+          WHERE NOT EXISTS (SELECT 1 FROM tutors WHERE email = 'alamgir.tutor@alamnagar.org');
         `);
       } catch (e) {}
 
