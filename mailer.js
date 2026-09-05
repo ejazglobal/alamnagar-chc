@@ -704,18 +704,26 @@ function sendTuitionEnrollmentNotification(enrollment) {
 
 function sendTuitionAssignmentNotification(enrollment) {
   const { student_name, phone, email, student_class, subject_choices, preferred_mode, status, tutor_name, tutor_phone, tutor_email, assigned_schedule, class_location_or_link } = enrollment;
-  const hasLink = Boolean(class_location_or_link && class_location_or_link.trim() !== '');
-  const isOnline = preferred_mode === 'online' || hasLink;
-
-  let rawRoomLink = class_location_or_link || `video-call.html?room=tuition-class-${enrollment.id}`;
-  let roomLink = rawRoomLink;
-  if (!roomLink.startsWith('http') && !roomLink.startsWith('https')) {
-    roomLink = `https://ashiana.online/${roomLink.replace(/^\//, '')}`;
+  
+  const rawLocation = (class_location_or_link || '').trim();
+  const isUrl = rawLocation.startsWith('http://') || rawLocation.startsWith('https://') || rawLocation.includes('.html');
+  
+  let locationDetail = '';
+  let roomLink = `https://ashiana.online/tuition.html`;
+  
+  if (isUrl) {
+    roomLink = rawLocation.startsWith('http') ? rawLocation : `https://ashiana.online/${rawLocation.replace(/^\//, '')}`;
+    locationDetail = `ক্লাস লিংক: ${roomLink}`;
+  } else if (rawLocation) {
+    locationDetail = `স্থান: ${rawLocation}`;
+  } else {
+    locationDetail = `পোর্টালে দেখুন: https://ashiana.online/tuition.html`;
   }
 
   // 1. Notify Student
-  const smsMsg = `[আলমনগর সিএইচসি] প্রিয় ${student_name}, আপনার টিউশন শ্রেণি অনুমোদিত ও বরাদ্দ করা হয়েছে! শিক্ষক: ${tutor_name || 'মেন্টর'}, সময়: ${assigned_schedule || 'নির্ধারিত'}। ক্লাস লিংক: ${roomLink}`;
+  const smsMsg = `[আলমনগর সিএইচসি] প্রিয় ${student_name}, আপনার টিউশন আবেদনটি বরাদ্দ করা হয়েছে! শিক্ষক: ${tutor_name || 'মেন্টর'}, সময়: ${assigned_schedule || 'নির্ধারিত'}। ${locationDetail}`;
   if (phone) {
+    console.log(`[TUITION SMS] Dispatching assignment SMS to student ${student_name} (${phone})...`);
     sendSMS(phone, smsMsg);
   }
 

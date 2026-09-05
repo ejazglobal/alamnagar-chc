@@ -1349,6 +1349,16 @@ module.exports = {
     return res.rows;
   },
 
+  getTuitionEnrollmentById: async (id) => {
+    const res = await pool.query(`
+      SELECT te.*, t.name as tutor_name, t.phone as tutor_phone, t.email as tutor_email, t.qualification as tutor_qualification
+      FROM tuition_enrollments te 
+      LEFT JOIN tutors t ON te.tutor_id = t.id
+      WHERE te.id = $1
+    `, [id]);
+    return res.rows[0] || null;
+  },
+
   updateTuitionEnrollment: async (id, updateData) => {
     const { status, tutor_id, assigned_schedule, class_location_or_link, notes } = updateData;
     const res = await pool.query(

@@ -2806,8 +2806,7 @@ app.put('/api/tuition/admin/enrollments/:id', authenticateToken, async (req, res
 
     // Dispatch SMS & Email notifications with updated tutor assignment & schedule
     try {
-      const fullList = await db.getTuitionEnrollmentsByUserOrPhone(null, updated.phone);
-      const matched = fullList.find(e => e.id == id) || updated;
+      const matched = await db.getTuitionEnrollmentById(id) || updated;
       mailer.sendTuitionAssignmentNotification(matched);
     } catch (mErr) {
       console.warn('[MAILER NOTICE] Could not send tuition assignment notification:', mErr.message);
