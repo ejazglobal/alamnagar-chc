@@ -453,7 +453,10 @@ window.loadMyTuition = async function loadMyTuition() {
 
       container.innerHTML = enrollments.map(e => {
         const isOnline = e.preferred_mode === 'online';
-        const roomLink = e.class_location_or_link || `video-call.html?room=chc-cls-${e.id}-${Math.random().toString(36).substr(2,9)}`;
+        let roomLink = e.class_location_or_link || `video-call.html?room=chc-cls-${e.id}-${Math.random().toString(36).substr(2,9)}&role=student`;
+        if (roomLink.includes('video-call.html') && !roomLink.includes('role=')) {
+          roomLink += (roomLink.includes('?') ? '&' : '?') + 'role=student';
+        }
         return `
           <div class="report-card" style="border-left: 4px solid var(--accent-color); flex-direction: column; align-items: flex-start; gap: 0.5rem;">
             <div style="display: flex; justify-content: space-between; width: 100%;">
@@ -1096,7 +1099,7 @@ window.loadMyAppointments = async function() {
 };
 
 window.startPatientVideoCall = async function(apptId, patientName, roomId) {
-  let videoUrl = `/video-call.html?appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+  let videoUrl = `/video-call.html?appointment_id=${apptId}&name=${encodeURIComponent(patientName)}&role=patient`;
 
   try {
     const res = await fetch(`/api/appointments/${apptId}/video-room?t=${Date.now()}`, {
@@ -1104,7 +1107,10 @@ window.startPatientVideoCall = async function(apptId, patientName, roomId) {
     });
     if (res.ok) {
       const data = await res.json();
-      if (data.video_url) videoUrl = data.video_url;
+      if (data.video_url) {
+        const joinChar = data.video_url.includes('?') ? '&' : '?';
+        videoUrl = `${data.video_url}${joinChar}role=patient`;
+      }
     }
   } catch (e) {
     console.error('Error fetching patient video room URL:', e);

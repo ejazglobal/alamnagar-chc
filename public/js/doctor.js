@@ -3092,17 +3092,20 @@ window.startDoctorVideoCall = async function() {
   if (!activeAppointment || !activeAppointment.id) return;
   const apptId = activeAppointment.id;
   const patientName = activeAppointment.patient_name || 'Patient';
+  const token = localStorage.getItem('chc_token') || '';
   
-  let videoUrl = `/video-call.html?appointment_id=${apptId}&name=${encodeURIComponent(patientName)}`;
+  let videoUrl = `/video-call.html?appointment_id=${apptId}&name=${encodeURIComponent(patientName)}&role=doctor&token=${encodeURIComponent(token)}`;
 
   try {
-    const token = localStorage.getItem('chc_token');
     const res = await fetch(`/api/appointments/${apptId}/video-room`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (res.ok) {
       const data = await res.json();
-      if (data.video_url) videoUrl = data.video_url;
+      if (data.video_url) {
+        const joinChar = data.video_url.includes('?') ? '&' : '?';
+        videoUrl = `${data.video_url}${joinChar}role=doctor&token=${encodeURIComponent(token)}`;
+      }
     }
   } catch (e) {
     console.error('Error fetching video room URL:', e);

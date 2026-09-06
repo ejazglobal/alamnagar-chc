@@ -711,9 +711,12 @@
         const rawLocation = (e.class_location_or_link || '').trim();
         const isUrl = rawLocation.startsWith('http://') || rawLocation.startsWith('https://') || rawLocation.includes('.html');
         const isOnline = e.preferred_mode === 'online' || isUrl;
-        const roomLink = isUrl 
+        let roomLink = isUrl 
           ? (rawLocation.startsWith('http') ? rawLocation : `https://ashiana.online/${rawLocation.replace(/^\//, '')}`)
-          : `video-call.html?room=chc-cls-${e.id}-${Math.random().toString(36).substr(2,9)}`;
+          : `video-call.html?room=chc-cls-${e.id}-${Math.random().toString(36).substr(2,9)}&role=student`;
+        if (roomLink.includes('video-call.html') && !roomLink.includes('role=')) {
+          roomLink += (roomLink.includes('?') ? '&' : '?') + 'role=student';
+        }
 
         return `
           <div class="enrollment-item">
@@ -841,9 +844,12 @@
           container.innerHTML = batches.map(b => {
             const rawLocation = (b.class_location_or_link || '').trim();
             const isUrl = rawLocation.startsWith('http://') || rawLocation.startsWith('https://') || rawLocation.includes('.html');
-            const roomLink = isUrl 
+            let roomLink = isUrl 
               ? (rawLocation.startsWith('http') ? rawLocation : `https://ashiana.online/${rawLocation.replace(/^\//, '')}`)
-              : `video-call.html?room=chc-cls-${b.students[0].id}-${Math.random().toString(36).substr(2,7)}`;
+              : `video-call.html?room=chc-cls-${b.students[0].id}-${Math.random().toString(36).substr(2,7)}&role=student`;
+            if (roomLink.includes('video-call.html') && !roomLink.includes('role=')) {
+              roomLink += (roomLink.includes('?') ? '&' : '?') + 'role=student';
+            }
             
             const isOnline = b.preferred_mode === 'online' || isUrl;
             const studentCount = b.students.length;

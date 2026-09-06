@@ -889,7 +889,7 @@ app.patch('/api/appointments/:id', authenticateToken, async (req, res) => {
 
           const host = req.get('host');
           const protocol = req.protocol;
-          const videoLink = `${protocol}://${host}/video-call.html?room=${roomId}&appointment_id=${appointmentId}&name=${encodeURIComponent(appt.patient_name)}`;
+          const videoLink = `${protocol}://${host}/video-call.html?room=${roomId}&appointment_id=${appointmentId}&name=${encodeURIComponent(appt.patient_name)}&role=patient`;
 
           if (appt.email) {
             mailer.sendAppointmentApprovalEmail(appt, videoLink);
@@ -2425,6 +2425,53 @@ app.get('/api/appointments/:id/video-room', optionalAuthenticateToken, async (re
   } catch (err) {
     console.error('Error getting video room:', err);
     res.status(500).json({ error: 'Failed to retrieve video room.' });
+  }
+});
+
+// Endpoint: Verify user role and determine exclusive Doctor/Tutor Moderator status
+app.post('/api/video-room/verify-role', (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const tokenFromHeader = authHeader && authHeader.split(' ')[1];
+    const { token: tokenFromBody, requestedRole, room, appointment_id } = req.body || {};
+
+    const token = tokenFromHeader || tokenFromBody;
+    let userPayload = null;
+    if (token) {
+      userPayload = decryptToken(token);
+    }
+
+    let isModerator = false;
+    let cleanRole = (requestedRole || 'guest').toLowerCase();
+    let displayName = userPayload ? (userPayload.username || userPayload.name || 'User') : 'Guest Participant';
+
+    if (userPayload && userPayload.role) {
+      const userRole = userPayload.role.toLowerCase();
+      if (['doctor', 'tutor', 'admin', 'staff'].includes(userRole)) {
+        isModerator = true;
+        cleanRole = userRole;
+        if (userPayload.username) {
+          displayName = userRole === 'doctor' ? `Dr. ${userPayload.username}` : (userRole === 'tutor' ? `Tutor ${userPayload.username}` : userPayload.username);
+        }
+      }
+    } else if (cleanRole === 'doctor' || cleanRole === 'tutor') {
+      if (userPayload && ['doctor', 'tutor', 'admin', 'staff'].includes((userPayload.role || '').toLowerCase())) {
+        isModerator = true;
+      } else {
+        isModerator = false;
+        cleanRole = 'guest';
+      }
+    }
+
+    res.json({
+      success: true,
+      isModerator: isModerator,
+      role: cleanRole,
+      displayName: displayName
+    });
+  } catch (err) {
+    console.error('Error verifying video room role:', err);
+    res.json({ success: true, isModerator: false, role: 'guest', displayName: 'Guest Participant' });
   }
 });
 

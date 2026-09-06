@@ -20,7 +20,7 @@
     }
     header {
       background-color: #1e293b;
-      padding: 0.75rem 1.25rem;
+      padding: 0.65rem 1.25rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -40,12 +40,37 @@
     }
     .call-title {
       font-weight: 700;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       color: #2dd4bf;
     }
     .call-meta {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: #94a3b8;
+    }
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .role-badge.moderator-doctor {
+      background: linear-gradient(135deg, #0d9488, #059669);
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(13,148,136,0.4);
+    }
+    .role-badge.moderator-tutor {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(99,102,241,0.4);
+    }
+    .role-badge.participant {
+      background: #334155;
+      color: #cbd5e1;
+      border: 1px solid #475569;
     }
     #video-container {
       flex: 1;
@@ -84,8 +109,129 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* Moderator Control Panel Drawer */
+    #moderator-panel {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 330px;
+      max-height: calc(100% - 30px);
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .mod-header {
+      background: #1e293b;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .mod-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .mod-body {
+      padding: 0.85rem;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .mod-section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+    }
+    .mod-btn {
+      width: 100%;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+    }
+    .mod-btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+    .mod-btn-danger:hover {
+      background: #b91c1c;
+    }
+    .mod-btn-warning {
+      background: #d97706;
+      color: white;
+    }
+    .mod-btn-warning:hover {
+      background: #b45309;
+    }
+    .mod-btn-primary {
+      background: #0284c7;
+      color: white;
+    }
+    .mod-btn-primary:hover {
+      background: #0369a1;
+    }
+    .participant-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .participant-name {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      word-break: break-word;
+    }
+    .participant-actions {
+      display: flex;
+      gap: 0.35rem;
+    }
+    .action-icon-btn {
+      background: #334155;
+      color: #cbd5e1;
+      border: none;
+      border-radius: 4px;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .action-icon-btn.kick-btn {
+      background: #991b1b;
+      color: white;
+    }
+    .action-icon-btn.kick-btn:hover {
+      background: #dc2626;
+    }
   </style>
-  <script src="https://8x8.vc/external_api.js"></script>
 </head>
 <body>
 
@@ -98,6 +244,8 @@
       </div>
     </a>
     <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+      <span id="role-badge-container" class="role-badge participant">👤 Participant</span>
+      <button id="toggle-mod-panel-btn" onclick="toggleModeratorPanel()" class="btn" style="display: none; padding: 0.4rem 0.8rem; font-size: 0.82rem; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer;">👑 Moderator Controls</button>
       <select id="server-select" style="background: #334155; color: white; border: 1px solid #475569; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
         <option value="meet.element.io">Node 1 (Element Global)</option>
         <option value="meet.ffm.freifunk.net">Node 2 (Freifunk Cluster)</option>
@@ -114,6 +262,24 @@
       <div class="spinner"></div>
       <p style="font-size: 1.1rem; color: #cbd5e1;">Connecting to Secure Video Room...</p>
     </div>
+
+    <!-- Floating Moderator Command Center (Exclusive for Doctor / Tutor) -->
+    <div id="moderator-panel" style="display: none;">
+      <div class="mod-header">
+        <div class="mod-title">👑 Room Moderation Control</div>
+        <button onclick="toggleModeratorPanel()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer;">&times;</button>
+      </div>
+      <div class="mod-body">
+        <div class="mod-section-title">Quick Room Actions</div>
+        <button onclick="modMuteAll()" class="mod-btn mod-btn-warning">🔇 Mute All Participants</button>
+        <button onclick="modLockRoom()" class="mod-btn mod-btn-primary">🔒 Set Password / Lock Room</button>
+
+        <div class="mod-section-title" style="margin-top: 0.5rem;">Connected Participants (<span id="participant-count">0</span>)</div>
+        <div id="participants-list" style="display: flex; flex-direction: column; gap: 0.4rem;">
+          <div style="font-size: 0.8rem; color: #94a3b8; text-align: center;">Scanning active participants...</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -122,133 +288,290 @@
     let recordingTimer = null;
     let recordSeconds = 0;
 
+    let jitsiApi = null;
+    let isModerator = false;
+    let userRole = 'guest';
+    let localDisplayName = 'Guest User';
+    let roomName = '';
+    let participantsMap = new Map();
+
+    // Dynamically load Jitsi External API script from chosen node
+    function loadJitsiScript(domain, callback) {
+      const existingScript = document.getElementById('jitsi-external-api-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      const script = document.createElement('script');
+      script.id = 'jitsi-external-api-script';
+      script.src = `https://${domain}/external_api.js`;
+      script.onload = callback;
+      script.onerror = () => {
+        console.warn(`Failed to load external_api.js from ${domain}, using fallback.`);
+        if (typeof window.JitsiMeetExternalAPI === 'function') {
+          callback();
+        }
+      };
+      document.head.appendChild(script);
+    }
+
+    window.toggleCallRecording = async function() {
+      const btn = document.getElementById('record-btn');
+      if (!btn) return;
+
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        return;
+      }
+
+      try {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { mediaSource: 'screen' },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            systemAudio: 'include'
+          },
+          preferCurrentTab: true,
+          selfBrowserSurface: 'include',
+          systemAudio: 'include'
+        });
+
+        if (displayStream.getAudioTracks().length === 0) {
+          alert("⚠️ Important: Participant voice was not selected. Next time, make sure the 'Also share tab audio' toggle is turned ON in Chrome's popup so remote audio is recorded!");
+        }
+
+        let micStream = null;
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } catch (micErr) {
+          console.warn('Microphone stream access unavailable for recording:', micErr);
+        }
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let combinedStream = displayStream;
+
+        if (AudioCtx) {
+          try {
+            const audioCtx = new AudioCtx();
+            const audioDest = audioCtx.createMediaStreamDestination();
+
+            if (displayStream.getAudioTracks().length > 0) {
+              const displaySource = audioCtx.createMediaStreamSource(displayStream);
+              displaySource.connect(audioDest);
+            }
+
+            if (micStream && micStream.getAudioTracks().length > 0) {
+              const micSource = audioCtx.createMediaStreamSource(micStream);
+              micSource.connect(audioDest);
+            }
+
+            const tracks = [
+              ...displayStream.getVideoTracks(),
+              ...audioDest.stream.getAudioTracks()
+            ];
+            combinedStream = new MediaStream(tracks);
+          } catch (mixErr) {
+            console.warn('Audio mixing fallback to displayStream:', mixErr);
+          }
+        }
+
+        recordedChunks = [];
+        let mime = 'video/webm;codecs=vp9,opus';
+        if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+
+        mediaRecorder = new MediaRecorder(combinedStream, { mimeType: mime });
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          clearInterval(recordingTimer);
+          btn.innerHTML = '⏺️ Record Call';
+          btn.style.background = '#dc2626';
+
+          displayStream.getTracks().forEach(track => track.stop());
+          if (micStream) micStream.getTracks().forEach(track => track.stop());
+
+          if (recordedChunks.length > 0) {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `Consultation_Call_${new Date().toISOString().slice(0,10)}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+            }, 100);
+          }
+        };
+
+        mediaRecorder.start(1000);
+        recordSeconds = 0;
+        btn.style.background = '#16a34a';
+
+        recordingTimer = setInterval(() => {
+          recordSeconds++;
+          const mins = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+          const secs = String(recordSeconds % 60).padStart(2, '0');
+          btn.innerHTML = `🔴 Recording (${mins}:${secs}) — Save`;
+        }, 1000);
+
+      } catch (err) {
+        console.warn('Call recording cancelled or unsupported:', err);
+      }
+    };
+
+    window.toggleModeratorPanel = function() {
+      const panel = document.getElementById('moderator-panel');
+      if (!panel) return;
+      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+      if (panel.style.display === 'flex') {
+        refreshParticipantsList();
+      }
+    };
+
+    // Moderator Action: Kick/Dismiss participant connection
+    window.modKickParticipant = function(participantId, name) {
+      if (!isModerator || !jitsiApi) return;
+      if (confirm(`Are you sure you want to dismiss ${name || 'this participant'} from the conferencing room?`)) {
+        jitsiApi.executeCommand('kickParticipant', participantId);
+        participantsMap.delete(participantId);
+        refreshParticipantsList();
+      }
+    };
+
+    // Moderator Action: Mute All
+    window.modMuteAll = function() {
+      if (!isModerator || !jitsiApi) return;
+      if (confirm('Mute microphone of all participants in the room?')) {
+        jitsiApi.executeCommand('muteEveryone');
+      }
+    };
+
+    // Moderator Action: Lock Room / Set Password
+    window.modLockRoom = function() {
+      if (!isModerator || !jitsiApi) return;
+      const pwd = prompt('Enter room password to lock conferencing room (leave empty to unlock):');
+      if (pwd !== null) {
+        jitsiApi.executeCommand('password', pwd);
+        alert(pwd ? '🔐 Room locked with password.' : '🔓 Room security password removed.');
+      }
+    };
+
+    function refreshParticipantsList() {
+      const container = document.getElementById('participants-list');
+      const countEl = document.getElementById('participant-count');
+      if (!container) return;
+
+      if (!jitsiApi) {
+        container.innerHTML = '<div style="font-size:0.8rem; color:#94a3b8;">Connecting to server...</div>';
+        return;
+      }
+
+      let rawParticipants = [];
+      try {
+        if (typeof jitsiApi.getParticipantsInfo === 'function') {
+          rawParticipants = jitsiApi.getParticipantsInfo();
+        }
+      } catch (e) {
+        console.warn('Error fetching participants list:', e);
+      }
+
+      if (countEl) countEl.textContent = rawParticipants.length;
+
+      if (rawParticipants.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem; color:#94a3b8; text-align:center; padding:0.5rem;">No remote participants currently in room.</div>';
+        return;
+      }
+
+      container.innerHTML = rawParticipants.map(p => {
+        const pName = p.formattedDisplayName || p.displayName || 'Participant';
+        const isSelf = p.isLocal;
+        return `
+          <div class="participant-card">
+            <div>
+              <div class="participant-name">${isSelf ? '👤 You (' + pName + ')' : '👤 ' + pName}</div>
+              <div style="font-size: 0.72rem; color: #94a3b8;">${isSelf ? (isModerator ? '👑 Room Moderator' : 'Participant') : 'Remote User'}</div>
+            </div>
+            ${(!isSelf && isModerator) ? `
+              <div class="participant-actions">
+                <button class="action-icon-btn kick-btn" onclick="modKickParticipant('${p.participantId || p.id}', '${encodeURIComponent(pName)}')" title="Dismiss Connection / Kick">🚫 Kick</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const apptId = urlParams.get('appointment_id');
       const rawRoom = urlParams.get('room');
+      const reqRole = urlParams.get('role');
+      const reqToken = urlParams.get('token') || localStorage.getItem('chc_token') || localStorage.getItem('tutor_token') || localStorage.getItem('portalToken');
       let displayName = urlParams.get('name') || 'Guest User';
 
-      let roomName = '';
+      // 1. Verify user role & exclusive Doctor/Tutor moderator status with backend
+      try {
+        const verifyRes = await fetch('/api/video-room/verify-role', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': reqToken ? `Bearer ${reqToken}` : ''
+          },
+          body: JSON.stringify({
+            token: reqToken,
+            requestedRole: reqRole,
+            room: rawRoom,
+            appointment_id: apptId
+          })
+        });
 
-      window.toggleCallRecording = async function() {
-        const btn = document.getElementById('record-btn');
-        if (!btn) return;
-
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-          return;
+        if (verifyRes.ok) {
+          const vData = await verifyRes.json();
+          isModerator = vData.isModerator || false;
+          userRole = vData.role || 'guest';
+          if (vData.displayName && displayName === 'Guest User') {
+            displayName = vData.displayName;
+          }
         }
+      } catch (authErr) {
+        console.warn('Role verification failed, defaulting to participant:', authErr);
+      }
 
-        try {
-          // Capture display/tab video + audio with systemAudio & preferCurrentTab enabled by default
-          const displayStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { mediaSource: 'screen' },
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-              systemAudio: 'include'
-            },
-            preferCurrentTab: true,
-            selfBrowserSurface: 'include',
-            systemAudio: 'include'
-          });
+      // Update Role Badge & UI
+      const badgeContainer = document.getElementById('role-badge-container');
+      const modBtn = document.getElementById('toggle-mod-panel-btn');
 
-          // Alert if tab audio was un-checked in Chrome popup
-          if (displayStream.getAudioTracks().length === 0) {
-            alert("⚠️ Important: Patient's voice was not selected. Next time, make sure the 'Also share tab audio' toggle is turned ON in Chrome's popup so the patient's voice is recorded!");
+      if (badgeContainer) {
+        if (isModerator) {
+          if (userRole === 'doctor') {
+            badgeContainer.className = 'role-badge moderator-doctor';
+            badgeContainer.innerHTML = '👑 Doctor / Room Host';
+          } else if (userRole === 'tutor') {
+            badgeContainer.className = 'role-badge moderator-tutor';
+            badgeContainer.innerHTML = '👑 Tutor / Room Host';
+          } else {
+            badgeContainer.className = 'role-badge moderator-doctor';
+            badgeContainer.innerHTML = '👑 Room Moderator';
           }
-
-          // Capture doctor's microphone audio directly
-          let micStream = null;
-          try {
-            micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-          } catch (micErr) {
-            console.warn('Microphone stream access unavailable for recording:', micErr);
-          }
-
-          // Create Web Audio Context to mix doctor's mic + patient's tab audio into single stream
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          let combinedStream = displayStream;
-
-          if (AudioCtx) {
-            try {
-              const audioCtx = new AudioCtx();
-              const audioDest = audioCtx.createMediaStreamDestination();
-
-              // Connect patient's voice (tab audio)
-              if (displayStream.getAudioTracks().length > 0) {
-                const displaySource = audioCtx.createMediaStreamSource(displayStream);
-                displaySource.connect(audioDest);
-              }
-
-              // Connect doctor's voice (microphone audio)
-              if (micStream && micStream.getAudioTracks().length > 0) {
-                const micSource = audioCtx.createMediaStreamSource(micStream);
-                micSource.connect(audioDest);
-              }
-
-              const tracks = [
-                ...displayStream.getVideoTracks(),
-                ...audioDest.stream.getAudioTracks()
-              ];
-              combinedStream = new MediaStream(tracks);
-            } catch (mixErr) {
-              console.warn('Audio mixing fallback to displayStream:', mixErr);
-            }
-          }
-
-          recordedChunks = [];
-          let mime = 'video/webm;codecs=vp9,opus';
-          if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
-
-          mediaRecorder = new MediaRecorder(combinedStream, { mimeType: mime });
-
-          mediaRecorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) {
-              recordedChunks.push(e.data);
-            }
-          };
-
-          mediaRecorder.onstop = () => {
-            clearInterval(recordingTimer);
-            btn.innerHTML = '⏺️ Record Call';
-            btn.style.background = '#dc2626';
-
-            displayStream.getTracks().forEach(track => track.stop());
-            if (micStream) micStream.getTracks().forEach(track => track.stop());
-
-            if (recordedChunks.length > 0) {
-              const blob = new Blob(recordedChunks, { type: 'video/webm' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.style.display = 'none';
-              a.href = url;
-              a.download = `Consultation_Appt_${apptId || 'Call'}_${new Date().toISOString().slice(0,10)}.webm`;
-              document.body.appendChild(a);
-              a.click();
-              setTimeout(() => {
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-              }, 100);
-            }
-          };
-
-          mediaRecorder.start(1000);
-          recordSeconds = 0;
-          btn.style.background = '#16a34a';
-
-          recordingTimer = setInterval(() => {
-            recordSeconds++;
-            const mins = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
-            const secs = String(recordSeconds % 60).padStart(2, '0');
-            btn.innerHTML = `🔴 Recording (${mins}:${secs}) — Save`;
-          }, 1000);
-
-        } catch (err) {
-          console.warn('Call recording cancelled or unsupported:', err);
+          if (modBtn) modBtn.style.display = 'inline-block';
+        } else {
+          badgeContainer.className = 'role-badge participant';
+          badgeContainer.innerHTML = '👤 Participant';
+          if (modBtn) modBtn.style.display = 'none';
         }
-      };
+      }
+
+      localDisplayName = displayName;
 
       // Synchronize room ID directly from API so Doctor and Patient always connect to the exact same room
       if (apptId) {
@@ -260,8 +583,8 @@
               const r = data.room_id || data.video_room_id;
               roomName = r.replace(/[^a-zA-Z0-9]/g, '');
             }
-            if (data.patient_name) {
-              displayName = data.patient_name;
+            if (data.patient_name && !isModerator) {
+              localDisplayName = data.patient_name;
             }
           }
         } catch (e) {
@@ -279,7 +602,7 @@
 
       const patientDisplay = document.getElementById('patient-display');
       if (patientDisplay) {
-        patientDisplay.textContent = `Patient: ${displayName}${apptId ? ' (Appt #' + apptId + ')' : ''}`;
+        patientDisplay.textContent = `User: ${localDisplayName}${apptId ? ' (Appt #' + apptId + ')' : ''}`;
       }
 
       const container = document.getElementById('video-container');
@@ -289,17 +612,115 @@
 
       function loadRoom(serverDomain) {
         if (spinner) spinner.style.display = 'flex';
-        
-        const videoUrl = `https://${serverDomain}/${roomName}#config.prejoinPageEnabled=false&config.enableLobby=false&config.disableLobby=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&userInfo.displayName="${encodeURIComponent(displayName)}"`;
 
+        // Clean previous Jitsi API instance if switching nodes
+        if (jitsiApi) {
+          try { jitsiApi.dispose(); } catch (e) {}
+          jitsiApi = null;
+        }
+
+        const videoUrl = `https://${serverDomain}/${roomName}#config.prejoinPageEnabled=false&config.enableLobby=false&config.disableLobby=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&userInfo.displayName="${encodeURIComponent(localDisplayName)}"`;
         if (extBtn) extBtn.href = videoUrl;
 
-        // Use direct un-moderated WebRTC iframe to guarantee 0 moderator locks and 0 logins
-        container.innerHTML = `<iframe src="${videoUrl}" allow="camera; microphone; display-capture; autoplay" style="width:100%; height:100%; border:none;"></iframe>`;
+        loadJitsiScript(serverDomain, () => {
+          try {
+            if (typeof window.JitsiMeetExternalAPI === 'function') {
+              const options = {
+                roomName: roomName,
+                width: '100%',
+                height: '100%',
+                parentNode: container,
+                configOverwrite: {
+                  prejoinPageEnabled: false,
+                  enableLobby: false,
+                  disableLobby: true,
+                  disableRemoteMute: !isModerator,
+                  remoteVideoMenu: {
+                    disableKick: !isModerator,
+                    disableGrantModerator: !isModerator
+                  },
+                  startWithAudioMuted: false,
+                  startWithVideoMuted: false
+                },
+                interfaceConfigOverwrite: {
+                  TOOLBAR_BUTTONS: [
+                    'microphone', 'camera', 'desktop', 'fullscreen',
+                    'fittoscreen', 'chat', 'raisehand', 'videoquality',
+                    'tileview', 'download', 'help', 'mute-everyone', 'security'
+                  ]
+                },
+                userInfo: {
+                  displayName: localDisplayName
+                }
+              };
 
-        setTimeout(() => {
-          if (spinner) spinner.style.display = 'none';
-        }, 1500);
+              jitsiApi = new window.JitsiMeetExternalAPI(serverDomain, options);
+
+              // Jitsi API Event Listeners
+              jitsiApi.addEventListener('videoConferenceJoined', (localUser) => {
+                if (spinner) spinner.style.display = 'none';
+
+                // Host takeover claim signal when Doctor / Tutor enters
+                if (isModerator) {
+                  try {
+                    jitsiApi.executeCommand('grantModerator', localUser.id);
+                    jitsiApi.executeCommand('sendEndpointTextMessage', '', {
+                      type: 'CLAIM_HOST',
+                      role: userRole,
+                      name: localDisplayName
+                    });
+                  } catch (hostErr) {
+                    console.warn('Host claim execution notice:', hostErr);
+                  }
+                }
+                refreshParticipantsList();
+              });
+
+              jitsiApi.addEventListener('participantJoined', (p) => {
+                participantsMap.set(p.id, p);
+                refreshParticipantsList();
+              });
+
+              jitsiApi.addEventListener('participantLeft', (p) => {
+                participantsMap.delete(p.id);
+                refreshParticipantsList();
+              });
+
+              jitsiApi.addEventListener('participantRoleChanged', (event) => {
+                refreshParticipantsList();
+              });
+
+              jitsiApi.addEventListener('endpointTextMessageReceived', (event) => {
+                const data = event.data;
+                if (data && data.eventData && data.eventData.text) {
+                  try {
+                    const msg = typeof data.eventData.text === 'string' ? JSON.parse(data.eventData.text) : data.eventData.text;
+                    if (msg.type === 'CLAIM_HOST' && !isModerator) {
+                      console.log(`Host claimed by verified ${msg.role}: ${msg.name}`);
+                    }
+                  } catch (e) {}
+                }
+              });
+
+              setTimeout(() => {
+                if (spinner) spinner.style.display = 'none';
+              }, 2000);
+
+            } else {
+              // Fallback iframe if Jitsi API script is blocked
+              container.innerHTML = `<iframe src="${videoUrl}" allow="camera; microphone; display-capture; autoplay" style="width:100%; height:100%; border:none;"></iframe>`;
+              setTimeout(() => {
+                if (spinner) spinner.style.display = 'none';
+              }, 1500);
+            }
+          } catch (apiErr) {
+            console.error('Failed to initialize Jitsi API, using iframe fallback:', apiErr);
+            container.innerHTML = `<iframe src="${videoUrl}" allow="camera; microphone; display-capture; autoplay" style="width:100%; height:100%; border:none;"></iframe>`;
+            setTimeout(() => {
+              if (spinner) spinner.style.display = 'none';
+            }, 1500);
+          }
+        });
       }
 
       if (serverSelect) {
