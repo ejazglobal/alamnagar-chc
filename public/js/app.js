@@ -1173,6 +1173,19 @@ function escapeHTML(str) {
 // --- ONLINE DONATION & SUPPORT HANDLERS ---
 let activeDonationPayTab = 'bank';
 
+window.copyBankAccountNumber = function() {
+  const accNo = '20506180200127114';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(accNo).then(() => {
+      alert('📋 Bank Account Number 20506180200127114 copied to clipboard!');
+    }).catch(() => {
+      prompt('Copy Bank Account Number:', accNo);
+    });
+  } else {
+    prompt('Copy Bank Account Number:', accNo);
+  }
+};
+
 window.openDonationModal = function() {
   const modal = document.getElementById('donation-modal');
   if (modal) modal.style.display = 'flex';

@@ -343,23 +343,36 @@
           <div class="form-group" style="margin-bottom: 1.25rem;">
             <label class="form-label" style="font-weight: 700;">3. Payment Method & Account Details</label>
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
-              <button type="button" id="pay-tab-bank" onclick="switchDonationPaymentTab('bank')" style="flex: 1; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #0d9488; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer;">🏦 Bank Transfer</button>
+              <button type="button" id="pay-tab-bank" onclick="switchDonationPaymentTab('bank')" style="flex: 1; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #0d9488; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer;">🇧🇩 Bangla QR & Bank</button>
               <button type="button" id="pay-tab-mfs" onclick="switchDonationPaymentTab('mfs')" style="flex: 1; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; color: #334155; font-weight: 700; font-size: 0.85rem; cursor: pointer;">📱 bKash / Nagad / MFS</button>
             </div>
 
-            <!-- Bank Transfer Details Box -->
-            <div id="pay-box-bank" style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
-              <div style="font-weight: 700; color: #0f766e; font-size: 0.95rem; margin-bottom: 0.5rem;">
-                🏦 Official Bank Deposit Info (Islami Bank)
+            <!-- Bangla QR & Bank Transfer Details Box -->
+            <div id="pay-box-bank" style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; padding: 1.1rem; margin-bottom: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 220px;">
+                  <div style="font-weight: 700; color: #0f766e; font-size: 0.95rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>🏦 Islami Bank & Bangla QR Details</span>
+                  </div>
+                  <div style="font-size: 0.88rem; color: #1e293b; line-height: 1.6;">
+                    <div>Account Title: <strong style="color: #0f766e;">Alamnagar Kolony Jame Masjid Unnayan Committee</strong></div>
+                    <div>Account Number: <strong style="color: #0d9488; font-size: 1.1rem; letter-spacing: 0.5px;">20506180200127114</strong>
+                      <button type="button" onclick="copyBankAccountNumber()" style="background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px; cursor: pointer; margin-left: 0.4rem;" title="Copy Account Number">📋 Copy</button>
+                    </div>
+                    <div>Bank Name: <strong>Islami Bank Bangladesh PLC</strong></div>
+                    <div>Branch: <strong>Alamnagar Sub-Branch</strong></div>
+                  </div>
+                </div>
+
+                <!-- Bangla QR Code Display Box -->
+                <div style="text-align: center; background: #ffffff; padding: 0.6rem; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.05); min-width: 130px;">
+                  <img id="bangla-qr-code-img" src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=Account:20506180200127114,Title:Alamnagar%20Kolony%20Jame%20Masjid%20Unnayan%20Committee,Bank:Islami%20Bank%20Bangladesh%20PLC" alt="Bangla QR Code" style="width: 110px; height: 110px; border-radius: 4px; display: block; margin: 0 auto;">
+                  <div style="font-size: 0.72rem; font-weight: 700; color: #0284c7; margin-top: 0.35rem;">🇧🇩 Scan with Bangla QR</div>
+                  <div style="font-size: 0.68rem; color: #64748b;">(bKash, Nagad, CellFin, Any App)</div>
+                </div>
               </div>
-              <div style="font-size: 0.88rem; color: #1e293b; line-height: 1.6;">
-                <div>Account Title: <strong>Alamnagar Kolony Jame Masjid Unnayan Committee</strong></div>
-                <div>Account Number: <strong style="color: #0d9488; font-size: 1.05rem; letter-spacing: 0.5px;">20506180200127114</strong></div>
-                <div>Bank Name: <strong>Islami Bank Bangladesh PLC</strong></div>
-                <div>Branch: <strong>Alamnagar Sub-Branch</strong></div>
-              </div>
-              <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.5rem;">
-                * Direct online bank transfer (BEFTN / NPSB / CellFin / iRecharge) or branch cash deposit accepted.
+              <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.75rem; border-top: 1px dashed #bpt; padding-top: 0.5rem;">
+                💡 <strong>Scan or Transfer:</strong> Open bKash, Nagad, CellFin, or any Bank App to scan the <strong>Bangla QR Code</strong> or transfer directly via BEFTN / NPSB / CellFin.
               </div>
             </div>
 
@@ -369,7 +382,7 @@
                 📱 Mobile Financial Services (bKash / Nagad / Rocket)
               </div>
               <p style="font-size: 0.85rem; color: #334155; margin-bottom: 0.5rem;">
-                Send your custom donation amount via Send Money or Cash Out, then copy and paste the <strong>TrxID (Transaction ID)</strong> in the box below.
+                Scan the <strong>Bangla QR Code</strong> above or send your custom donation amount via bKash/Nagad/Rocket Send Money, then copy and paste your <strong>TrxID (Transaction ID)</strong> in the reference box below.
               </p>
             </div>
           </div>
