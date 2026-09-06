@@ -1035,10 +1035,6 @@ function renderAuthNav() {
   const isAdminPage = path.endsWith('admin.html');
 
   const tuitionLinkText = (TRANSLATIONS[currentLanguage] && TRANSLATIONS[currentLanguage]["nav-tuition"]) ? TRANSLATIONS[currentLanguage]["nav-tuition"] : 'Community Tuition';
-  const donateLabel = currentLanguage === 'bn' ? 'দান করুন' : 'Donate';
-
-  const facebookLinkHtml = `<a href="https://www.facebook.com/AlamnagarCHC/" target="_blank" rel="noopener noreferrer" class="nav-link" style="color: #1877f2; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;" title="Official Facebook Page"><svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg> Facebook</a>`;
-  const donateBtnHtml = `<button onclick="if(window.openDonationModal){window.openDonationModal();}else{window.location.href='index.html';}" class="nav-link" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none; border-radius: 20px; padding: 0.35rem 0.9rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(13,148,136,0.3);">🤲 ${donateLabel}</button>`;
 
   if (role) {
     let portalLink = '';
@@ -1053,8 +1049,6 @@ function renderAuthNav() {
       <a href="index.html#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
       <a href="tuition.html" class="nav-link ${isTuitionPage ? 'active' : ''}" id="link-tuition" data-i18n="nav-tuition">${tuitionLinkText}</a>
       <a href="patient-portal.html" class="nav-link ${isPortalPage ? 'active' : ''}" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
-      ${facebookLinkHtml}
-      ${donateBtnHtml}
       ${portalLink}
       <a href="#" class="nav-link" id="link-logout" onclick="logoutUser(event)" style="font-weight:600; color:var(--danger);" data-i18n="nav-logout">${TRANSLATIONS[currentLanguage]["nav-logout"]}</a>
     `;
@@ -1074,8 +1068,6 @@ function renderAuthNav() {
       <a href="index.html#appointments" class="nav-link" id="link-book" data-i18n="nav-book">${TRANSLATIONS[currentLanguage]["nav-book"]}</a>
       <a href="tuition.html" class="nav-link ${isTuitionPage ? 'active' : ''}" id="link-tuition" data-i18n="nav-tuition">${tuitionLinkText}</a>
       <a href="patient-portal.html" class="nav-link ${isPortalPage ? 'active' : ''}" id="link-portal" data-i18n="nav-portal">${TRANSLATIONS[currentLanguage]["nav-portal"]}</a>
-      ${facebookLinkHtml}
-      ${donateBtnHtml}
       <a href="login.html" class="nav-link btn-admin" id="link-auth-btn" data-i18n="nav-login">${TRANSLATIONS[currentLanguage]["nav-login"]}</a>
     `;
   }
