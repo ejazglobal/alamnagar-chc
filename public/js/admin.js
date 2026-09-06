@@ -55,6 +55,7 @@ async function unlockDashboard(role) {
   await loadAdminMedicines(1);
   await loadAdminTuitionEnrollments();
   await loadTuitionSubjectsAndRender();
+  await loadAdminDonations();
   
   if (role === 'Admin' || role === 'Staff') {
     const staffSec = document.getElementById('admin-staff-section');
@@ -3338,4 +3339,212 @@ window.toggleTuitionSubjectsSection = function() {
     body.style.display = 'none';
     if (badge) badge.textContent = '▼ Click to Expand Catalog';
   }
+};
+
+// --- ADMIN DONATIONS & CHARITY HANDLERS ---
+let adminDonationsList = [];
+let adminDonationsFilter = 'all';
+let adminDonationsSearch = '';
+
+window.loadAdminDonations = async function() {
+  const token = localStorage.getItem('chc_token');
+  if (!token) return;
+
+  const tbody = document.getElementById('donations-admin-tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch('/api/admin/donations', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      adminDonationsList = data.donations || [];
+
+      const totalVal = document.getElementById('donations-stat-total');
+      const pendingVal = document.getElementById('donations-stat-pending');
+      const donorsVal = document.getElementById('donations-stat-donors');
+
+      if (totalVal && data.metrics) totalVal.textContent = `৳${(data.metrics.totalApprovedAmount || 0).toLocaleString()}`;
+      if (pendingVal && data.metrics) pendingVal.textContent = data.metrics.pendingCount || 0;
+      if (donorsVal && data.metrics) donorsVal.textContent = data.metrics.totalDonorsCount || 0;
+
+      renderAdminDonationsTable();
+    } else {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger);">Failed to load donation records.</td></tr>';
+    }
+  } catch (err) {
+    console.error('Error loading admin donations:', err);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger);">Network error loading donations.</td></tr>';
+  }
+};
+
+window.renderAdminDonationsTable = function() {
+  const tbody = document.getElementById('donations-admin-tbody');
+  if (!tbody) return;
+
+  let filtered = adminDonationsList;
+
+  if (adminDonationsFilter !== 'all') {
+    filtered = filtered.filter(d => d.status === adminDonationsFilter);
+  }
+
+  if (adminDonationsSearch) {
+    const q = adminDonationsSearch.toLowerCase();
+    filtered = filtered.filter(d => 
+      (d.donor_name || '').toLowerCase().includes(q) ||
+      (d.phone || '').toLowerCase().includes(q) ||
+      (d.email || '').toLowerCase().includes(q) ||
+      (d.transaction_id || '').toLowerCase().includes(q) ||
+      (d.fund_category || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No donation records found matching criteria.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(d => {
+    const isApproved = d.status === 'approved';
+    const isPending = d.status === 'pending';
+    const statusBadgeClass = isApproved ? 'badge-approved' : (isPending ? 'badge-pending' : 'badge-status');
+
+    return `
+      <tr>
+        <td><strong>#${d.id}</strong></td>
+        <td>
+          <strong style="color: var(--text-dark);">${escapeHTML(d.donor_name)}</strong>
+          ${d.phone ? `<div style="font-size: 0.8rem; color: #0d9488;">📞 ${escapeHTML(d.phone)}</div>` : ''}
+          ${d.email ? `<div style="font-size: 0.78rem; color: #64748b;">✉️ ${escapeHTML(d.email)}</div>` : ''}
+        </td>
+        <td>
+          <div style="font-size: 1.05rem; font-weight: 700; color: #059669;">
+            ${d.currency === 'USD' ? '$' : '৳'}${parseFloat(d.amount).toLocaleString()} ${d.currency || 'BDT'}
+          </div>
+          <div style="font-size: 0.78rem; color: #0284c7; font-weight: 600; margin-top: 0.15rem;">
+            🎯 ${escapeHTML(d.fund_category || 'General Charity')}
+          </div>
+          ${d.notes ? `<div style="font-size: 0.75rem; color: #64748b; font-style: italic; margin-top: 0.2rem;">"${escapeHTML(d.notes)}"</div>` : ''}
+        </td>
+        <td>
+          <div style="font-weight: 600; font-size: 0.85rem; color: #1e293b;">${escapeHTML(d.payment_method || 'Bank Transfer')}</div>
+          ${d.transaction_id ? `<div style="font-size: 0.8rem; color: #b45309; font-family: monospace; font-weight: 700; margin-top: 0.15rem;">TrxID: ${escapeHTML(d.transaction_id)}</div>` : '<div style="font-size: 0.75rem; color: #94a3b8;">No reference provided</div>'}
+        </td>
+        <td style="font-size: 0.8rem; color: #64748b;">
+          ${new Date(d.created_at).toLocaleString()}
+        </td>
+        <td>
+          <span class="badge-status ${statusBadgeClass}">${d.status.toUpperCase()}</span>
+        </td>
+        <td style="text-align: center;">
+          <div style="display: flex; gap: 0.25rem; justify-content: center; flex-wrap: wrap;">
+            ${isPending ? `
+              <button onclick="updateDonationStatusAdmin(${d.id}, 'approved')" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #059669; color: white;">✓ Verify</button>
+              <button onclick="updateDonationStatusAdmin(${d.id}, 'rejected')" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #dc2626; color: white;">✕ Reject</button>
+            ` : `
+              ${!isApproved ? `<button onclick="updateDonationStatusAdmin(${d.id}, 'approved')" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #059669; color: white;">✓ Approve</button>` : ''}
+            `}
+            <button onclick="deleteDonationAdmin(${d.id})" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #64748b; color: white;" title="Delete Record">🗑️</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+};
+
+window.filterDonationsAdmin = function(status, btnEl) {
+  adminDonationsFilter = status;
+  const group = document.getElementById('donations-filter-group');
+  if (group) {
+    group.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  }
+  if (btnEl) btnEl.classList.add('active');
+  renderAdminDonationsTable();
+};
+
+window.searchDonationsAdmin = function(val) {
+  adminDonationsSearch = val || '';
+  renderAdminDonationsTable();
+};
+
+window.updateDonationStatusAdmin = async function(id, status) {
+  const token = localStorage.getItem('chc_token');
+  if (!token) return;
+
+  if (status === 'approved' && !confirm(`Approve donation #${id} and verify receipt?`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/donations/${id}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      await loadAdminDonations();
+    } else {
+      alert(data.error || 'Failed to update donation status.');
+    }
+  } catch (err) {
+    console.error('Error updating donation:', err);
+    alert('Network error updating donation status.');
+  }
+};
+
+window.deleteDonationAdmin = async function(id) {
+  const token = localStorage.getItem('chc_token');
+  if (!token) return;
+
+  if (!confirm(`Are you sure you want to delete donation record #${id}?`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/donations/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      await loadAdminDonations();
+    } else {
+      alert(data.error || 'Failed to delete donation record.');
+    }
+  } catch (err) {
+    console.error('Error deleting donation:', err);
+    alert('Network error deleting donation record.');
+  }
+};
+
+window.exportDonationsCSV = function() {
+  if (!adminDonationsList || adminDonationsList.length === 0) {
+    return alert('No donation records available to export.');
+  }
+
+  const headers = ['Ref ID', 'Donor Name', 'Phone', 'Email', 'Amount', 'Currency', 'Cause Category', 'Payment Method', 'TrxID / Reference', 'Notes', 'Status', 'Date Submitted'];
+  const rows = adminDonationsList.map(d => [
+    d.id,
+    `"${(d.donor_name || '').replace(/"/g, '""')}"`,
+    `"${(d.phone || '').replace(/"/g, '""')}"`,
+    `"${(d.email || '').replace(/"/g, '""')}"`,
+    d.amount,
+    d.currency || 'BDT',
+    `"${(d.fund_category || '').replace(/"/g, '""')}"`,
+    `"${(d.payment_method || '').replace(/"/g, '""')}"`,
+    `"${(d.transaction_id || '').replace(/"/g, '""')}"`,
+    `"${(d.notes || '').replace(/"/g, '""')}"`,
+    d.status,
+    `"${new Date(d.created_at).toLocaleString().replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `Alamnagar_CHC_Donations_Report_${new Date().toISOString().slice(0,10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };

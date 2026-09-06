@@ -2475,6 +2475,149 @@ app.post('/api/video-room/verify-role', (req, res) => {
   }
 });
 
+// --- DONATIONS & CHARITY API ROUTES ---
+
+// 1. Public Endpoint: Submit Online Donation / Charity Reference
+app.post('/api/donations', async (req, res) => {
+  try {
+    const { donor_name, phone, email, amount, currency, fund_category, payment_method, transaction_id, notes } = req.body;
+
+    if (!donor_name || donor_name.trim().length < 2) {
+      return res.status(400).json({ error: 'Donor full name is required.' });
+    }
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ error: 'Please enter a valid donation amount greater than 0.' });
+    }
+
+    const donation = await db.createDonation({
+      donor_name,
+      phone,
+      email,
+      amount: numAmount,
+      currency: currency || 'BDT',
+      fund_category: fund_category || 'General Charity',
+      payment_method: payment_method || 'Bank Transfer',
+      transaction_id,
+      notes
+    });
+
+    // Send confirmation SMS/Email if contact provided
+    if (donation.phone) {
+      try {
+        mailer.sendSMS(donation.phone, `[আলমনগর সিএইচসি] প্রিয় ${donation.donor_name}, আপনার ৳${donation.amount} টাকা অনুদানের আবেদনটি পাওয়া গিয়েছে (Ref #${donation.id})। আলমনগর সিএইচসির পাশে থাকার জন্য ধন্যবাদ।`);
+      } catch (smsErr) {
+        console.warn('Donation SMS notice:', smsErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      donation_id: donation.id,
+      message: 'Thank you! Your donation reference has been received and logged successfully.',
+      donation
+    });
+  } catch (err) {
+    console.error('Error submitting donation:', err);
+    res.status(500).json({ error: 'Failed to process donation reference: ' + err.message });
+  }
+});
+
+// 2. Admin Endpoint: Fetch All Donation Records & Summary Metrics
+app.get('/api/admin/donations', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied: Admin or Staff permissions required.' });
+    }
+
+    const { status, fund_category, search } = req.query;
+    const donations = await db.getDonations({ status, fund_category, search });
+
+    // Calculate Summary Metrics
+    let totalApprovedAmount = 0;
+    let pendingCount = 0;
+    let approvedCount = 0;
+
+    donations.forEach(d => {
+      const amt = parseFloat(d.amount) || 0;
+      if (d.status === 'approved') {
+        totalApprovedAmount += amt;
+        approvedCount++;
+      } else if (d.status === 'pending') {
+        pendingCount++;
+      }
+    });
+
+    res.json({
+      success: true,
+      donations,
+      metrics: {
+        totalApprovedAmount,
+        pendingCount,
+        approvedCount,
+        totalDonorsCount: donations.length
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching admin donations:', err);
+    res.status(500).json({ error: 'Failed to retrieve donation records.' });
+  }
+});
+
+// 3. Admin Endpoint: Update Donation Verification Status
+app.put('/api/admin/donations/:id/status', authenticateToken, async (req, res) => {
+  try {
+    if (!['Admin', 'Staff'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied: Admin or Staff permissions required.' });
+    }
+
+    const donationId = parseInt(req.params.id, 10);
+    if (isNaN(donationId)) return res.status(400).json({ error: 'Invalid donation ID.' });
+
+    const { status, notes } = req.body;
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value.' });
+    }
+
+    const updated = await db.updateDonationStatus(donationId, status, notes);
+
+    if (updated && status === 'approved' && updated.phone) {
+      try {
+        mailer.sendSMS(updated.phone, `[আলমনগর সিএইচসি] প্রিয় ${updated.donor_name}, আপনার ৳${updated.amount} অনুদানটি যাচাই করে সফলভাবে অনুমোদিত হয়েছে। আলমনগর সিএইচসি আপনার সদয় অবদানের জন্য আন্তরিক কৃতজ্ঞ।`);
+      } catch (smsErr) {
+        console.warn('Donation approval SMS notice:', smsErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Donation status updated to '${status}' successfully.`,
+      donation: updated
+    });
+  } catch (err) {
+    console.error('Error updating donation status:', err);
+    res.status(500).json({ error: 'Failed to update donation status.' });
+  }
+});
+
+// 4. Admin Endpoint: Delete Donation Record
+app.delete('/api/admin/donations/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ error: 'Access denied: Admin permissions required.' });
+    }
+
+    const donationId = parseInt(req.params.id, 10);
+    if (isNaN(donationId)) return res.status(400).json({ error: 'Invalid donation ID.' });
+
+    await db.deleteDonation(donationId);
+    res.json({ success: true, message: 'Donation record deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting donation:', err);
+    res.status(500).json({ error: 'Failed to delete donation record.' });
+  }
+});
+
 // Helper for parsing CSV lines in setup route
 function parseCSVLine(line) {
   const result = [];

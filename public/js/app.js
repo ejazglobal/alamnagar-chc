@@ -1169,3 +1169,118 @@ function escapeHTML(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// --- ONLINE DONATION & SUPPORT HANDLERS ---
+let activeDonationPayTab = 'bank';
+
+window.openDonationModal = function() {
+  const modal = document.getElementById('donation-modal');
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closeDonationModal = function(e) {
+  if (e && e.target && e.target.id !== 'donation-modal' && !e.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('donation-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.setDonationPreset = function(amount) {
+  const amountInput = document.getElementById('donation-amount');
+  if (amountInput) {
+    amountInput.value = amount;
+  }
+};
+
+window.switchDonationPaymentTab = function(method) {
+  activeDonationPayTab = method;
+  const bankTab = document.getElementById('pay-tab-bank');
+  const mfsTab = document.getElementById('pay-tab-mfs');
+  const bankBox = document.getElementById('pay-box-bank');
+  const mfsBox = document.getElementById('pay-box-mfs');
+
+  if (method === 'bank') {
+    if (bankTab) { bankTab.style.background = '#0d9488'; bankTab.style.color = 'white'; }
+    if (mfsTab) { mfsTab.style.background = '#f8fafc'; mfsTab.style.color = '#334155'; }
+    if (bankBox) bankBox.style.display = 'block';
+    if (mfsBox) mfsBox.style.display = 'none';
+  } else {
+    if (bankTab) { bankTab.style.background = '#f8fafc'; bankTab.style.color = '#334155'; }
+    if (mfsTab) { mfsTab.style.background = '#c2410c'; mfsTab.style.color = 'white'; }
+    if (bankBox) bankBox.style.display = 'none';
+    if (mfsBox) mfsBox.style.display = 'block';
+  }
+};
+
+window.submitDonationForm = async function(e) {
+  if (e) e.preventDefault();
+
+  const donorNameInput = document.getElementById('donation-donor-name');
+  const phoneInput = document.getElementById('donation-phone');
+  const emailInput = document.getElementById('donation-email');
+  const amountInput = document.getElementById('donation-amount');
+  const currencyInput = document.getElementById('donation-currency');
+  const fundCategoryInput = document.getElementById('donation-fund-category');
+  const trxidInput = document.getElementById('donation-trxid');
+  const notesInput = document.getElementById('donation-notes');
+  const statusMsg = document.getElementById('donation-status-msg');
+
+  const donorName = donorNameInput ? donorNameInput.value.trim() : '';
+  const phone = phoneInput ? phoneInput.value.trim() : '';
+  const email = emailInput ? emailInput.value.trim() : '';
+  const amount = amountInput ? parseFloat(amountInput.value) : 0;
+  const currency = currencyInput ? currencyInput.value : 'BDT';
+  const fundCategory = fundCategoryInput ? fundCategoryInput.value : 'General Charity';
+  const transactionId = trxidInput ? trxidInput.value.trim() : '';
+  const notes = notesInput ? notesInput.value.trim() : '';
+
+  if (!donorName) return alert('Please enter your full name.');
+  if (isNaN(amount) || amount <= 0) return alert('Please enter a valid donation amount.');
+
+  const submitBtn = document.getElementById('btn-submit-donation');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting reference...'; }
+
+  try {
+    const res = await fetch('/api/donations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        donor_name: donorName,
+        phone,
+        email,
+        amount,
+        currency,
+        fund_category: fundCategory,
+        payment_method: activeDonationPayTab === 'bank' ? 'Bank Transfer' : 'bKash / MFS',
+        transaction_id: transactionId,
+        notes
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (statusMsg) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = '#059669';
+        statusMsg.innerHTML = `✅ <strong>Thank you, ${escapeHTML(donorName)}!</strong><br>Your donation reference (Ref #${data.donation_id}) of ${currency === 'USD' ? '$' : '৳'}${amount} for <em>${escapeHTML(fundCategory)}</em> has been recorded.`;
+      }
+      setTimeout(() => {
+        document.getElementById('donation-form').reset();
+        if (statusMsg) statusMsg.style.display = 'none';
+        const modal = document.getElementById('donation-modal');
+        if (modal) modal.style.display = 'none';
+        alert(`🎉 Thank you for supporting Alamnagar CHC! Your donation reference #${data.donation_id} has been logged.`);
+      }, 2200);
+    } else {
+      if (statusMsg) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = '#dc2626';
+        statusMsg.textContent = `❌ ${data.error || 'Failed to submit donation.'}`;
+      }
+    }
+  } catch (err) {
+    console.error('Error submitting donation:', err);
+    alert('Network error submitting donation reference. Please try again.');
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '🤲 Complete Donation Reference Submission'; }
+  }
+};

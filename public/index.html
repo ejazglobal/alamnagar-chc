@@ -29,6 +29,7 @@
           <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           Facebook
         </a>
+        <button onclick="openDonationModal()" class="nav-link" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none; border-radius: 20px; padding: 0.35rem 0.9rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(13,148,136,0.3);">🤲 Donate</button>
         <a href="login.html" class="nav-link btn-admin" id="link-auth-btn" data-i18n="nav-login">Login / Register</a>
       </nav>
       <div class="lang-switcher">
@@ -292,6 +293,122 @@
     <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
     <img class="lightbox-img" id="lightbox-img" src="" alt="Zoomed image">
     <div class="lightbox-caption" id="lightbox-caption"></div>
+  </div>
+
+  <!-- Online Donation & Support Modal -->
+  <div id="donation-modal" class="modal-overlay" style="display: none;" onclick="closeDonationModal(event)">
+    <div class="modal-container" style="max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
+      <div class="modal-header" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: white;">
+        <h3 class="modal-title" style="color: white; display: flex; align-items: center; gap: 0.5rem;">
+          <span>🤲 Support Alamnagar CHC & Community</span>
+        </h3>
+        <button class="modal-close" style="color: white;" onclick="closeDonationModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem;">
+        <p style="font-size: 0.9rem; color: #475569; margin-bottom: 1.25rem; line-height: 1.5;">
+          Your generous contribution supports free medicines for patients, community tuition for underprivileged students, and local Healthcare & Jame Masjid infrastructure development.
+        </p>
+
+        <form id="donation-form" onsubmit="submitDonationForm(event)">
+          <!-- Fund Category -->
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label class="form-label" style="font-weight: 700;">1. Select Cause / Fund Category *</label>
+            <select id="donation-fund-category" class="form-control" style="background: #ffffff;" required>
+              <option value="Free Medicine & Healthcare">💊 Free Medicine & Patient Healthcare Fund</option>
+              <option value="Community Tuition & Education">🎓 Community Education & Tuition Fund</option>
+              <option value="Masjid & Community Infrastructure">🕌 Alamnagar Kolony Jame Masjid & Facility Fund</option>
+              <option value="General Charity & Zakat">🤲 General Welfare, Sadaqah & Zakat Fund</option>
+            </select>
+          </div>
+
+          <!-- Flexible Amount Selection -->
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label class="form-label" style="font-weight: 700;">2. Donation Amount (Flexible Custom Input) *</label>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+              <button type="button" class="btn" style="flex: 1; min-width: 80px; padding: 0.4rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 700;" onclick="setDonationPreset(500)">৳500</button>
+              <button type="button" class="btn" style="flex: 1; min-width: 80px; padding: 0.4rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 700;" onclick="setDonationPreset(1000)">৳1,000</button>
+              <button type="button" class="btn" style="flex: 1; min-width: 80px; padding: 0.4rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 700;" onclick="setDonationPreset(5000)">৳5,000</button>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <select id="donation-currency" class="form-control" style="width: 90px; background: #f8fafc;">
+                <option value="BDT">৳ BDT</option>
+                <option value="USD">$ USD</option>
+              </select>
+              <input type="number" id="donation-amount" class="form-control" placeholder="Enter custom amount (e.g. 750)" min="1" step="any" required style="font-size: 1.1rem; font-weight: 700;">
+            </div>
+          </div>
+
+          <!-- Payment Method Tabs -->
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label class="form-label" style="font-weight: 700;">3. Payment Method & Account Details</label>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <button type="button" id="pay-tab-bank" onclick="switchDonationPaymentTab('bank')" style="flex: 1; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #0d9488; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer;">🏦 Bank Transfer</button>
+              <button type="button" id="pay-tab-mfs" onclick="switchDonationPaymentTab('mfs')" style="flex: 1; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; color: #334155; font-weight: 700; font-size: 0.85rem; cursor: pointer;">📱 bKash / Nagad / MFS</button>
+            </div>
+
+            <!-- Bank Transfer Details Box -->
+            <div id="pay-box-bank" style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
+              <div style="font-weight: 700; color: #0f766e; font-size: 0.95rem; margin-bottom: 0.5rem;">
+                🏦 Official Bank Deposit Info (Islami Bank)
+              </div>
+              <div style="font-size: 0.88rem; color: #1e293b; line-height: 1.6;">
+                <div>Account Title: <strong>Alamnagar Kolony Jame Masjid Unnayan Committee</strong></div>
+                <div>Account Number: <strong style="color: #0d9488; font-size: 1.05rem; letter-spacing: 0.5px;">20506180200127114</strong></div>
+                <div>Bank Name: <strong>Islami Bank Bangladesh PLC</strong></div>
+                <div>Branch: <strong>Alamnagar Sub-Branch</strong></div>
+              </div>
+              <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.5rem;">
+                * Direct online bank transfer (BEFTN / NPSB / CellFin / iRecharge) or branch cash deposit accepted.
+              </div>
+            </div>
+
+            <!-- MFS Details Box -->
+            <div id="pay-box-mfs" style="display: none; background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
+              <div style="font-weight: 700; color: #c2410c; font-size: 0.95rem; margin-bottom: 0.5rem;">
+                📱 Mobile Financial Services (bKash / Nagad / Rocket)
+              </div>
+              <p style="font-size: 0.85rem; color: #334155; margin-bottom: 0.5rem;">
+                Send your custom donation amount via Send Money or Cash Out, then copy and paste the <strong>TrxID (Transaction ID)</strong> in the box below.
+              </p>
+            </div>
+          </div>
+
+          <!-- Donor Details -->
+          <div class="form-group">
+            <label class="form-label" for="donation-donor-name">4. Your Full Name *</label>
+            <input type="text" id="donation-donor-name" class="form-control" placeholder="e.g. Abdur Rahman" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div class="form-group">
+              <label class="form-label" for="donation-phone">Mobile Phone (BD)</label>
+              <input type="tel" id="donation-phone" class="form-control" placeholder="017XXXXXXXX">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="donation-email">Email Address</label>
+              <input type="email" id="donation-email" class="form-control" placeholder="name@example.com">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="donation-trxid">Bank Ref / TrxID (Transaction ID)</label>
+            <input type="text" id="donation-trxid" class="form-control" placeholder="e.g. TrxID 9K28X1L or Bank Deposit Slip Reference">
+            <span style="font-size: 0.75rem; color: #64748b;">Enter deposit reference or bKash/Nagad TrxID if already transferred.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="donation-notes">Prayer / Notes (Optional)</label>
+            <textarea id="donation-notes" class="form-control" placeholder="Add any prayer, dedication or message..."></textarea>
+          </div>
+
+          <div id="donation-status-msg" style="margin-bottom: 1rem; text-align: center; display: none;"></div>
+
+          <button type="submit" class="btn" id="btn-submit-donation" style="background: linear-gradient(135deg, #0d9488, #059669); font-size: 1.05rem; padding: 0.85rem; font-weight: 700; color: white;">
+            🤲 Complete Donation Reference Submission
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 
   <script src="js/app.js"></script>

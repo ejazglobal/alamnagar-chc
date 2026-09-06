@@ -576,6 +576,72 @@
         </div>
       </section>
 
+      <!-- Online Donations & Charity Management Panel -->
+      <section class="panel" id="admin-donations-section" style="margin-top: 1.5rem; grid-column: 1/-1;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <h2 class="panel-title" style="margin-bottom: 0.25rem;">
+              🤲 Online Donations & Charity Management
+            </h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Track, verify, and audit donor contributions for Healthcare, Tuition, and Jame Masjid Fund</span>
+          </div>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn" style="width: auto; font-size: 0.85rem; padding: 0.4rem 0.85rem; background: #059669; color: white;" onclick="exportDonationsCSV()">📥 Export Donations CSV</button>
+            <button type="button" class="btn" style="width: auto; font-size: 0.85rem; padding: 0.4rem 0.85rem;" onclick="loadAdminDonations()">🔄 Refresh List</button>
+          </div>
+        </div>
+
+        <!-- Summary Stats Cards -->
+        <div class="stats-bar" style="margin-bottom: 1.25rem;">
+          <div class="stat-card">
+            <div class="stat-val" id="donations-stat-total" style="color: #059669;">৳0</div>
+            <div class="stat-lbl">Verified Approved Donations</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="donations-stat-pending" style="color: var(--warning);">0</div>
+            <div class="stat-lbl">Pending Approvals</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="donations-stat-donors" style="color: #0284c7;">0</div>
+            <div class="stat-lbl">Total Submissions</div>
+          </div>
+        </div>
+
+        <div id="donations-admin-status-banner" class="status-banner" style="margin-bottom: 1rem; display: none;"></div>
+
+        <!-- Filter bar -->
+        <div class="filters-bar" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <div class="filter-btn-group" id="donations-filter-group" style="display: flex; gap: 0.25rem;">
+            <button class="filter-btn active" onclick="filterDonationsAdmin('all', this)">All Submissions</button>
+            <button class="filter-btn" onclick="filterDonationsAdmin('pending', this)">Pending Verification</button>
+            <button class="filter-btn" onclick="filterDonationsAdmin('approved', this)">Approved</button>
+            <button class="filter-btn" onclick="filterDonationsAdmin('rejected', this)">Rejected</button>
+          </div>
+          <input type="search" id="donations-search-input" class="search-input" placeholder="Search donor name, phone, email, TrxID..." oninput="searchDonationsAdmin(this.value)" style="flex: 1;">
+        </div>
+
+        <div class="table-wrapper">
+          <table class="news-manage-table">
+            <thead>
+              <tr>
+                <th style="width: 70px;">Ref #</th>
+                <th>Donor Details</th>
+                <th>Donation Amount & Cause</th>
+                <th>Payment Method & TrxID / Ref</th>
+                <th>Date Submitted</th>
+                <th>Verification Status</th>
+                <th style="width: 140px; text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="donations-admin-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">Loading donation records...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- System User Directory & Credentials Management Panel -->
       <section class="panel" id="admin-user-directory-section" style="margin-top: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">

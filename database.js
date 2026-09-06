@@ -241,6 +241,23 @@ async function initializeDatabase() {
       )
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS donations (
+        id SERIAL PRIMARY KEY,
+        donor_name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        amount NUMERIC(12, 2) NOT NULL,
+        currency VARCHAR(10) DEFAULT 'BDT',
+        fund_category VARCHAR(100) DEFAULT 'General Charity',
+        payment_method VARCHAR(50) DEFAULT 'Bank Transfer',
+        transaction_id VARCHAR(255),
+        notes TEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     try {
       // Migrate predictable tuition-class-X room links to secure random cryptographic tokens
       await pool.query(`
@@ -1423,6 +1440,79 @@ module.exports = {
 
   deleteTuitionSubject: async (id) => {
     const res = await pool.query(`DELETE FROM tuition_subjects WHERE id = $1`, [id]);
+    return { changes: res.rowCount };
+  },
+
+  // --- DONATIONS & CHARITY HELPERS ---
+  createDonation: async (data) => {
+    const { donor_name, phone, email, amount, currency, fund_category, payment_method, transaction_id, notes } = data;
+    const cleanPhone = phone ? normalizePhone(phone) : null;
+    const cleanEmail = email ? email.trim().toLowerCase() : null;
+    const numAmount = parseFloat(amount) || 0;
+
+    const res = await pool.query(
+      `INSERT INTO donations 
+        (donor_name, phone, email, amount, currency, fund_category, payment_method, transaction_id, notes, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+       RETURNING *`,
+      [
+        donor_name.trim(),
+        cleanPhone,
+        cleanEmail,
+        numAmount,
+        currency || 'BDT',
+        fund_category || 'General Charity',
+        payment_method || 'Bank Transfer',
+        transaction_id ? transaction_id.trim() : null,
+        notes ? notes.trim() : null
+      ]
+    );
+    return res.rows[0];
+  },
+
+  getDonations: async (filters = {}) => {
+    let sql = `SELECT * FROM donations`;
+    const params = [];
+    const conditions = [];
+
+    if (filters.status) {
+      params.push(filters.status);
+      conditions.push(`status = $${params.length}`);
+    }
+    if (filters.fund_category) {
+      params.push(filters.fund_category);
+      conditions.push(`fund_category = $${params.length}`);
+    }
+    if (filters.search) {
+      params.push(`%${filters.search.trim()}%`);
+      conditions.push(`(donor_name ILIKE $${params.length} OR phone ILIKE $${params.length} OR email ILIKE $${params.length} OR transaction_id ILIKE $${params.length})`);
+    }
+
+    if (conditions.length > 0) {
+      sql += ` WHERE ` + conditions.join(' AND ');
+    }
+    sql += ` ORDER BY created_at DESC`;
+
+    const res = await pool.query(sql, params);
+    return res.rows;
+  },
+
+  getDonationById: async (id) => {
+    const res = await pool.query(`SELECT * FROM donations WHERE id = $1`, [id]);
+    return res.rows[0];
+  },
+
+  updateDonationStatus: async (id, status, notes = null) => {
+    const cleanStatus = ['pending', 'approved', 'rejected'].includes(status) ? status : 'pending';
+    const res = await pool.query(
+      `UPDATE donations SET status = $1, notes = COALESCE($2, notes) WHERE id = $3 RETURNING *`,
+      [cleanStatus, notes, id]
+    );
+    return res.rows[0];
+  },
+
+  deleteDonation: async (id) => {
+    const res = await pool.query(`DELETE FROM donations WHERE id = $1`, [id]);
     return { changes: res.rowCount };
   },
 
