@@ -80,15 +80,18 @@ async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
       }
     });
 
+    // Support both v1beta gemini-1.5-flash endpoint
     const options = {
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload)
       }
     };
+
+    console.log(`[AI Assistant] Calling Gemini API (Key: ...${apiKey.trim().slice(-4)})`);
 
     const req = https.request(options, (res) => {
       let data = '';
@@ -100,15 +103,21 @@ async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
             const replyText = json.candidates[0].content.parts.map(p => p.text).join('\n');
             resolve(replyText);
           } else {
+            console.error(`[AI Assistant] Gemini API Error Response:`, json.error || data);
             reject(new Error(json.error?.message || 'Invalid Gemini response format'));
           }
         } catch (e) {
+          console.error(`[AI Assistant] Gemini Parse Error:`, data);
           reject(e);
         }
       });
     });
 
-    req.on('error', (err) => reject(err));
+    req.on('error', (err) => {
+      console.error(`[AI Assistant] Gemini Request Error:`, err.message);
+      reject(err);
+    });
+
     req.write(payload);
     req.end();
   });
@@ -123,17 +132,37 @@ async function processFallbackQuery(userMsg, doctorsList) {
 
   const docInfoBn = activeDoctors.map((d, idx) => `${idx + 1}. ${d.name_bn} (${d.specialty_bn}) - সময়সূচী: ${d.visiting_hours_bn}`).join('\n');
 
-  // 1. Tuition & Student Education Program Intent
+  // 1. Medicine & Pharmacy Queries (e.g. Napa, medicines database)
+  if (cleanMsg.includes('napa') || cleanMsg.includes('medicine') || cleanMsg.includes('ঔষধ') || cleanMsg.includes('মেডিসিন') || cleanMsg.includes('ড্রাগ') || cleanMsg.includes('ফার্মেসি') || cleanMsg.includes('database')) {
+    return {
+      reply: `💊 ঔষধ ও ফার্মেসি তথ্য:\n\n• নাপা (Napa 500mg/Paracetamol) সাধারণত সাধারণ জ্বর, মাথাব্যথা এবং শরীর ব্যথার উপশমে ব্যবহৃত হয়।\n• আমাদের আলমনগর সিএইচসি-তে রেজিস্টার্ড ডিজিটাল ফার্মেসি ডাটাবেস ও প্রেসক্রিপশন ব্যবস্থাপনা রয়েছে।\n\n⚠️ যেকোনো ঔষধ সেবনের পূর্বে অবশ্যই আমাদের রেজিস্টার্ড ডাক্তারের পরামর্শ নিন।`,
+      audioText: `নাপা ৫০০ মিলিগ্রাম সাধারণত জ্বর ও মাথাব্যথার জন্য ব্যবহৃত হয়। যেকোনো ঔষধ সেবনের পূর্বে ডাক্তার সাহেবের পরামর্শ নিন।`,
+      detectedIntent: 'medicine_info',
+      quickActions: [{ label: '📅 ডাক্তারের পরামর্শ নিন', action: 'open_appointment_modal' }]
+    };
+  }
+
+  // 2. Gynecology & Female Specialist Queries
+  if (cleanMsg.includes('gynecology') || cleanMsg.includes('gynae') || cleanMsg.includes('গাইনি') || cleanMsg.includes('নারী') || cleanMsg.includes('স্ত্রী')) {
+    return {
+      reply: `👩‍⚕️ মা ও নারী স্বাস্থ্য (গাইনিকোলজি):\n\nআমাদের আলমনগর সিএইচসি-তে অভিজ্ঞ নারী ও শিশু রোগ বিশেষজ্ঞ নিয়মিত রোগী দেখেন।\n• ডাঃ সারাহ রহমান (শিশু ও নারী স্বাস্থ্য বিশেষজ্ঞ) - সময়: সোম ও বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)।\n\nঅনলাইনে সরাসরি সিরিয়াল বুক করুন।`,
+      audioText: `গাইনিকোলজি ও নারী স্বাস্থ্যের জন্য আমাদের শিশু ও নারী বিশেষজ্ঞ ডাঃ সারাহ রহমান সোম ও বুধবারে সেবা প্রদান করেন।`,
+      detectedIntent: 'gynecology_info',
+      quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
+    };
+  }
+
+  // 3. Tuition & Student Education Program Intent
   if (cleanMsg.includes('ছাত্র') || cleanMsg.includes('পড়াও') || cleanMsg.includes('পড়ানো') || cleanMsg.includes('পড়াশোনা') || cleanMsg.includes('টিউশন') || cleanMsg.includes('ক্লাস') || cleanMsg.includes('শিক্ষক') || cleanMsg.includes('শিক্ষার্থী') || cleanMsg.includes('tuition') || cleanMsg.includes('study') || cleanMsg.includes('class') || cleanMsg.includes('student') || cleanMsg.includes('tutor') || cleanMsg.includes('education') || cleanMsg.includes('পড়ালেখা')) {
     return {
       reply: `হ্যাঁ! আলমনগর সিএইচসি-তে বিনামূল্যে ও সামাজিক টিউশন সেবা প্রদান করা হয় 📚\n\nআমাদের শিক্ষা প্রোগ্রামের বৈশিষ্ট্যসমূহ:\n• ১ম শ্রেণি থেকে ১২ম শ্রেণি (SSC/HSC) পর্যন্ত ছাত্র-ছাত্রীদের পাঠদান করা হয়।\n• সরাসরি ক্লাসরুমের পাশাপাশি অনলাইন লাইভ ভার্চুয়াল ভিডিও ক্লাসের ব্যবস্থা রয়েছে।\n• গণিত, ইংরেজি, বিজ্ঞানসহ বিভিন্ন বিষয়ের জন্য দক্ষ টিউটর রয়েছেন।\n\nশিক্ষার্থী হিসেবে ভর্তি হতে বা টিউটর হিসেবে যোগ দিতে আমাদের টিউশন পোর্টালে যান।`,
-      audioText: `হ্যাঁ, আলমনগর সিএইচসি-তে ১ম থেকে ১২ম শ্রেণির ছাত্র-ছাত্রীদের বিনামূল্যে ও কম খরচে পড়ানো হয়। অনলাইন লাইভ ক্লাস এবং সরাসরি পড়ার সুযোগ রয়েছে। বিস্তারিত জানতে টিউশন পোর্টালে যান।`,
+      audioText: `হ্যাঁ, আলমনগর সিএইচসি-তে ১ম থেকে ১২ম শ্রেণির ছাত্র-ছাত্রীদের বিনামূল্যে ও কম খরচে পড়ানো হয়। বিস্তারিত জানতে টিউশন পোর্টালে যান।`,
       detectedIntent: 'tuition_program',
       quickActions: [{ label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' }]
     };
   }
 
-  // 2. Doctor Schedule & List Intent
+  // 4. Doctor Schedule & List Intent
   if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule') || cleanMsg.includes('তালিকা') || cleanMsg.includes('তিনজন') || cleanMsg.includes('3জন') || cleanMsg.includes('তিন জন')) {
     return {
       reply: `আলমনগর সিএইচসি-তে বর্তমানে ৩ জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`,
@@ -143,7 +172,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 3. Appointment Booking Intent
+  // 5. Appointment Booking Intent
   if (cleanMsg.includes('appointment') || cleanMsg.includes('book') || cleanMsg.includes('অ্যাপয়েন্টমেন্ট') || cleanMsg.includes('সিরিয়াল') || cleanMsg.includes('বুক')) {
     return {
       reply: `আলমনগর সিএইচসি-তে অ্যাপয়েন্টমেন্ট নেওয়া খুবই সহজ!\n\n১. নিচে 'অ্যাপয়েন্টমেন্ট বুক করুন' বোতামে ক্লিক করুন।\n২. আপনার নাম, মোবাইল নম্বর এবং কাঙ্ক্ষিত তারিখ নির্বাচন করুন।\n৩. কাঙ্ক্ষিত ডাক্তার নির্বাচন করে বুকিং সম্পন্ন করুন।\n\nসিরিয়াল নিশ্চিত হলে আপনার মোবাইলে কনফার্মেশন এসএমএস পাঠানো হবে।`,
@@ -153,7 +182,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 4. Donation & Support Intent
+  // 6. Donation & Support Intent
   if (cleanMsg.includes('donate') || cleanMsg.includes('donation') || cleanMsg.includes('দান') || cleanMsg.includes('ডোনেশন') || cleanMsg.includes('bkash') || cleanMsg.includes('bank') || cleanMsg.includes('qr')) {
     return {
       reply: `🤲 আলমনগর সিএইচসি সেবা তহবিলে সাহায্য করুন:\n\n• ইসলামী ব্যাংক একাউন্ট নম্বর: ${HOSPITAL_INFO.donation.account_no}\n• একাউন্ট নাম: ${HOSPITAL_INFO.donation.account_title}\n• বিকাশ / নগদ / বাংলা QR: আপনি যেকোনো ব্যাংকিং অ্যাপস দিয়ে ইসলামী ব্যাংক বাংলা QR কোড স্ক্যান করে বা Send Money করতে পারেন।\n\nঅর্থ পাঠানোর পর ওয়েবসাইটে TrxID দিয়ে নিশ্চিত করুন।`,
@@ -163,7 +192,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 5. Patient Portal & Prescriptions
+  // 7. Patient Portal & Prescriptions
   if (cleanMsg.includes('prescription') || cleanMsg.includes('report') || cleanMsg.includes('প্রেসক্রিপশন') || cleanMsg.includes('রিপোর্ট') || cleanMsg.includes('লগইন') || cleanMsg.includes('portal')) {
     return {
       reply: `আপনার ডাক্তারের প্রেসক্রিপশন ও মেডিকেল রিপোর্ট দেখতে রোগীর পোর্টাল (Patient Portal) ব্যবহার করুন।\n\nআপনার রেজিস্টার্ড ফোন নম্বর দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`,
@@ -173,7 +202,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 6. Emergency & Location Intent
+  // 8. Emergency & Location Intent
   if (cleanMsg.includes('emergency') || cleanMsg.includes('hotline') || cleanMsg.includes('location') || cleanMsg.includes('জরুরি') || cleanMsg.includes('ফোন') || cleanMsg.includes('ঠিকানা') || cleanMsg.includes('কোথায়')) {
     return {
       reply: `🏥 আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)\n\n📍 ঠিকানা: ${HOSPITAL_INFO.location}\n📞 জরুরি হটলাইন: ${HOSPITAL_INFO.emergency_hotline}\n📧 ইমেইল: ${HOSPITAL_INFO.email}\n\n২৪/৭ যেকোনো জরুরি প্রয়োজনে বা সহায়তায় সরাসরি আমাদের হটলাইনে ফোন দিন।`,
@@ -183,7 +212,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 7. Greetings Intent
+  // 9. Greetings Intent
   if (cleanMsg.includes('hello') || cleanMsg.includes('hi') || cleanMsg.includes('হ্যালো') || cleanMsg.includes('সালাম') || cleanMsg.includes('আসসালামু')) {
     return {
       reply: `আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী।\n\nআমি আপনাকে কীভাবে সাহায্য করতে পারি? ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট, টিউটোরিয়াল ক্লাস বা দান করার তথ্য জানতে প্রশ্ন করুন।`,
@@ -197,7 +226,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 8. General Fallback with Full Services Context
+  // 10. General Fallback
   return {
     reply: `আমি আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)-এর এআই ভার্চুয়াল সহকারী।\n\nআমাদের চিকিৎসকদের সময়সূচী, বিনামূল্যে টিউশন প্রোগ্রাম (ছাত্র পড়ানো), অনলাইন ভিডিও কল, অথবা অ্যাপয়েন্টমেন্ট সম্পর্কে প্রশ্ন করতে পারেন।`,
     audioText: `আলমনগর সিএইচসি ভার্চুয়াল সহকারীতে প্রশ্ন করার জন্য ধন্যবাদ। ডাক্তারদের সময়সূচী, টিউশন সেবা বা যেকোনো তথ্যের জন্য আমাদের জানান।`,
@@ -228,7 +257,7 @@ async function processQuery(userMessage, language = 'bn') {
       doctorsList = DEFAULT_DOCTORS;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = (process.env.GEMINI_API_KEY || '').trim();
 
     if (apiKey) {
       const doctorsText = doctorsList.map(d => `- ${d.name_bn} / ${d.name_en} (${d.specialty_bn}): Visiting ${d.visiting_hours_bn}`).join('\n');
@@ -248,7 +277,7 @@ INSTRUCTIONS:
 1. Respond concisely in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}.
 2. Keep the answer clear, helpful, and suitable for being read aloud over audio (Text to Speech). Avoid Markdown tables or code blocks.
 3. Keep the tone compassionate, polite, and professional.
-4. When asked about teaching students ("ছাত্র পড়ানো", "টিউশন", "পড়াশোনা"), confirm warmly that Alamnagar CHC runs a free/community tuition program from Class 1 to Class 12 with live video classrooms.`;
+4. Answer general medical inquiries (e.g. medicine uses like Napa, specialist doctors like Gynecology/Pediatrics) with helpful general guidance while reminding the patient to consult a registered doctor.`;
 
       try {
         const geminiReply = await queryGeminiApi(apiKey, systemPrompt, userMessage);
