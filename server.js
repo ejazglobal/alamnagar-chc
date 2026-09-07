@@ -8,6 +8,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const db = require('./database');
+const aiAssistant = require('./ai-assistant');
 const mailer = require('./mailer');
 const multer = require('multer');
 
@@ -3353,6 +3354,31 @@ app.delete('/api/tuition/admin/subjects/:id', authenticateToken, async (req, res
   }
 });
 
+
+// --- AI VIRTUAL VOICE & CHAT ASSISTANT ROUTES ---
+app.post('/api/ai-assistant/chat', async (req, res) => {
+  try {
+    const { message, language } = req.body || {};
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Message is required.' });
+    }
+    const result = await aiAssistant.processQuery(message, language || 'bn');
+    res.json(result);
+  } catch (err) {
+    console.error('AI Assistant API Error:', err);
+    res.status(500).json({
+      success: false,
+      reply: 'দুঃখিত, এআই সার্ভারে সমস্যা হয়েছে। অনুগ্রহ করে হটলাইনে কল করুন: 09601018088',
+      audioText: 'দুঃখিত, সমস্যা হয়েছে।'
+    });
+  }
+});
+
+app.get('/api/ai-assistant/knowledge-summary', (req, res) => {
+  res.json({
+    hospital: aiAssistant.HOSPITAL_INFO
+  });
+});
 
 // --- DOCTOR FALLBACK PATH ---
 
