@@ -104,7 +104,7 @@ function makeGeminiHttpRequest(modelName, apiKey, payload) {
 
 /**
  * Robust Multi-Model Gemini Query Function
- * Tries models in sequence: gemini-2.0-flash -> gemini-1.5-flash -> gemini-1.5-pro
+ * Uses gemini-3.6-flash (recommended by Google API) with fallback models
  */
 async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
   const payload = JSON.stringify({
@@ -123,7 +123,13 @@ async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
     }
   });
 
-  const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+  const modelsToTry = [
+    'gemini-3.6-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-flash-latest',
+    'gemini-pro'
+  ];
   let lastError = null;
 
   for (const model of modelsToTry) {
