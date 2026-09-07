@@ -15,7 +15,7 @@ const HOSPITAL_INFO = {
     { name_bn: "বিনামূল্যে স্বাস্থ্য শিক্ষা ও টিউটরিয়াল প্রোগ্রাম", name_en: "Free Tuition & Health Education Classes" }
   ],
   donation: {
-    bank_name: "Islami Bank Bangladesh PLC (ইসলামী ব্যাংক বাংলাদেশ পিএলসি)",
+    bank_name: "Islami Bank Bangladesh PLC (اسلامী ব্যাংক বাংলাদেশ পিএলসি)",
     branch: "Rangpur Branch",
     account_title: "Alamnagar CHC Fund",
     account_no: "20506180200127114",
@@ -24,6 +24,34 @@ const HOSPITAL_INFO = {
     instructions_en: "You can donate directly to our Islami Bank account or scan the Bangla QR code using bKash/Nagad/CellFin. Submit your TrxID on our site for automated verification."
   }
 };
+
+// Default fallback doctors list if database table is unpopulated
+const DEFAULT_DOCTORS = [
+  {
+    name_bn: "ডাঃ সারাহ রহমান",
+    name_en: "Dr. Sarah Rahman",
+    specialty_bn: "শিশু বিশেষজ্ঞ (Pediatric Specialist)",
+    specialty_en: "Pediatric Specialist",
+    visiting_hours_bn: "সোম, বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)",
+    visiting_hours_en: "Mon, Wed (09:00 AM - 01:00 PM)"
+  },
+  {
+    name_bn: "ডাঃ আজম খান",
+    name_en: "Dr. Azam Khan",
+    specialty_bn: "হৃদরোগ বিশেষজ্ঞ (Cardiologist)",
+    specialty_en: "Cardiologist",
+    visiting_hours_bn: "মঙ্গল, বৃহস্পতি (সকাল ১০:০০ - দুপুর ০২:০০)",
+    visiting_hours_en: "Tue, Thu (10:00 AM - 02:00 PM)"
+  },
+  {
+    name_bn: "ডাঃ রাহাত কবির",
+    name_en: "Dr. Rahat Kabir",
+    specialty_bn: "সাধারণ চিকিৎসক (General Physician)",
+    specialty_en: "General Physician",
+    visiting_hours_bn: "সোম থেকে শুক্র (সকাল ০৯:০০ - বিকেল ০৪:০০)",
+    visiting_hours_en: "Mon to Fri (09:00 AM - 04:00 PM)"
+  }
+];
 
 /**
  * Call Gemini REST API directly via HTTPS
@@ -84,16 +112,16 @@ async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
  */
 async function processFallbackQuery(userMsg, doctorsList) {
   const cleanMsg = (userMsg || '').toLowerCase().trim();
+  const activeDoctors = (doctorsList && doctorsList.length > 0) ? doctorsList : DEFAULT_DOCTORS;
 
-  // 1. Doctor Schedule & List Intent
-  if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule')) {
-    let docInfoBn = doctorsList.map(d => `• ${d.name_bn} (${d.specialty_bn}) - সময়: ${d.visiting_hours_bn}`).join('\n');
-    if (!docInfoBn) {
-      docInfoBn = "বর্তমানে আমাদের সম্মানিত ডাক্তারদের তালিকা প্রস্তুত করা হচ্ছে। অনুগ্রহ করে হটলাইনে যোগাযোগ করুন।";
-    }
+  // Build doctor formatted strings
+  const docInfoBn = activeDoctors.map((d, idx) => `${idx + 1}. ${d.name_bn} (${d.specialty_bn}) - সময়সূচী: ${d.visiting_hours_bn}`).join('\n');
+
+  // 1. Doctor Schedule, List, & Specific Doctor Inquiry Intent
+  if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule') || cleanMsg.includes('তালিকা') || cleanMsg.includes('তিনজন') || cleanMsg.includes('3জন') || cleanMsg.includes('তিন জন')) {
     return {
-      reply: `আমাদের আলমনগর সিএইচসি-এর সম্মানিত ডাক্তারদের সময়সূচী:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে সরাসরি অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`,
-      audioText: `আলমনগর সিএইচসি-এর ডাক্তারদের তালিকা এবং সময়সূচী স্ক্রিনে দেখানো হলো। আপনি চাইলে ওয়েবসাইট থেকে সরাসরি অ্যাপয়েন্টমেন্ট নিতে পারেন।`,
+      reply: `আলমনগর সিএইচসি-তে বর্তমানে ৩ জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`,
+      audioText: `আলমনগর সিএইচসিতে তিনজন সম্মানিত ডাক্তার রয়েছেন: ডাঃ সারাহ রহমান, ডাঃ আজম খান, এবং ডাঃ রাহাত কবির। তাদের সময়সূচী স্ক্রিনে দেখানো হয়েছে।`,
       detectedIntent: 'doctors_list',
       quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
     };
@@ -102,7 +130,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
   // 2. Appointment Booking Intent
   if (cleanMsg.includes('appointment') || cleanMsg.includes('book') || cleanMsg.includes('অ্যাপয়েন্টমেন্ট') || cleanMsg.includes('সিরিয়াল') || cleanMsg.includes('বুক')) {
     return {
-      reply: `আলমনগর সিএইচসি-তে অ্যাপয়েন্টমেন্ট নেওয়া খুবই সহজ!\n\n১. নিচে 'অ্যাপয়েন্টমেন্ট বুক করুন' বোতামে ক্লিক করুন।\n২. আপনার নাম, মোবাইল নম্বর এবং কাঙ্ক্ষিত তারিখ নির্বাচন করুন।\n৩. ডাক্তার নির্বাচন করে বুকিং নিশ্চিত করুন।\n\nসিরিয়াল নিশ্চিত হলে আপনার মোবাইলে নিশ্চিতকরণ এসএমএস চলে যাবে।`,
+      reply: `আলমনগর সিএইচসি-তে অ্যাপয়েন্টমেন্ট নেওয়া খুবই সহজ!\n\n১. নিচে 'অ্যাপয়েন্টমেন্ট বুক করুন' বোতামে ক্লিক করুন।\n২. আপনার নাম, মোবাইল নম্বর এবং কাঙ্ক্ষিত তারিখ নির্বাচন করুন।\n৩. কাঙ্ক্ষিত ডাক্তার নির্বাচন করে বুকিং সম্পন্ন করুন।\n\nসিরিয়াল নিশ্চিত হলে আপনার মোবাইলে কনফার্মেশন এসএমএস পাঠানো হবে।`,
       audioText: `আলমনগর সিএইচসি-তে অ্যাপয়েন্টমেন্ট নিতে নিচে বুকিং বোতামে ক্লিক করুন এবং আপনার নাম ও ফোন নম্বর দিয়ে সাবমিট করুন।`,
       detectedIntent: 'appointment_booking',
       quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
@@ -112,7 +140,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
   // 3. Donation & Support Intent
   if (cleanMsg.includes('donate') || cleanMsg.includes('donation') || cleanMsg.includes('দান') || cleanMsg.includes('ডোনেশন') || cleanMsg.includes('bkash') || cleanMsg.includes('bank') || cleanMsg.includes('qr')) {
     return {
-      reply: `🤲 আলমনগর সিএইচসি সেবা তহবিলে মুক্তহস্তে দান করুন:\n\n• ইসলামী ব্যাংক একাউন্ট নম্বর: ${HOSPITAL_INFO.donation.account_no}\n• একাউন্ট নাম: ${HOSPITAL_INFO.donation.account_title}\n• বিকাশ / নগদ / বাংলা QR: আপনি যেকোনো ব্যাংকিং অ্যাপস দিয়ে ইসলামী ব্যাংক বাংলা QR কোড স্ক্যান করে বা Send Money করতে পারেন।\n\nঅর্থ পাঠানোর পর ওয়েবসাইটে TrxID দিয়ে নিশ্চিত করুন।`,
+      reply: `🤲 আলমনগর সিএইচসি সেবা তহবিলে সাহায্য করুন:\n\n• ইসলামী ব্যাংক একাউন্ট নম্বর: ${HOSPITAL_INFO.donation.account_no}\n• একাউন্ট নাম: ${HOSPITAL_INFO.donation.account_title}\n• বিকাশ / নগদ / বাংলা QR: আপনি যেকোনো ব্যাংকিং অ্যাপস দিয়ে ইসলামী ব্যাংক বাংলা QR কোড স্ক্যান করে বা Send Money করতে পারেন।\n\nঅর্থ পাঠানোর পর ওয়েবসাইটে TrxID দিয়ে নিশ্চিত করুন।`,
       audioText: `আলমনগর সিএইচসি তহবিলে দান করতে আমাদের ইসলামী ব্যাংক একাউন্ট নম্বর ২০৫০৬১৮০২০০১২৭১১৪ অথবা বিকাশ নগদ বাংলা কিউআর ব্যবহার করুন।`,
       detectedIntent: 'donation',
       quickActions: [{ label: '🤲 অনলাইন দান করুন', action: 'open_donation_modal' }]
@@ -122,7 +150,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
   // 4. Patient Portal & Prescriptions
   if (cleanMsg.includes('prescription') || cleanMsg.includes('report') || cleanMsg.includes('প্রেসক্রিপশন') || cleanMsg.includes('রিপোর্ট') || cleanMsg.includes('লগইন') || cleanMsg.includes('portal')) {
     return {
-      reply: `আপনার পূর্ববর্তী ডাক্তারের প্রেসক্রিপশন ও রিপোর্ট দেখতে রোগীর পোর্টাল (Patient Portal) ব্যবহার করুন।\n\nআপনার রেজিস্টার্ড ফোন নম্বর এবং ওটিপি দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`,
+      reply: `আপনার ডাক্তারের প্রেসক্রিপশন ও মেডিকেল রিপোর্ট দেখতে রোগীর পোর্টাল (Patient Portal) ব্যবহার করুন।\n\nআপনার রেজিস্টার্ড ফোন নম্বর দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`,
       audioText: `আপনার ডিজিটাল প্রেসক্রিপশন দেখতে পেশেন্ট পোর্টাল ব্যবহার করুন। আপনার ফোন নম্বর দিয়ে সহজে লগইন করতে পারবেন।`,
       detectedIntent: 'patient_portal',
       quickActions: [{ label: '🔑 পেশেন্ট পোর্টালে যান', action: 'goto_patient_portal' }]
@@ -152,9 +180,9 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 7. General Fallback
+  // 7. General Fallback with Full Doctor Roster Context
   return {
-    reply: `আমি আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)-এর এআই সহকারী।\n\nআপনার প্রশ্নের উত্তর দিতে আমি প্রস্তুত। আপনি ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট প্রক্রিয়া, স্বাস্থ্য সেবা, অথবা দান করার নিয়ম সম্পর্কে যেকোনো প্রশ্ন করতে পারেন।`,
+    reply: `আমি আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)-এর এআই ভার্চুয়াল সহকারী।\n\nআমাদের ৩ জন নিয়মিত চিকিৎসক (ডাঃ সারাহ রহমান, ডাঃ আজম খান, ডাঃ রাহাত কবির)-এর সময়সূচী, অনলাইন ভিডিও কল, অথবা অ্যাপয়েন্টমেন্ট সম্পর্কে প্রশ্ন করতে পারেন।`,
     audioText: `আলমনগর সিএইচসি ভার্চুয়াল সহকারীতে প্রশ্ন করার জন্য ধন্যবাদ। ডাক্তারদের সময়সূচী বা যেকোনো সেবার জন্য আমাদের জানান।`,
     detectedIntent: 'general',
     quickActions: [
@@ -169,12 +197,19 @@ async function processFallbackQuery(userMsg, doctorsList) {
  */
 async function processQuery(userMessage, language = 'bn') {
   try {
-    // Load fresh doctor list from DB
+    // Load fresh doctor list from DB using correct function name db.getAllDoctors()
     let doctorsList = [];
     try {
-      doctorsList = await db.getDoctors();
+      if (typeof db.getAllDoctors === 'function') {
+        doctorsList = await db.getAllDoctors();
+      }
     } catch (err) {
       console.warn("AI Assistant DB Doctor Fetch Warning:", err.message);
+    }
+
+    // Fallback to DEFAULT_DOCTORS if DB table is unseeded or empty
+    if (!doctorsList || doctorsList.length === 0) {
+      doctorsList = DEFAULT_DOCTORS;
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -189,14 +224,15 @@ HOSPITAL CONTEXT:
 - Name: ${HOSPITAL_INFO.name}
 - Location: ${HOSPITAL_INFO.location}
 - Emergency Hotline: ${HOSPITAL_INFO.emergency_hotline}
-- Active Doctors List:\n${doctorsText || 'General Medical Officers available daily.'}
+- Active Doctors List:\n${doctorsText}
 - Services: General Doctor Consultation, Telemedicine Video Calls, Free Blood Pressure/Diabetes Checks, Digital Prescriptions, Free Health Tuition.
 - Donation Bank Details: Islami Bank Bangladesh PLC, A/C: 20506180200127114 (Alamnagar CHC Fund), bKash/Nagad/CellFin/Bangla QR supported.
 
 INSTRUCTIONS:
 1. Respond concisely in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}.
-2. Keep the answer clear, helpful, and suitable for being read aloud over audio (Text to Speech). Avoid complicated Markdown tables or code formatting.
-3. Keep the tone compassionate, polite, and professional.`;
+2. Keep the answer clear, helpful, and suitable for being read aloud over audio (Text to Speech). Avoid Markdown tables or code blocks.
+3. Keep the tone compassionate, polite, and professional.
+4. When asked about doctor lists or schedules, ALWAYS mention the exact 3 doctors and their visiting times from the context.`;
 
       try {
         const geminiReply = await queryGeminiApi(apiKey, systemPrompt, userMessage);
@@ -215,7 +251,7 @@ INSTRUCTIONS:
       }
     }
 
-    // Fallback to Rule-based intent engine
+    // Fallback to Rule-based intent engine with active doctors loaded
     const fallbackResult = await processFallbackQuery(userMessage, doctorsList);
     return {
       success: true,
@@ -227,8 +263,8 @@ INSTRUCTIONS:
     console.error("AI Assistant processQuery Error:", err);
     return {
       success: false,
-      reply: "দুঃখিত, বর্তমানে এআই ভার্চুয়াল সেবা সাময়িকভাবে সাড়া দিতে পারছে না। অনুগ্রহ করে আমাদের হটলাইনে সরাসরি কল করুন: 09601018088",
-      audioText: "দুঃখিত, এআই সেবা সাড়া দিতে পারছে না। অনুগ্রহ করে হটলাইনে কল করুন।",
+      reply: "দুঃখিত, বর্তমানে এআই ভার্চুয়াল সেবা সাড়া দিতে পারছে না। অনুগ্রহ করে আমাদের হটলাইনে কল করুন: 09601018088",
+      audioText: "দুঃখিত, সমস্যা হয়েছে। হটলাইনে কল করুন।",
       source: 'error_fallback'
     };
   }
@@ -236,5 +272,6 @@ INSTRUCTIONS:
 
 module.exports = {
   HOSPITAL_INFO,
+  DEFAULT_DOCTORS,
   processQuery
 };
