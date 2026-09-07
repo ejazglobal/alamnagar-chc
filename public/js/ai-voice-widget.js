@@ -357,6 +357,7 @@
       <div class="ai-quick-chips" id="ai-quick-chips">
         <button class="ai-quick-chip" onclick="window.sendAiQuickQuery('আজকের ডাক্তারদের সময়সূচী কত?')">👨‍⚕️ ডাক্তার সময়সূচী</button>
         <button class="ai-quick-chip" onclick="window.sendAiQuickQuery('অ্যাপয়েন্টমেন্ট কিভাবে নিব?')">📅 অ্যাপয়েন্টমেন্ট বুকিং</button>
+        <button class="ai-quick-chip" onclick="window.sendAiQuickQuery('তোমাদের কি টিউশন বা ছাত্র পড়ার ব্যবস্থা আছে?')">📚 টিউশন ও শিক্ষা</button>
         <button class="ai-quick-chip" onclick="window.sendAiQuickQuery('দান করার নিয়ম কি?')">🤲 দান করার উপায়</button>
         <button class="ai-quick-chip" onclick="window.sendAiQuickQuery('জরুরি হটলাইন কত?')">📞 জরুরি ফোন</button>
       </div>
@@ -554,6 +555,8 @@
       else if (typeof window.openModal === 'function') window.openModal();
     } else if (action === 'open_donation_modal') {
       if (typeof window.openDonationModal === 'function') window.openDonationModal();
+    } else if (action === 'goto_tuition_portal') {
+      window.location.href = '/tuition.html';
     } else if (action === 'goto_patient_portal') {
       window.location.href = '/patient-portal.html';
     } else if (action === 'call_hotline') {

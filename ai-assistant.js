@@ -12,8 +12,15 @@ const HOSPITAL_INFO = {
     { name_bn: "অনলাইন ভিডিও কনসাল্টেশন (Online Video Call Consultation)", name_en: "Online Video Consultation" },
     { name_bn: "বিনামূল্যে রক্তচাপ ও ডায়াবেটিস পরীক্ষা", name_en: "Free Blood Pressure & Diabetes Check" },
     { name_bn: "ডিজিটাল প্রেসক্রিপশন ও ডায়াগনস্টিক সাপোর্ট", name_en: "Digital Prescriptions & Diagnostic Reports" },
-    { name_bn: "বিনামূল্যে স্বাস্থ্য শিক্ষা ও টিউটরিয়াল প্রোগ্রাম", name_en: "Free Tuition & Health Education Classes" }
+    { name_bn: "বিনামূল্যে স্বাস্থ্য শিক্ষা ও সামাজিক টিউশন প্রোগ্রাম (Free Community Tuition)", name_en: "Free Tuition & Education Classes" }
   ],
+  tuition_program: {
+    title_bn: "আলমনগর সিএইচসি সামাজিক টিউশন ও শিক্ষা প্রোগ্রাম",
+    title_en: "Alamnagar CHC Community Tuition & Education Program",
+    description_bn: "আমাদের এখানে ১ম শ্রেণি থেকে ১২ম শ্রেণি (SSC/HSC) পর্যন্ত সকল ছাত্র-ছাত্রীদের জন্য বিনামূল্যে ও স্বাস্থ্যাশ্রয়ী টিউশন এবং অনলাইন ভার্চুয়াল ক্লাসরুমের সুবিধা রয়েছে।",
+    description_en: "We offer free and community tuition classes from Class 1 to Class 12 (SSC/HSC) with both on-premises and live virtual online video classrooms.",
+    portal_link: "/tuition.html"
+  },
   donation: {
     bank_name: "Islami Bank Bangladesh PLC (اسلامী ব্যাংক বাংলাদেশ পিএলসি)",
     branch: "Rangpur Branch",
@@ -25,7 +32,7 @@ const HOSPITAL_INFO = {
   }
 };
 
-// Default fallback doctors list if database table is unpopulated
+// Default fallback doctors list if database table is unseeded
 const DEFAULT_DOCTORS = [
   {
     name_bn: "ডাঃ সারাহ রহমান",
@@ -114,10 +121,19 @@ async function processFallbackQuery(userMsg, doctorsList) {
   const cleanMsg = (userMsg || '').toLowerCase().trim();
   const activeDoctors = (doctorsList && doctorsList.length > 0) ? doctorsList : DEFAULT_DOCTORS;
 
-  // Build doctor formatted strings
   const docInfoBn = activeDoctors.map((d, idx) => `${idx + 1}. ${d.name_bn} (${d.specialty_bn}) - সময়সূচী: ${d.visiting_hours_bn}`).join('\n');
 
-  // 1. Doctor Schedule, List, & Specific Doctor Inquiry Intent
+  // 1. Tuition & Student Education Program Intent
+  if (cleanMsg.includes('ছাত্র') || cleanMsg.includes('পড়াও') || cleanMsg.includes('পড়ানো') || cleanMsg.includes('পড়াশোনা') || cleanMsg.includes('টিউশন') || cleanMsg.includes('ক্লাস') || cleanMsg.includes('শিক্ষক') || cleanMsg.includes('শিক্ষার্থী') || cleanMsg.includes('tuition') || cleanMsg.includes('study') || cleanMsg.includes('class') || cleanMsg.includes('student') || cleanMsg.includes('tutor') || cleanMsg.includes('education') || cleanMsg.includes('পড়ালেখা')) {
+    return {
+      reply: `হ্যাঁ! আলমনগর সিএইচসি-তে বিনামূল্যে ও সামাজিক টিউশন সেবা প্রদান করা হয় 📚\n\nআমাদের শিক্ষা প্রোগ্রামের বৈশিষ্ট্যসমূহ:\n• ১ম শ্রেণি থেকে ১২ম শ্রেণি (SSC/HSC) পর্যন্ত ছাত্র-ছাত্রীদের পাঠদান করা হয়।\n• সরাসরি ক্লাসরুমের পাশাপাশি অনলাইন লাইভ ভার্চুয়াল ভিডিও ক্লাসের ব্যবস্থা রয়েছে।\n• গণিত, ইংরেজি, বিজ্ঞানসহ বিভিন্ন বিষয়ের জন্য দক্ষ টিউটর রয়েছেন।\n\nশিক্ষার্থী হিসেবে ভর্তি হতে বা টিউটর হিসেবে যোগ দিতে আমাদের টিউশন পোর্টালে যান।`,
+      audioText: `হ্যাঁ, আলমনগর সিএইচসি-তে ১ম থেকে ১২ম শ্রেণির ছাত্র-ছাত্রীদের বিনামূল্যে ও কম খরচে পড়ানো হয়। অনলাইন লাইভ ক্লাস এবং সরাসরি পড়ার সুযোগ রয়েছে। বিস্তারিত জানতে টিউশন পোর্টালে যান।`,
+      detectedIntent: 'tuition_program',
+      quickActions: [{ label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' }]
+    };
+  }
+
+  // 2. Doctor Schedule & List Intent
   if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule') || cleanMsg.includes('তালিকা') || cleanMsg.includes('তিনজন') || cleanMsg.includes('3জন') || cleanMsg.includes('তিন জন')) {
     return {
       reply: `আলমনগর সিএইচসি-তে বর্তমানে ৩ জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`,
@@ -127,7 +143,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 2. Appointment Booking Intent
+  // 3. Appointment Booking Intent
   if (cleanMsg.includes('appointment') || cleanMsg.includes('book') || cleanMsg.includes('অ্যাপয়েন্টমেন্ট') || cleanMsg.includes('সিরিয়াল') || cleanMsg.includes('বুক')) {
     return {
       reply: `আলমনগর সিএইচসি-তে অ্যাপয়েন্টমেন্ট নেওয়া খুবই সহজ!\n\n১. নিচে 'অ্যাপয়েন্টমেন্ট বুক করুন' বোতামে ক্লিক করুন।\n২. আপনার নাম, মোবাইল নম্বর এবং কাঙ্ক্ষিত তারিখ নির্বাচন করুন।\n৩. কাঙ্ক্ষিত ডাক্তার নির্বাচন করে বুকিং সম্পন্ন করুন।\n\nসিরিয়াল নিশ্চিত হলে আপনার মোবাইলে কনফার্মেশন এসএমএস পাঠানো হবে।`,
@@ -137,7 +153,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 3. Donation & Support Intent
+  // 4. Donation & Support Intent
   if (cleanMsg.includes('donate') || cleanMsg.includes('donation') || cleanMsg.includes('দান') || cleanMsg.includes('ডোনেশন') || cleanMsg.includes('bkash') || cleanMsg.includes('bank') || cleanMsg.includes('qr')) {
     return {
       reply: `🤲 আলমনগর সিএইচসি সেবা তহবিলে সাহায্য করুন:\n\n• ইসলামী ব্যাংক একাউন্ট নম্বর: ${HOSPITAL_INFO.donation.account_no}\n• একাউন্ট নাম: ${HOSPITAL_INFO.donation.account_title}\n• বিকাশ / নগদ / বাংলা QR: আপনি যেকোনো ব্যাংকিং অ্যাপস দিয়ে ইসলামী ব্যাংক বাংলা QR কোড স্ক্যান করে বা Send Money করতে পারেন।\n\nঅর্থ পাঠানোর পর ওয়েবসাইটে TrxID দিয়ে নিশ্চিত করুন।`,
@@ -147,7 +163,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 4. Patient Portal & Prescriptions
+  // 5. Patient Portal & Prescriptions
   if (cleanMsg.includes('prescription') || cleanMsg.includes('report') || cleanMsg.includes('প্রেসক্রিপশন') || cleanMsg.includes('রিপোর্ট') || cleanMsg.includes('লগইন') || cleanMsg.includes('portal')) {
     return {
       reply: `আপনার ডাক্তারের প্রেসক্রিপশন ও মেডিকেল রিপোর্ট দেখতে রোগীর পোর্টাল (Patient Portal) ব্যবহার করুন।\n\nআপনার রেজিস্টার্ড ফোন নম্বর দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`,
@@ -157,7 +173,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 5. Emergency & Location Intent
+  // 6. Emergency & Location Intent
   if (cleanMsg.includes('emergency') || cleanMsg.includes('hotline') || cleanMsg.includes('location') || cleanMsg.includes('জরুরি') || cleanMsg.includes('ফোন') || cleanMsg.includes('ঠিকানা') || cleanMsg.includes('কোথায়')) {
     return {
       reply: `🏥 আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)\n\n📍 ঠিকানা: ${HOSPITAL_INFO.location}\n📞 জরুরি হটলাইন: ${HOSPITAL_INFO.emergency_hotline}\n📧 ইমেইল: ${HOSPITAL_INFO.email}\n\n২৪/৭ যেকোনো জরুরি প্রয়োজনে বা সহায়তায় সরাসরি আমাদের হটলাইনে ফোন দিন।`,
@@ -167,26 +183,28 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
-  // 6. Greetings Intent
+  // 7. Greetings Intent
   if (cleanMsg.includes('hello') || cleanMsg.includes('hi') || cleanMsg.includes('হ্যালো') || cleanMsg.includes('সালাম') || cleanMsg.includes('আসসালামু')) {
     return {
-      reply: `আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী।\n\nআমি আপনাকে কীভাবে সাহায্য করতে পারি? ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট বুকিং, দান করা বা যেকোনো তথ্য জানতে প্রশ্ন করুন।`,
-      audioText: `আসসালামু আলাইকুম! আলমনগর সিএইচসি এআই সহকারীতে আপনাকে স্বাগতম। ডাক্তারদের সময়সূচী বা অ্যাপয়েন্টমেন্ট সম্পর্কে প্রশ্ন করুন।`,
+      reply: `আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী।\n\nআমি আপনাকে কীভাবে সাহায্য করতে পারি? ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট, টিউটোরিয়াল ক্লাস বা দান করার তথ্য জানতে প্রশ্ন করুন।`,
+      audioText: `আসসালামু আলাইকুম! আলমনগর সিএইচসি এআই সহকারীতে আপনাকে স্বাগতম। ডাক্তারদের সময়সূচী, টিউশন ক্লাস বা অ্যাপয়েন্টমেন্ট সম্পর্কে প্রশ্ন করুন।`,
       detectedIntent: 'greeting',
       quickActions: [
         { label: '👨‍⚕️ ডাক্তার তালিকা', action: 'ask_doctors' },
+        { label: '📚 টিউশন পোর্টাল', action: 'goto_tuition_portal' },
         { label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }
       ]
     };
   }
 
-  // 7. General Fallback with Full Doctor Roster Context
+  // 8. General Fallback with Full Services Context
   return {
-    reply: `আমি আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)-এর এআই ভার্চুয়াল সহকারী।\n\nআমাদের ৩ জন নিয়মিত চিকিৎসক (ডাঃ সারাহ রহমান, ডাঃ আজম খান, ডাঃ রাহাত কবির)-এর সময়সূচী, অনলাইন ভিডিও কল, অথবা অ্যাপয়েন্টমেন্ট সম্পর্কে প্রশ্ন করতে পারেন।`,
-    audioText: `আলমনগর সিএইচসি ভার্চুয়াল সহকারীতে প্রশ্ন করার জন্য ধন্যবাদ। ডাক্তারদের সময়সূচী বা যেকোনো সেবার জন্য আমাদের জানান।`,
+    reply: `আমি আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)-এর এআই ভার্চুয়াল সহকারী।\n\nআমাদের চিকিৎসকদের সময়সূচী, বিনামূল্যে টিউশন প্রোগ্রাম (ছাত্র পড়ানো), অনলাইন ভিডিও কল, অথবা অ্যাপয়েন্টমেন্ট সম্পর্কে প্রশ্ন করতে পারেন।`,
+    audioText: `আলমনগর সিএইচসি ভার্চুয়াল সহকারীতে প্রশ্ন করার জন্য ধন্যবাদ। ডাক্তারদের সময়সূচী, টিউশন সেবা বা যেকোনো তথ্যের জন্য আমাদের জানান।`,
     detectedIntent: 'general',
     quickActions: [
       { label: '👨‍⚕️ ডাক্তার তালিকা', action: 'ask_doctors' },
+      { label: '📚 টিউশন পোর্টাল', action: 'goto_tuition_portal' },
       { label: '📞 জরুরি হটলাইন', action: 'call_hotline' }
     ]
   };
@@ -197,7 +215,6 @@ async function processFallbackQuery(userMsg, doctorsList) {
  */
 async function processQuery(userMessage, language = 'bn') {
   try {
-    // Load fresh doctor list from DB using correct function name db.getAllDoctors()
     let doctorsList = [];
     try {
       if (typeof db.getAllDoctors === 'function') {
@@ -207,7 +224,6 @@ async function processQuery(userMessage, language = 'bn') {
       console.warn("AI Assistant DB Doctor Fetch Warning:", err.message);
     }
 
-    // Fallback to DEFAULT_DOCTORS if DB table is unseeded or empty
     if (!doctorsList || doctorsList.length === 0) {
       doctorsList = DEFAULT_DOCTORS;
     }
@@ -215,24 +231,24 @@ async function processQuery(userMessage, language = 'bn') {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (apiKey) {
-      // Build dynamic knowledge system prompt
       const doctorsText = doctorsList.map(d => `- ${d.name_bn} / ${d.name_en} (${d.specialty_bn}): Visiting ${d.visiting_hours_bn}`).join('\n');
       const systemPrompt = `You are the Official Automated Voice & Chat AI Virtual Assistant for ${HOSPITAL_INFO.name}.
-Your job is to assist patients warmly, accurately, and clearly.
+Your job is to assist patients and students warmly, accurately, and clearly.
 
-HOSPITAL CONTEXT:
+HOSPITAL & EDUCATION CONTEXT:
 - Name: ${HOSPITAL_INFO.name}
 - Location: ${HOSPITAL_INFO.location}
 - Emergency Hotline: ${HOSPITAL_INFO.emergency_hotline}
 - Active Doctors List:\n${doctorsText}
-- Services: General Doctor Consultation, Telemedicine Video Calls, Free Blood Pressure/Diabetes Checks, Digital Prescriptions, Free Health Tuition.
+- Services: General Doctor Consultation, Telemedicine Video Calls, Free Blood Pressure/Diabetes Checks, Digital Prescriptions.
+- COMMUNITY TUITION & EDUCATION PROGRAM: ${HOSPITAL_INFO.tuition_program.description_bn} (Classes 1 to 12 / SSC / HSC, live online virtual video classrooms, tutors & student enrollment at ${HOSPITAL_INFO.tuition_program.portal_link}).
 - Donation Bank Details: Islami Bank Bangladesh PLC, A/C: 20506180200127114 (Alamnagar CHC Fund), bKash/Nagad/CellFin/Bangla QR supported.
 
 INSTRUCTIONS:
 1. Respond concisely in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}.
 2. Keep the answer clear, helpful, and suitable for being read aloud over audio (Text to Speech). Avoid Markdown tables or code blocks.
 3. Keep the tone compassionate, polite, and professional.
-4. When asked about doctor lists or schedules, ALWAYS mention the exact 3 doctors and their visiting times from the context.`;
+4. When asked about teaching students ("ছাত্র পড়ানো", "টিউশন", "পড়াশোনা"), confirm warmly that Alamnagar CHC runs a free/community tuition program from Class 1 to Class 12 with live video classrooms.`;
 
       try {
         const geminiReply = await queryGeminiApi(apiKey, systemPrompt, userMessage);
@@ -242,8 +258,8 @@ INSTRUCTIONS:
           audioText: geminiReply.replace(/[\*\_`#]/g, ''),
           source: 'gemini',
           quickActions: [
-            { label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' },
-            { label: '📞 হটলাইন', action: 'call_hotline' }
+            { label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' },
+            { label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }
           ]
         };
       } catch (geminiErr) {
@@ -251,7 +267,6 @@ INSTRUCTIONS:
       }
     }
 
-    // Fallback to Rule-based intent engine with active doctors loaded
     const fallbackResult = await processFallbackQuery(userMessage, doctorsList);
     return {
       success: true,
