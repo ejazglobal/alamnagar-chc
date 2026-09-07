@@ -3404,4 +3404,10 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  const key = (process.env.GEMINI_API_KEY || '').trim();
+  if (key) {
+    console.log(`[AI Assistant] Gemini API Key is loaded (ending in ...${key.slice(-6)})`);
+  } else {
+    console.warn(`[AI Assistant] WARNING: GEMINI_API_KEY is NOT set in environment!`);
+  }
 });

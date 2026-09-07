@@ -26,7 +26,7 @@ const HOSPITAL_INFO = {
     branch: "Rangpur Branch",
     account_title: "Alamnagar CHC Fund",
     account_no: "20506180200127114",
-    mfs_methods: "bKash / Nagad / CellFin / Bangla QR (ইসলামী ব্যাংক বাংলা কিউআর)",
+    mfs_methods: "bKash / Nagad / CellFin / Bangla QR (اسلامী ব্যাংক বাংলা কিউআর)",
     instructions_bn: "আপনি সরাসরি ইসলামী ব্যাংক একাউন্টে অথবা bKash/Nagad/CellFin দিয়ে বাংলা QR কোড স্ক্যান করে বা Send Money করে দান করতে পারেন। এরপর ওয়েবসাইটে TrxID লিখে সাবমিট করলে ভেরিফাই হবে।",
     instructions_en: "You can donate directly to our Islami Bank account or scan the Bangla QR code using bKash/Nagad/CellFin. Submit your TrxID on our site for automated verification."
   }
@@ -61,29 +61,14 @@ const DEFAULT_DOCTORS = [
 ];
 
 /**
- * Call Gemini REST API directly via HTTPS
+ * Single HTTPS POST request helper for Gemini models
  */
-async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
+function makeGeminiHttpRequest(modelName, apiKey, payload) {
   return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: `${systemPrompt}\n\nUser Question: ${userMessage}` }
-          ]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 500
-      }
-    });
-
     const cleanKey = apiKey.trim();
     const options = {
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
+      path: `/v1beta/models/${modelName}:generateContent?key=${cleanKey}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -92,36 +77,68 @@ async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
       }
     };
 
-    console.log(`[AI Assistant] Calling Gemini API with key (ending ...${cleanKey.slice(-6)})`);
-
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
-          if (json.candidates && json.candidates[0] && json.candidates[0].content) {
+          if (res.statusCode === 200 && json.candidates && json.candidates[0] && json.candidates[0].content) {
             const replyText = json.candidates[0].content.parts.map(p => p.text).join('\n');
             resolve(replyText);
           } else {
-            console.error(`[AI Assistant] Gemini API Error Response:`, json.error || data);
-            reject(new Error(json.error?.message || 'Invalid Gemini response format'));
+            const errMsg = json.error ? `[${json.error.code}] ${json.error.message}` : `HTTP ${res.statusCode}: ${data}`;
+            reject(new Error(errMsg));
           }
         } catch (e) {
-          console.error(`[AI Assistant] Gemini Parse Error:`, data);
           reject(e);
         }
       });
     });
 
-    req.on('error', (err) => {
-      console.error(`[AI Assistant] Gemini Request Error:`, err.message);
-      reject(err);
-    });
-
+    req.on('error', (err) => reject(err));
     req.write(payload);
     req.end();
   });
+}
+
+/**
+ * Robust Multi-Model Gemini Query Function
+ * Tries models in sequence: gemini-2.0-flash -> gemini-1.5-flash -> gemini-1.5-pro
+ */
+async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
+  const payload = JSON.stringify({
+    systemInstruction: {
+      parts: [{ text: systemPrompt }]
+    },
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: userMessage }]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: 600
+    }
+  });
+
+  const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+  let lastError = null;
+
+  for (const model of modelsToTry) {
+    try {
+      console.log(`[AI Assistant] Attempting Gemini API call with model: ${model}`);
+      const reply = await makeGeminiHttpRequest(model, apiKey, payload);
+      console.log(`[AI Assistant] Gemini API Success with model: ${model}`);
+      return reply;
+    } catch (err) {
+      console.warn(`[AI Assistant] Gemini model ${model} failed: ${err.message}`);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("All Gemini models failed");
 }
 
 /**
@@ -133,11 +150,11 @@ async function processFallbackQuery(userMsg, doctorsList) {
 
   const docInfoBn = activeDoctors.map((d, idx) => `${idx + 1}. ${d.name_bn} (${d.specialty_bn}) - সময়সূচী: ${d.visiting_hours_bn}`).join('\n');
 
-  // 1. Medicine & Pharmacy Queries (e.g. Napa, medicines database)
-  if (cleanMsg.includes('napa') || cleanMsg.includes('medicine') || cleanMsg.includes('ঔষধ') || cleanMsg.includes('মেডিসিন') || cleanMsg.includes('ড্রাগ') || cleanMsg.includes('ফার্মেসি') || cleanMsg.includes('database')) {
+  // 1. Medicine & Pharmacy Queries (e.g. Napa, remedies, cold/flu, medicines database)
+  if (cleanMsg.includes('napa') || cleanMsg.includes('medicine') || cleanMsg.includes('ঔষধ') || cleanMsg.includes('মেডিসিন') || cleanMsg.includes('ড্রাগ') || cleanMsg.includes('ফার্মেসি') || cleanMsg.includes('ঠান্ডা') || cleanMsg.includes('সর্দি') || cleanMsg.includes('প্রতিকার') || cleanMsg.includes('cold') || cleanMsg.includes('remedy') || cleanMsg.includes('fever')) {
     return {
-      reply: `💊 ঔষধ ও ফার্মেসি তথ্য:\n\n• নাপা (Napa 500mg/Paracetamol) সাধারণত সাধারণ জ্বর, মাথাব্যথা এবং শরীর ব্যথার উপশমে ব্যবহৃত হয়।\n• আমাদের আলমনগর সিএইচসি-তে রেজিস্টার্ড ডিজিটাল ফার্মেসি ডাটাবেস ও প্রেসক্রিপশন ব্যবস্থাপনা রয়েছে।\n\n⚠️ যেকোনো ঔষধ সেবনের পূর্বে অবশ্যই আমাদের রেজিস্টার্ড ডাক্তারের পরামর্শ নিন।`,
-      audioText: `নাপা ৫০০ মিলিগ্রাম সাধারণত জ্বর ও মাথাব্যথার জন্য ব্যবহৃত হয়। যেকোনো ঔষধ সেবনের পূর্বে ডাক্তার সাহেবের পরামর্শ নিন।`,
+      reply: `💊 স্বাস্থ্য ও ঔষধ নির্দেশিকা:\n\n• ঠান্ডা, সর্দি ও সামান্য জ্বরের জন্য প্রচুর কুসুম গরম পানি পান করুন, আদা-লেবুর চা খান এবং পর্যাপ্ত বিশ্রাম নিন।\n• নাপা (Napa 500mg/Paracetamol) সাধারণত জ্বর ও ব্যথানাশক হিসেবে ব্যবহৃত হয়।\n• আমাদের আলমনগর সিএইচসি-তে রেজিস্টার্ড ডিজিটাল ফার্মেসি ও জেনারেল ফিজিশিয়ান সেবা রয়েছে।\n\n⚠️ লক্ষণ ৩ দিনের বেশি স্থায়ী হলে আমাদের ডাক্তারের পরামর্শ নিন।`,
+      audioText: `ঠান্ডা ও সর্দির জন্য গরম পানি, আদা চা এবং বিশ্রাম নিন। প্রয়োজনে আমাদের ডাক্তারের পরামর্শ গ্রহণ করুন।`,
       detectedIntent: 'medicine_info',
       quickActions: [{ label: '📅 ডাক্তারের পরামর্শ নিন', action: 'open_appointment_modal' }]
     };
@@ -278,7 +295,7 @@ INSTRUCTIONS:
 1. Respond concisely in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}.
 2. Keep the answer clear, helpful, and suitable for being read aloud over audio (Text to Speech). Avoid Markdown tables or code blocks.
 3. Keep the tone compassionate, polite, and professional.
-4. Answer general medical inquiries (e.g. medicine uses like Napa, specialist doctors like Gynecology/Pediatrics) with helpful general guidance while reminding the patient to consult a registered doctor.`;
+4. Answer general medical inquiries (e.g. remedies for cold, medicines like Napa, specialist doctors like Gynecology/Pediatrics) with helpful general guidance while reminding the patient to consult a registered doctor.`;
 
       try {
         const geminiReply = await queryGeminiApi(apiKey, systemPrompt, userMessage);
@@ -293,7 +310,7 @@ INSTRUCTIONS:
           ]
         };
       } catch (geminiErr) {
-        console.warn("Gemini API call failed, falling back to local intent engine:", geminiErr.message);
+        console.warn("[AI Assistant] Gemini API call failed, falling back to local intent engine:", geminiErr.message);
       }
     }
 
