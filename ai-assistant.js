@@ -80,18 +80,19 @@ async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
       }
     });
 
-    // Support both v1beta gemini-1.5-flash endpoint
+    const cleanKey = apiKey.trim();
     const options = {
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`,
+      path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanKey}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': cleanKey,
         'Content-Length': Buffer.byteLength(payload)
       }
     };
 
-    console.log(`[AI Assistant] Calling Gemini API (Key: ...${apiKey.trim().slice(-4)})`);
+    console.log(`[AI Assistant] Calling Gemini API with key (ending ...${cleanKey.slice(-6)})`);
 
     const req = https.request(options, (res) => {
       let data = '';
