@@ -306,40 +306,33 @@ async function initializeDatabase() {
 
     console.log("PostgreSQL database tables verified/created.");
 
-    // Enable Row Level Security (RLS) on all public tables to resolve Supabase linter warnings
-    const tablesToEnableRLS = [
-      'doctors',
-      'users',
-      'appointments',
-      'news',
-      'gallery',
-      'staff_permissions',
-      'otp_verifications',
-      'medicines',
-      'prescriptions',
-      'patient_reports',
-      'tuition_subjects',
-      'tutors',
-      'tuition_enrollments'
-    ];
+    // Enable Row Level Security (RLS) dynamically on all public tables to resolve Supabase security advisor warnings
+    try {
+      const publicTablesRes = await pool.query(
+        "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+      );
+      const allPublicTables = publicTablesRes.rows.map(r => r.tablename);
 
-    for (const table of tablesToEnableRLS) {
-      try {
-        await pool.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
-        await pool.query(`
-          DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_policies WHERE tablename = '${table}' AND policyname = 'allow_all_${table}'
-            ) THEN
-              CREATE POLICY allow_all_${table} ON ${table} FOR ALL USING (true) WITH CHECK (true);
-            END IF;
-          END $$;
-        `);
-        console.log(`Row Level Security (RLS) & permissive policy verified on table: ${table}`);
-      } catch (rlsErr) {
-        console.warn(`Could not set RLS policy on table ${table}: ${rlsErr.message}`);
+      for (const table of allPublicTables) {
+        try {
+          await pool.query(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;`);
+          await pool.query(`
+            DO $$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies WHERE tablename = '${table}' AND policyname = 'allow_all_${table}'
+              ) THEN
+                CREATE POLICY "allow_all_${table}" ON "${table}" FOR ALL USING (true) WITH CHECK (true);
+              END IF;
+            END $$;
+          `);
+          console.log(`Row Level Security (RLS) & permissive policy verified on table: ${table}`);
+        } catch (rlsErr) {
+          console.warn(`Could not set RLS policy on table ${table}: ${rlsErr.message}`);
+        }
       }
+    } catch (tblErr) {
+      console.warn('Failed to query public tables for RLS check:', tblErr.message);
     }
 
     // Safe column migrations for existing old tables
