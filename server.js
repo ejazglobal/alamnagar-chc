@@ -1151,7 +1151,7 @@ app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res)
     return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
   }
   const rawId = req.params.id;
-  const { email, phone, role, is_active } = req.body;
+  const { username, email, phone, role, is_active } = req.body;
 
   try {
     if (rawId.toString().startsWith('tuition_')) {
@@ -1177,9 +1177,21 @@ app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res)
       return res.status(400).json({ error: 'Invalid user ID.' });
     }
 
-    const userRes = await db.pool.query("SELECT id, email, phone, role FROM users WHERE id = $1", [userId]);
+    const userRes = await db.pool.query("SELECT id, username, email, phone, role FROM users WHERE id = $1", [userId]);
     if (userRes.rows.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const cleanUsername = username && username.trim().length > 0 ? username.trim() : null;
+    if (cleanUsername && cleanUsername.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
+    }
+
+    if (cleanUsername) {
+      const nameCheck = await db.pool.query("SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND id != $2", [cleanUsername, userId]);
+      if (nameCheck.rows.length > 0) {
+        return res.status(409).json({ error: `Username '${cleanUsername}' is already taken by another user account.` });
+      }
     }
 
     const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
@@ -1197,12 +1209,13 @@ app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res)
 
     await db.pool.query(
       `UPDATE users SET 
-        email = $1, 
-        phone = $2, 
-        role = COALESCE($3, role), 
-        is_active = $4 
-       WHERE id = $5`,
-      [cleanEmail, cleanPhone, cleanRole, activeBool, userId]
+        username = COALESCE($1, username),
+        email = $2, 
+        phone = $3, 
+        role = COALESCE($4, role), 
+        is_active = $5 
+       WHERE id = $6`,
+      [cleanUsername, cleanEmail, cleanPhone, cleanRole, activeBool, userId]
     );
 
     res.json({ success: true, message: 'User account & permissions updated successfully.' });
@@ -3211,14 +3224,14 @@ app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res)
       return res.status(403).json({ error: 'Access denied. Admin or Staff privileges required.' });
     }
     const rawId = req.params.id;
-    const { phone, email, role, status, is_active } = req.body;
+    const { username, phone, email, role, status, is_active } = req.body;
     const isActiveBool = status !== undefined ? status === 'active' : (is_active !== undefined ? Boolean(is_active) : true);
 
     if (rawId.toString().startsWith('tutor_')) {
       const tutorId = rawId.replace('tutor_', '');
       const tutor = await db.updateTutor(tutorId, { phone, email, status: status || 'active' });
       if (tutor && tutor.user_id) {
-        await db.updateUserInfo(tutor.user_id, { phone, email, role: 'Tutor', is_active: isActiveBool });
+        await db.updateUserInfo(tutor.user_id, { username, phone, email, role: 'Tutor', is_active: isActiveBool });
       }
       return res.json({ success: true, message: 'Tutor profile updated successfully.', user: tutor });
     }
@@ -3233,8 +3246,28 @@ app.post('/api/admin/users/:id/update-info', authenticateToken, async (req, res)
       return res.status(400).json({ error: 'Invalid User ID.' });
     }
 
+    const cleanUsername = username && username.trim().length > 0 ? username.trim() : null;
+    if (cleanUsername && cleanUsername.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
+    }
+
+    if (cleanUsername) {
+      const nameCheck = await db.pool.query("SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND id != $2", [cleanUsername, numericId]);
+      if (nameCheck.rows.length > 0) {
+        return res.status(409).json({ error: `Username '${cleanUsername}' is already taken by another user account.` });
+      }
+    }
+
+    if (phone && phone.trim().length > 0) {
+      const cleanPhone = normalizePhone(phone);
+      const phoneCheck = await db.pool.query("SELECT id FROM users WHERE phone = $1 AND id != $2", [cleanPhone, numericId]);
+      if (phoneCheck.rows.length > 0) {
+        return res.status(409).json({ error: `Mobile number ${cleanPhone} is already registered to another user account.` });
+      }
+    }
+
     const cleanRole = role && ['Admin', 'Staff', 'Doctor', 'Pharmacist', 'Observer', 'Tutor', 'Student', 'Patient'].includes(role) ? role : null;
-    const updatedUser = await db.updateUserInfo(numericId, { phone, email, role: cleanRole, is_active: isActiveBool });
+    const updatedUser = await db.updateUserInfo(numericId, { username: cleanUsername, phone, email, role: cleanRole, is_active: isActiveBool });
     if (!updatedUser) {
       return res.status(404).json({ error: 'User account not found.' });
     }

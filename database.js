@@ -1399,19 +1399,21 @@ module.exports = {
   },
 
   updateUserInfo: async (id, userData) => {
-    const { phone, email, role, is_active } = userData;
-    const normalizedPhone = normalizePhone(phone);
+    const { username, phone, email, role, is_active } = userData;
+    const cleanUsername = username && username.trim().length > 0 ? username.trim() : null;
+    const normalizedPhone = phone ? normalizePhone(phone) : null;
     const cleanEmail = email ? email.trim().toLowerCase() : null;
     const isActiveBool = is_active !== undefined ? Boolean(is_active) : true;
 
     const res = await pool.query(
       `UPDATE users 
-       SET phone = COALESCE($1, phone),
-           email = COALESCE($2, email),
-           role = COALESCE($3, role),
-           is_active = COALESCE($4, is_active)
-       WHERE id = $5 RETURNING id, username, phone, email, role, is_active, created_at`,
-      [normalizedPhone, cleanEmail, role || null, isActiveBool, id]
+       SET username = COALESCE($1, username),
+           phone = COALESCE($2, phone),
+           email = COALESCE($3, email),
+           role = COALESCE($4, role),
+           is_active = COALESCE($5, is_active)
+       WHERE id = $6 RETURNING id, username, phone, email, role, is_active, created_at`,
+      [cleanUsername, normalizedPhone, cleanEmail, role || null, isActiveBool, id]
     );
     return res.rows[0];
   },

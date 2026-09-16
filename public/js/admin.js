@@ -2064,9 +2064,14 @@ window.openEditUserModal = function(id, username, email, phone) {
   const modal = document.getElementById('admin-edit-user-modal');
   if (!modal) return;
   document.getElementById('edit-user-id').value = id;
-  document.getElementById('edit-username-label').textContent = username;
-  document.getElementById('edit-user-email').value = email;
-  document.getElementById('edit-user-phone').value = phone;
+  if (document.getElementById('edit-username')) {
+    document.getElementById('edit-username').value = username || '';
+  }
+  if (document.getElementById('edit-username-label')) {
+    document.getElementById('edit-username-label').textContent = username || '';
+  }
+  document.getElementById('edit-user-email').value = email || '';
+  document.getElementById('edit-user-phone').value = phone || '';
   
   const banner = document.getElementById('admin-edit-user-status-banner');
   if (banner) {
@@ -3206,7 +3211,12 @@ window.openEditUserModal = function(id) {
   const isSuspended = user.is_active === false || user.status === 'suspended';
 
   document.getElementById('edit-user-id').value = user.id;
-  document.getElementById('edit-username-label').textContent = user.username || 'User';
+  if (document.getElementById('edit-username')) {
+    document.getElementById('edit-username').value = user.username || '';
+  }
+  if (document.getElementById('edit-username-label')) {
+    document.getElementById('edit-username-label').textContent = user.username || 'User';
+  }
   document.getElementById('edit-user-phone').value = user.phone || '';
   document.getElementById('edit-user-email').value = user.email || '';
   if (document.getElementById('edit-user-role')) {
@@ -3236,6 +3246,8 @@ window.closeEditUserModal = function(e) {
 window.submitEditUserForm = async function(e) {
   if (e) e.preventDefault();
   const id = document.getElementById('edit-user-id').value;
+  const usernameInput = document.getElementById('edit-username');
+  const username = usernameInput ? usernameInput.value.trim() : undefined;
   const phone = document.getElementById('edit-user-phone').value;
   const email = document.getElementById('edit-user-email').value;
   const role = document.getElementById('edit-user-role').value;
@@ -3255,7 +3267,7 @@ window.submitEditUserForm = async function(e) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ phone, email, role, status, is_active: status === 'active' })
+      body: JSON.stringify({ username, phone, email, role, status, is_active: status === 'active' })
     });
 
     const data = await res.json();

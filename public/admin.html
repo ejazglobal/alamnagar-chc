@@ -815,7 +815,8 @@
       <form id="admin-edit-user-form" onsubmit="submitEditUserForm(event)">
         <input type="hidden" id="edit-user-id" value="">
         <div class="form-group" style="margin-bottom: 1rem;">
-          <span class="form-label" style="font-weight: 600;">Managing user: <strong id="edit-username-label" style="color: var(--primary-color);"></strong></span>
+          <label class="form-label" for="edit-username">Username *</label>
+          <input type="text" id="edit-username" class="form-control" placeholder="e.g. ashik" required minlength="3">
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
           <div class="form-group" style="margin-bottom: 0;">
