@@ -1520,7 +1520,6 @@ module.exports = {
     try {
       await client.query('BEGIN');
       await client.query('DELETE FROM prescriptions WHERE appointment_id = $1', [id]);
-      await client.query('DELETE FROM patient_reports WHERE appointment_id = $1', [id]);
       const res = await client.query('DELETE FROM appointments WHERE id = $1', [id]);
       await client.query('COMMIT');
       return { changes: res.rowCount };

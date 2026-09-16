@@ -958,7 +958,7 @@ app.delete('/api/appointments/:id', authenticateToken, async (req, res) => {
     res.json({ success: true, message: 'Appointment record deleted successfully.' });
   } catch (error) {
     console.error('Error deleting appointment:', error);
-    res.status(500).json({ error: 'Failed to delete appointment record.' });
+    res.status(500).json({ error: 'Failed to delete appointment record: ' + error.message });
   }
 });
 
