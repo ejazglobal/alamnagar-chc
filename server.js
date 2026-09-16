@@ -471,7 +471,7 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Access Denied: You do not have permission to manage doctors.' });
   }
 
-  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, login_username, login_password, login_email, login_phone } = req.body;
+  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, login_username, login_password, login_email, login_phone, is_active } = req.body;
 
   if (!name_en || !name_bn || !specialty_en || !specialty_bn || !visiting_hours_en || !visiting_hours_bn || !visiting_days) {
     return res.status(400).json({ error: 'All fields except photo are required.' });
@@ -519,7 +519,8 @@ app.post('/api/doctors', authenticateToken, async (req, res) => {
       visiting_hours_en: visiting_hours_en.trim(),
       visiting_hours_bn: visiting_hours_bn.trim(),
       image_url: finalImageUrl.trim(),
-      visiting_days: visiting_days.trim()
+      visiting_days: visiting_days.trim(),
+      is_active: is_active !== undefined ? Boolean(is_active) : true
     });
 
     // If username and password are provided, create the doctor user account in users table
@@ -555,7 +556,7 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Invalid doctor ID.' });
   }
 
-  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, login_email, login_phone, login_password } = req.body;
+  const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, login_email, login_phone, login_password, is_active } = req.body;
 
   if (!name_en || !name_bn || !specialty_en || !specialty_bn || !visiting_hours_en || !visiting_hours_bn || !visiting_days) {
     return res.status(400).json({ error: 'All fields except photo are required.' });
@@ -613,7 +614,8 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
       visiting_hours_en: visiting_hours_en.trim(),
       visiting_hours_bn: visiting_hours_bn.trim(),
       image_url: finalImageUrl.trim(),
-      visiting_days: visiting_days.trim()
+      visiting_days: visiting_days.trim(),
+      is_active: is_active !== undefined ? Boolean(is_active) : true
     });
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Doctor not found.' });
@@ -622,6 +624,33 @@ app.patch('/api/doctors/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error updating doctor:', error);
     res.status(500).json({ error: 'Failed to update doctor record.' });
+  }
+});
+
+// 5.3d Toggle doctor active/inactive status (Admin & Staff Only)
+app.patch('/api/doctors/:id/toggle-status', authenticateToken, async (req, res) => {
+  const hasDocPerm = req.user.role === 'Admin' || (req.user.role === 'Staff' && (req.user.permissions === 'doctors' || req.user.permissions === 'all'));
+  if (!hasDocPerm) {
+    return res.status(403).json({ error: 'Access Denied: You do not have permission to manage doctors.' });
+  }
+
+  const docId = parseInt(req.params.id, 10);
+  if (isNaN(docId)) {
+    return res.status(400).json({ error: 'Invalid doctor ID.' });
+  }
+
+  try {
+    const doc = await db.getDoctorById(docId);
+    if (!doc) {
+      return res.status(404).json({ error: 'Doctor not found.' });
+    }
+
+    const newStatus = doc.is_active === false ? true : false;
+    await db.pool.query("UPDATE doctors SET is_active = $1 WHERE id = $2", [newStatus, docId]);
+    res.json({ success: true, message: `Doctor status updated to ${newStatus ? 'Active' : 'Inactive'}.`, is_active: newStatus });
+  } catch (error) {
+    console.error('Error toggling doctor status:', error);
+    res.status(500).json({ error: 'Failed to update doctor status.' });
   }
 });
 

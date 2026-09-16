@@ -379,6 +379,7 @@ async function initializeDatabase() {
       await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS gender VARCHAR(50)");
       await pool.query("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS weight VARCHAR(50)");
       await pool.query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS signature_url TEXT");
+      await pool.query("ALTER TABLE doctors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true");
       
       // Prescriptions table columns migrations
       await pool.query("ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS bp VARCHAR(100)");
@@ -774,16 +775,18 @@ module.exports = {
   },
 
   createDoctor: async (doctor) => {
-    const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = doctor;
-    const query = `INSERT INTO doctors (name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`;
-    const res = await pool.query(query, [name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url || "", visiting_days]);
-    return { id: res.rows[0].id, ...doctor };
+    const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, is_active } = doctor;
+    const activeBool = is_active !== undefined ? Boolean(is_active) : true;
+    const query = `INSERT INTO doctors (name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`;
+    const res = await pool.query(query, [name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url || "", visiting_days, activeBool]);
+    return { id: res.rows[0].id, ...doctor, is_active: activeBool };
   },
 
   updateDoctor: async (id, doctor) => {
-    const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days } = doctor;
-    const query = `UPDATE doctors SET name_en = $1, name_bn = $2, specialty_en = $3, specialty_bn = $4, info_en = $5, info_bn = $6, visiting_hours_en = $7, visiting_hours_bn = $8, image_url = $9, visiting_days = $10 WHERE id = $11`;
-    const res = await pool.query(query, [name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url || "", visiting_days, id]);
+    const { name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, is_active } = doctor;
+    const activeBool = is_active !== undefined ? Boolean(is_active) : true;
+    const query = `UPDATE doctors SET name_en = $1, name_bn = $2, specialty_en = $3, specialty_bn = $4, info_en = $5, info_bn = $6, visiting_hours_en = $7, visiting_hours_bn = $8, image_url = $9, visiting_days = $10, is_active = $11 WHERE id = $12`;
+    const res = await pool.query(query, [name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url || "", visiting_days, activeBool, id]);
     return { changes: res.rowCount };
   },
 

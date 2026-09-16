@@ -408,6 +408,9 @@ function setupDashboardEvents() {
       const loginEmail = emailInput ? emailInput.value.trim() : '';
       const loginPhone = phoneInput ? phoneInput.value.trim() : '';
 
+      const statusSelect = document.getElementById('doctor-status');
+      const isActive = statusSelect ? statusSelect.value === 'true' : true;
+
       const payload = {
         name_en: nameEn,
         name_bn: nameBn,
@@ -422,7 +425,8 @@ function setupDashboardEvents() {
         login_username: loginUsername,
         login_password: loginPassword,
         login_email: loginEmail,
-        login_phone: loginPhone
+        login_phone: loginPhone,
+        is_active: isActive
       };
 
       try {
@@ -804,6 +808,7 @@ function renderDoctorsManageTable() {
   }
 
   doctors.forEach(doc => {
+    const isActive = doc.is_active !== false;
     const row = document.createElement('tr');
     row.innerHTML = `
       <td>
@@ -815,7 +820,15 @@ function renderDoctorsManageTable() {
         <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHTML(doc.specialty_bn)}</div>
       </td>
       <td>
+        <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${isActive ? '#dcfce7' : '#f1f5f9'}; color: ${isActive ? '#15803d' : '#64748b'}; border: 1px solid ${isActive ? '#bbf7d0' : '#cbd5e1'};">
+          ${isActive ? 'Active' : 'Inactive'}
+        </span>
+      </td>
+      <td>
         <button class="news-action-btn edit" onclick="editDoctor(${doc.id})">Edit</button>
+        <button class="news-action-btn" style="background: ${isActive ? '#64748b' : '#16a34a'}; color: white; margin-right: 4px;" onclick="toggleDoctorStatus(${doc.id})">
+          ${isActive ? 'Deactivate' : 'Activate'}
+        </button>
         <button class="news-action-btn delete" onclick="deleteDoctor(${doc.id})">Delete</button>
       </td>
     `;
@@ -838,6 +851,9 @@ window.editDoctor = function(id) {
   document.getElementById('doctor-info-bn').value = doc.info_bn || '';
   document.getElementById('doctor-hours-en').value = doc.visiting_hours_en;
   document.getElementById('doctor-hours-bn').value = doc.visiting_hours_bn;
+  if (document.getElementById('doctor-status')) {
+    document.getElementById('doctor-status').value = String(doc.is_active !== false);
+  }
 
   // Reset and select checkboxes
   document.querySelectorAll('input[name="visiting-weekday"]').forEach(cb => cb.checked = false);
@@ -886,6 +902,9 @@ window.cancelDoctorEdit = function() {
   editingDoctorId = null;
   editingDoctorImage = '';
   document.getElementById('doctor-post-form').reset();
+  if (document.getElementById('doctor-status')) {
+    document.getElementById('doctor-status').value = 'true';
+  }
   
   const usernameInput = document.getElementById('doctor-username');
   if (usernameInput) {
@@ -937,6 +956,44 @@ window.deleteDoctor = async function(id) {
   } catch (err) {
     console.error(err);
     showBanner(document.getElementById('doctor-status-banner'), err.message || 'Error deleting doctor.', 'error');
+  }
+};
+
+// Doctor Toggle Status Action
+window.toggleDoctorStatus = async function(id) {
+  const doc = doctors.find(d => d.id === id);
+  if (!doc) return;
+  const newAction = doc.is_active !== false ? 'deactivate' : 'activate';
+  if (!confirm(`Are you sure you want to ${newAction} ${doc.name_en}? ${doc.is_active !== false ? 'They will be hidden from patient appointment bookings.' : 'They will become available for patient booking.'}`)) return;
+
+  try {
+    if (isFallbackMode) {
+      doc.is_active = doc.is_active === false ? true : false;
+      localStorage.setItem('chc_doctors', JSON.stringify(doctors));
+      showBanner(document.getElementById('doctor-status-banner'), `Doctor status updated to ${doc.is_active ? 'Active' : 'Inactive'}.`, 'success');
+      renderDoctorsManageTable();
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch(`/api/doctors/${id}/toggle-status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to update doctor status.');
+      }
+
+      const resData = await response.json();
+      doc.is_active = resData.is_active;
+      showBanner(document.getElementById('doctor-status-banner'), resData.message || 'Doctor status updated.', 'success');
+      renderDoctorsManageTable();
+    }
+  } catch (err) {
+    console.error(err);
+    showBanner(document.getElementById('doctor-status-banner'), err.message || 'Error updating doctor status.', 'error');
   }
 };
 

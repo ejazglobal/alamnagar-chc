@@ -625,7 +625,7 @@ function renderDoctorsDropdown() {
   const uniqueDoctors = [];
   const seenIds = new Set();
   doctors.forEach(doc => {
-    if (!seenIds.has(doc.id)) {
+    if (doc.is_active !== false && !seenIds.has(doc.id)) {
       seenIds.add(doc.id);
       uniqueDoctors.push(doc);
     }
