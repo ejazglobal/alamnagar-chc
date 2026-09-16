@@ -12,8 +12,10 @@ let currentLanguage = localStorage.getItem('chc_lang') || 'en';
 let isFallbackMode = false;
 
 const TIME_SLOTS = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
-  '12:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'
+  '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
+  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', 
+  '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', 
+  '22:00', '22:30'
 ];
 
 // DOM elements
@@ -512,28 +514,42 @@ function selectDate(dateStr) {
 // Helper to extract time range in minutes from a string like "09:00 AM - 01:00 PM"
 function getDoctorTimeRange(hoursStr) {
   if (!hoursStr) return null;
-  const regex = /(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i;
-  const match = hoursStr.match(regex);
-  if (!match) return null;
-  
-  let startHour = parseInt(match[1], 10);
-  const startMin = parseInt(match[2], 10);
-  const startAmPm = match[3].toUpperCase();
-  
-  let endHour = parseInt(match[4], 10);
-  const endMin = parseInt(match[5], 10);
-  const endAmPm = match[6].toUpperCase();
-  
-  if (startAmPm === 'PM' && startHour < 12) startHour += 12;
-  if (startAmPm === 'AM' && startHour === 12) startHour = 0;
-  
-  if (endAmPm === 'PM' && endHour < 12) endHour += 12;
-  if (endAmPm === 'AM' && endHour === 12) endHour = 0;
-  
-  const startMinutes = startHour * 60 + startMin;
-  const endMinutes = endHour * 60 + endMin;
-  
-  return { start: startMinutes, end: endMinutes };
+  // Convert any Bengali digits to English digits
+  const cleanStr = String(hoursStr).replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+
+  // 1. Try matching 12-hour AM/PM format (e.g. 06:00 PM - 09:00 PM or 6:00PM-9:00PM or 06:00 PM to 09:00 PM)
+  const regex12 = /(\d{1,2}):(\d{2})\s*(AM|PM)\s*(?:-|–|—|to)\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i;
+  const match12 = cleanStr.match(regex12);
+  if (match12) {
+    let startHour = parseInt(match12[1], 10);
+    const startMin = parseInt(match12[2], 10);
+    const startAmPm = match12[3].toUpperCase();
+    
+    let endHour = parseInt(match12[4], 10);
+    const endMin = parseInt(match12[5], 10);
+    const endAmPm = match12[6].toUpperCase();
+    
+    if (startAmPm === 'PM' && startHour < 12) startHour += 12;
+    if (startAmPm === 'AM' && startHour === 12) startHour = 0;
+    
+    if (endAmPm === 'PM' && endHour < 12) endHour += 12;
+    if (endAmPm === 'AM' && endHour === 12) endHour = 0;
+    
+    return { start: startHour * 60 + startMin, end: endHour * 60 + endMin };
+  }
+
+  // 2. Try matching 24-hour format (e.g. 18:00 - 21:00 or 18:00 to 21:00)
+  const regex24 = /(\d{1,2}):(\d{2})\s*(?:-|–|—|to)\s*(\d{1,2}):(\d{2})/i;
+  const match24 = cleanStr.match(regex24);
+  if (match24) {
+    const startHour = parseInt(match24[1], 10);
+    const startMin = parseInt(match24[2], 10);
+    const endHour = parseInt(match24[3], 10);
+    const endMin = parseInt(match24[4], 10);
+    return { start: startHour * 60 + startMin, end: endHour * 60 + endMin };
+  }
+
+  return null;
 }
 
 // Render Time Slots (marking already booked slots for this doctor as disabled)
@@ -547,9 +563,22 @@ function renderTimeSlots() {
     .map(a => a.appointment_time);
 
   // Parse doctor's visiting hour boundary
-  const range = getDoctorTimeRange(selectedDoctor.visiting_hours_en);
+  const range = getDoctorTimeRange(selectedDoctor.visiting_hours_en || selectedDoctor.visiting_hours_bn);
 
-  TIME_SLOTS.forEach(time => {
+  let candidateSlots = TIME_SLOTS;
+  if (range && range.start < range.end) {
+    const dynamicSlots = [];
+    for (let m = range.start; m <= range.end; m += 30) {
+      const hh = String(Math.floor(m / 60)).padStart(2, '0');
+      const mm = String(m % 60).padStart(2, '0');
+      dynamicSlots.push(`${hh}:${mm}`);
+    }
+    if (dynamicSlots.length > 0) {
+      candidateSlots = dynamicSlots;
+    }
+  }
+
+  candidateSlots.forEach(time => {
     // Check if slot falls within doctor's visiting hour boundary
     if (range) {
       const [h, m] = time.split(':').map(Number);
