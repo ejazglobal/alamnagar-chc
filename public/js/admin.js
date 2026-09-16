@@ -639,6 +639,7 @@ function renderTable() {
           <div style="display: flex; gap: 0.2rem; width: 100%;">
             <button class="btn-sm approve" style="flex: 1;" onclick="updateStatus(${appt.id}, 'approved')" ${isApproved || isCancelled || appt.status === 'completed' ? 'disabled' : ''}>Approve</button>
             <button class="btn-sm cancel" style="flex: 1;" onclick="updateStatus(${appt.id}, 'cancelled')" ${isCancelled || appt.status === 'completed' ? 'disabled' : ''}>Cancel</button>
+            <button class="btn-sm cancel" style="background: #dc2626; color: white;" onclick="deleteAppointmentRecord(${appt.id})" title="Delete Record">🗑 Delete</button>
           </div>
           ` : ''}
           <div style="display: flex; gap: 0.2rem; width: 100%;">
@@ -652,6 +653,72 @@ function renderTable() {
     apptTbody.appendChild(row);
   });
 }
+
+// Delete individual appointment record
+window.deleteAppointmentRecord = async function(id) {
+  if (!confirm('Are you sure you want to permanently delete this patient appointment record?')) return;
+  try {
+    if (isFallbackMode) {
+      appointments = appointments.filter(a => a.id !== id);
+      localStorage.setItem('chc_appointments', JSON.stringify(appointments));
+      showBanner(apptStatusBanner, 'Appointment record deleted (Offline fallback).', 'success');
+      renderDashboard();
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch(`/api/appointments/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to delete appointment record.');
+      }
+      appointments = appointments.filter(a => a.id !== id);
+      showBanner(apptStatusBanner, 'Patient appointment record deleted successfully.', 'success');
+      renderDashboard();
+    }
+  } catch (err) {
+    console.error(err);
+    showBanner(apptStatusBanner, err.message || 'Error deleting appointment record.', 'error');
+  }
+};
+
+// Bulk Clear Test Patient Records / Refresh Database
+window.cleanAllTestData = async function() {
+  if (!confirm('⚠️ Are you sure you want to clear ALL patient appointment requests, prescriptions, and test patient accounts to refresh the database? This action cannot be undone.')) return;
+
+  try {
+    if (isFallbackMode) {
+      appointments = [];
+      localStorage.removeItem('chc_appointments');
+      localStorage.removeItem('chc_prescriptions');
+      showBanner(apptStatusBanner, 'All patient test data cleared (Offline fallback).', 'success');
+      renderDashboard();
+    } else {
+      const token = localStorage.getItem('chc_token');
+      const response = await fetch('/api/admin/clean-test-data', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to clear test patient records.');
+      }
+      const data = await response.json();
+      appointments = [];
+      showBanner(apptStatusBanner, data.message || 'Database patient records cleared successfully.', 'success');
+      await loadData();
+      renderDashboard();
+    }
+  } catch (err) {
+    console.error(err);
+    showBanner(apptStatusBanner, err.message || 'Error clearing test patient records.', 'error');
+  }
+};
 
 // Update Appointment status action
 window.updateStatus = async function(id, newStatus) {

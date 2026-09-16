@@ -1515,6 +1515,23 @@ module.exports = {
   },
 
   // --- SYSTEM MAINTENANCE & CLEANUP HELPERS ---
+  deleteAppointment: async (id) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM prescriptions WHERE appointment_id = $1', [id]);
+      await client.query('DELETE FROM patient_reports WHERE appointment_id = $1', [id]);
+      const res = await client.query('DELETE FROM appointments WHERE id = $1', [id]);
+      await client.query('COMMIT');
+      return { changes: res.rowCount };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
   cleanTestData: async (options = { deletePatientUsers: true }) => {
     const client = await pool.connect();
     try {

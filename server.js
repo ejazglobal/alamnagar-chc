@@ -940,6 +940,46 @@ app.patch('/api/appointments/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Delete individual appointment record (Admin & Staff Only)
+app.delete('/api/appointments/:id', authenticateToken, async (req, res) => {
+  if (!['Admin', 'Staff'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Access Denied: Admin or Staff permissions required.' });
+  }
+  const apptId = parseInt(req.params.id, 10);
+  if (isNaN(apptId)) {
+    return res.status(400).json({ error: 'Invalid appointment ID.' });
+  }
+
+  try {
+    const result = await db.deleteAppointment(apptId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Appointment record not found.' });
+    }
+    res.json({ success: true, message: 'Appointment record deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting appointment:', error);
+    res.status(500).json({ error: 'Failed to delete appointment record.' });
+  }
+});
+
+// Admin System Maintenance: Bulk clear test patient records & refresh database
+app.post('/api/admin/clean-test-data', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access Denied: Admin privileges required.' });
+  }
+  try {
+    const stats = await db.cleanTestData({ deletePatientUsers: true });
+    res.json({
+      success: true,
+      message: `Database patient records refreshed successfully. Cleared ${stats.appointmentsDeleted} appointments, ${stats.prescriptionsDeleted} prescriptions, ${stats.reportsDeleted} reports, and ${stats.patientsDeleted} patient accounts.`,
+      stats
+    });
+  } catch (error) {
+    console.error('Error clearing test patient data:', error);
+    res.status(500).json({ error: 'Failed to clear patient data: ' + error.message });
+  }
+});
+
 // --- STAFF REGISTRY ENDPOINTS (ADMIN ONLY) ---
 app.get('/api/admin/staff', authenticateToken, async (req, res) => {
   if (req.user.role !== 'Admin') {

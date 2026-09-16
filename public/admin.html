@@ -374,12 +374,15 @@
 
       <!-- Right Column: Appointment management list -->
       <section class="panel">
-        <h2 class="panel-title">
-          <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
-          Patient Appointment Requests
-        </h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h2 class="panel-title" style="margin: 0;">
+            <svg style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            Patient Appointment Requests
+          </h2>
+          <button class="btn-sm" style="background: #dc2626; color: white; padding: 5px 12px; font-size: 0.8rem; cursor: pointer; border-radius: 6px; border: none;" onclick="cleanAllTestData()">🧹 Clear All Patient Records</button>
+        </div>
 
         <!-- Fallback notice -->
         <div id="admin-demo-mode-notice" class="fallback-notice" style="display: none;">
