@@ -3491,26 +3491,41 @@ app.get('/api/ai-assistant/tts', (req, res) => {
       return res.status(400).send('Text query param is required.');
     }
 
-    const cleanText = rawText.substring(0, 250);
+    const cleanText = rawText.substring(0, 300);
     const encodedText = encodeURIComponent(cleanText);
-    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodedText}`;
+    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${encodedText}`;
 
     const options = {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'audio/mpeg, audio/*;q=0.9, */*;q=0.8',
         'Referer': 'https://translate.google.com/'
       }
     };
 
-    https.get(googleTtsUrl, options, (ttsRes) => {
-      if (ttsRes.statusCode === 200) {
+    const request = https.get(googleTtsUrl, options, (ttsRes) => {
+      if (ttsRes.statusCode === 200 || ttsRes.statusCode === 206) {
         res.setHeader('Content-Type', 'audio/mpeg');
         res.setHeader('Cache-Control', 'public, max-age=86400');
         ttsRes.pipe(res);
       } else {
-        res.status(ttsRes.statusCode || 500).send('TTS upstream error.');
+        console.warn(`[TTS Proxy] Primary TTS returned status ${ttsRes.statusCode}, trying fallback client...`);
+        const fallbackUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=${lang}&q=${encodedText}`;
+        https.get(fallbackUrl, options, (fbRes) => {
+          if (fbRes.statusCode === 200 || fbRes.statusCode === 206) {
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            fbRes.pipe(res);
+          } else {
+            res.status(fbRes.statusCode || 500).send('TTS upstream error.');
+          }
+        }).on('error', (fbErr) => {
+          res.status(500).send('TTS fallback error.');
+        });
       }
-    }).on('error', (err) => {
+    });
+
+    request.on('error', (err) => {
       console.error('TTS Proxy HTTP Error:', err);
       res.status(500).send('TTS proxy request failed.');
     });
