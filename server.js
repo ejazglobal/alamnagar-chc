@@ -3483,62 +3483,122 @@ app.get('/api/ai-assistant/knowledge-summary', (req, res) => {
   });
 });
 
-// Server-Side Text-to-Speech (TTS) Proxy Stream Route with Automatic Redirect Handling
-function fetchAudioStream(targetUrl, res, maxRedirects = 5) {
-  if (maxRedirects <= 0) {
-    return res.status(500).send('Too many redirects fetching TTS audio.');
-  }
+// Server-Side Text-to-Speech (TTS) Proxy Stream Route with Multi-Chunk Concatenation & Redirect Handling
+function fetchSingleTtsChunk(text, lang) {
+  return new Promise((resolve, reject) => {
+    const encodedText = encodeURIComponent(text);
+    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${encodedText}`;
 
-  const options = {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      'Accept': 'audio/mpeg, audio/*;q=0.9, */*;q=0.8',
-      'Referer': 'https://translate.google.com/'
+    function makeReq(targetUrl, redirects = 5) {
+      if (redirects <= 0) return reject(new Error('Too many redirects fetching TTS audio'));
+      const options = {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'audio/mpeg, audio/*;q=0.9, */*;q=0.8',
+          'Referer': 'https://translate.google.com/'
+        }
+      };
+      https.get(targetUrl, options, (ttsRes) => {
+        if ([301, 302, 303, 307, 308].includes(ttsRes.statusCode) && ttsRes.headers.location) {
+          try {
+            const redirectUrl = new URL(ttsRes.headers.location, targetUrl).href;
+            return makeReq(redirectUrl, redirects - 1);
+          } catch (e) {
+            return reject(e);
+          }
+        }
+        if (ttsRes.statusCode === 200 || ttsRes.statusCode === 206) {
+          const chunks = [];
+          ttsRes.on('data', chunk => chunks.push(chunk));
+          ttsRes.on('end', () => resolve(Buffer.concat(chunks)));
+        } else {
+          reject(new Error(`TTS upstream HTTP ${ttsRes.statusCode}`));
+        }
+      }).on('error', reject);
     }
-  };
 
-  https.get(targetUrl, options, (ttsRes) => {
-    // Handle HTTP Redirects (301, 302, 303, 307, 308)
-    if ([301, 302, 303, 307, 308].includes(ttsRes.statusCode) && ttsRes.headers.location) {
-      try {
-        const redirectUrl = new URL(ttsRes.headers.location, targetUrl).href;
-        return fetchAudioStream(redirectUrl, res, maxRedirects - 1);
-      } catch (uErr) {
-        console.warn("[TTS Proxy] Invalid redirect URL:", ttsRes.headers.location);
-      }
-    }
-
-    if (ttsRes.statusCode === 200 || ttsRes.statusCode === 206) {
-      res.setHeader('Content-Type', 'audio/mpeg');
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      ttsRes.pipe(res);
-    } else {
-      console.warn(`[TTS Proxy] Status ${ttsRes.statusCode} for URL: ${targetUrl}`);
-      if (!targetUrl.includes('translate.googleapis.com')) {
-        const fallbackUrl = targetUrl.replace('translate.google.com', 'translate.googleapis.com');
-        return fetchAudioStream(fallbackUrl, res, maxRedirects - 1);
-      }
-      res.status(ttsRes.statusCode || 500).send('TTS upstream error.');
-    }
-  }).on('error', (err) => {
-    console.error('TTS Stream Error:', err.message);
-    res.status(500).send('TTS proxy stream request failed.');
+    makeReq(googleTtsUrl);
   });
 }
 
-app.get('/api/ai-assistant/tts', (req, res) => {
+function splitTextForTts(text, maxLen = 150) {
+  if (!text) return [];
+  const sanitized = text.replace(/[\*\_`#~]/g, '').replace(/\s+/g, ' ').trim();
+  if (sanitized.length <= maxLen) return [sanitized];
+
+  const sentences = sanitized.split(/([।!\?\n\.]+)/).filter(Boolean);
+  const chunks = [];
+  let currentChunk = '';
+
+  for (let i = 0; i < sentences.length; i++) {
+    const s = sentences[i];
+    if ((currentChunk + s).length > maxLen) {
+      if (currentChunk.trim()) chunks.push(currentChunk.trim());
+      currentChunk = s;
+    } else {
+      currentChunk += s;
+    }
+  }
+  if (currentChunk.trim()) chunks.push(currentChunk.trim());
+
+  const finalChunks = [];
+  for (const chunk of chunks) {
+    if (chunk.length <= maxLen) {
+      finalChunks.push(chunk);
+    } else {
+      const words = chunk.split(' ');
+      let sub = '';
+      for (const w of words) {
+        if ((sub + ' ' + w).length > maxLen) {
+          if (sub.trim()) finalChunks.push(sub.trim());
+          sub = w;
+        } else {
+          sub += (sub ? ' ' : '') + w;
+        }
+      }
+      if (sub.trim()) finalChunks.push(sub.trim());
+    }
+  }
+  return finalChunks.filter(c => c.length > 0);
+}
+
+app.get('/api/ai-assistant/tts', async (req, res) => {
   try {
-    const rawText = (req.query.text || '').toString().replace(/[\*\_`#]/g, '').trim();
+    const rawText = (req.query.text || '').toString().replace(/[\*\_`#~]/g, '').trim();
     const lang = (req.query.lang || 'bn').toString();
     if (!rawText) {
       return res.status(400).send('Text query param is required.');
     }
 
-    const cleanText = rawText.substring(0, 300);
-    const encodedText = encodeURIComponent(cleanText);
-    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${encodedText}`;
+    const cleanText = rawText.substring(0, 1200);
+    const textChunks = splitTextForTts(cleanText, 150);
 
-    fetchAudioStream(googleTtsUrl, res);
+    if (textChunks.length === 0) {
+      return res.status(400).send('No valid text to speak.');
+    }
+
+    const audioBuffers = [];
+    for (const chunk of textChunks) {
+      try {
+        const buf = await fetchSingleTtsChunk(chunk, lang);
+        if (buf && buf.length > 0) {
+          audioBuffers.push(buf);
+        }
+      } catch (err) {
+        console.warn(`[TTS Chunk Warning] Failed chunk: "${chunk.substring(0, 20)}...":`, err.message);
+      }
+    }
+
+    if (audioBuffers.length === 0) {
+      return res.status(500).send('TTS audio stream generation failed.');
+    }
+
+    const combinedAudio = Buffer.concat(audioBuffers);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Length', combinedAudio.length);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(combinedAudio);
+
   } catch (err) {
     console.error('TTS Route Error:', err);
     res.status(500).send('TTS Internal Server Error');

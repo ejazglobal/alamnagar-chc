@@ -620,8 +620,8 @@
   }
 
   function playServerAudioStream(cleanText, langCode) {
-    const truncatedQuery = cleanText.substring(0, 300);
-    const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(truncatedQuery)}&lang=${langCode}&t=${Date.now()}`;
+    const fullText = cleanText.substring(0, 1000);
+    const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(fullText)}&lang=${langCode}&t=${Date.now()}`;
 
     isSpeaking = true;
     updateVoiceUiState('speaking', 'এআই কথা বলছে... 🔊');
