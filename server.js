@@ -3482,7 +3482,45 @@ app.get('/api/ai-assistant/knowledge-summary', (req, res) => {
   });
 });
 
-// Server-Side Text-to-Speech (TTS) Proxy Stream Route for Bangla/English
+// Server-Side Text-to-Speech (TTS) Proxy Stream Route with Automatic Redirect Handling
+function fetchAudioStream(targetUrl, res, maxRedirects = 5) {
+  if (maxRedirects <= 0) {
+    return res.status(500).send('Too many redirects fetching TTS audio.');
+  }
+
+  const options = {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept': 'audio/mpeg, audio/*;q=0.9, */*;q=0.8',
+      'Referer': 'https://translate.google.com/'
+    }
+  };
+
+  https.get(targetUrl, options, (ttsRes) => {
+    // Handle HTTP Redirects (301, 302, 303, 307, 308)
+    if ([301, 302, 303, 307, 308].includes(ttsRes.statusCode) && ttsRes.headers.location) {
+      const redirectUrl = ttsRes.headers.location;
+      return fetchAudioStream(redirectUrl, res, maxRedirects - 1);
+    }
+
+    if (ttsRes.statusCode === 200 || ttsRes.statusCode === 206) {
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      ttsRes.pipe(res);
+    } else {
+      console.warn(`[TTS Proxy] Status ${ttsRes.statusCode} for URL: ${targetUrl}`);
+      if (!targetUrl.includes('translate.googleapis.com')) {
+        const fallbackUrl = targetUrl.replace('translate.google.com', 'translate.googleapis.com');
+        return fetchAudioStream(fallbackUrl, res, maxRedirects - 1);
+      }
+      res.status(ttsRes.statusCode || 500).send('TTS upstream error.');
+    }
+  }).on('error', (err) => {
+    console.error('TTS Stream Error:', err.message);
+    res.status(500).send('TTS proxy stream request failed.');
+  });
+}
+
 app.get('/api/ai-assistant/tts', (req, res) => {
   try {
     const rawText = (req.query.text || '').toString().replace(/[\*\_`#]/g, '').trim();
@@ -3495,40 +3533,7 @@ app.get('/api/ai-assistant/tts', (req, res) => {
     const encodedText = encodeURIComponent(cleanText);
     const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${encodedText}`;
 
-    const options = {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'audio/mpeg, audio/*;q=0.9, */*;q=0.8',
-        'Referer': 'https://translate.google.com/'
-      }
-    };
-
-    const request = https.get(googleTtsUrl, options, (ttsRes) => {
-      if (ttsRes.statusCode === 200 || ttsRes.statusCode === 206) {
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Cache-Control', 'public, max-age=86400');
-        ttsRes.pipe(res);
-      } else {
-        console.warn(`[TTS Proxy] Primary TTS returned status ${ttsRes.statusCode}, trying fallback client...`);
-        const fallbackUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=${lang}&q=${encodedText}`;
-        https.get(fallbackUrl, options, (fbRes) => {
-          if (fbRes.statusCode === 200 || fbRes.statusCode === 206) {
-            res.setHeader('Content-Type', 'audio/mpeg');
-            res.setHeader('Cache-Control', 'public, max-age=86400');
-            fbRes.pipe(res);
-          } else {
-            res.status(fbRes.statusCode || 500).send('TTS upstream error.');
-          }
-        }).on('error', (fbErr) => {
-          res.status(500).send('TTS fallback error.');
-        });
-      }
-    });
-
-    request.on('error', (err) => {
-      console.error('TTS Proxy HTTP Error:', err);
-      res.status(500).send('TTS proxy request failed.');
-    });
+    fetchAudioStream(googleTtsUrl, res);
   } catch (err) {
     console.error('TTS Route Error:', err);
     res.status(500).send('TTS Internal Server Error');
