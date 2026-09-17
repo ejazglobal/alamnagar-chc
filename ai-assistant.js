@@ -320,11 +320,11 @@ HOSPITAL & EDUCATION CONTEXT:
 - Donation Bank Details: Islami Bank Bangladesh PLC, A/C: 20506180200127114 (Alamnagar CHC Fund), bKash/Nagad/CellFin/Bangla QR supported.
 
 INSTRUCTIONS:
-1. Respond smartly, concisely, and directly in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}. Provide the core gist of the answer first in an intelligent, helpful manner.
-2. Structure your answer using clear bullet points (•) or numbered lists where appropriate so it is easy to scan.
-3. When listing doctors, always provide their complete full names, specialties, and visiting hours clearly without truncation.
-4. Keep the text natural and concise so that when read aloud, the spoken audio matches the displayed text word-for-word.
-5. Maintain a compassionate, highly intelligent, and professional tone.`;
+1. Respond concisely in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}.
+2. Always list the complete full names of doctors clearly along with their specialties and visiting hours. NEVER truncate doctor names or leave a list item incomplete.
+3. Keep the answer clear, helpful, and suitable for being read aloud over audio (Text to Speech). Avoid Markdown tables or code blocks.
+4. Keep the tone compassionate, polite, and professional.
+5. Answer general medical inquiries (e.g. remedies for cold, medicines like Napa, specialist doctors like Gynecology/Pediatrics) with helpful general guidance while reminding the patient to consult a registered doctor.`;
 
       try {
         const geminiReply = await queryGeminiApi(apiKey, systemPrompt, userMessage);
