@@ -195,10 +195,12 @@ async function processFallbackQuery(userMsg, doctorsList) {
 
   // 4. Doctor Schedule & List Intent
   if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('ডাঃ') || cleanMsg.includes('ডক্টর') || cleanMsg.includes('চিকিৎসক') || cleanMsg.includes('আখতার') || cleanMsg.includes('আক্তার') || cleanMsg.includes('বসে') || cleanMsg.includes('বসেন') || cleanMsg.includes('বসা') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule') || cleanMsg.includes('তালিকা') || cleanMsg.includes('তিনজন') || cleanMsg.includes('3জন') || cleanMsg.includes('তিন জন')) {
+    const docNamesArr = docList.map(d => (d.name_bn || d.name_en || '')).filter(Boolean).join(', ');
     const replyStr = `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`;
+    const spokenAudioStr = `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন বিশেষজ্ঞ চিকিৎসক সেবা দিচ্ছেন। তাঁরা হলেন ${docNamesArr}। আপনি ওয়েবসাইটে সরাসরি তাদের অ্যাপয়েন্টমেন্ট নিতে পারেন।`;
     return {
       reply: replyStr,
-      audioText: replyStr.replace(/[\*\_`#]/g, ''),
+      audioText: spokenAudioStr,
       detectedIntent: 'doctors_list',
       quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
     };
@@ -328,10 +330,16 @@ INSTRUCTIONS:
 
       try {
         const geminiReply = await queryGeminiApi(apiKey, systemPrompt, userMessage);
+        const cleanAudio = geminiReply
+          .replace(/[\*\_`#~]/g, '')
+          .replace(/\([\^)]*\)/g, '')
+          .replace(/[\-\|]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
         return {
           success: true,
           reply: geminiReply,
-          audioText: geminiReply.replace(/[\*\_`#]/g, ''),
+          audioText: cleanAudio,
           source: 'gemini',
           quickActions: [
             { label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' },
