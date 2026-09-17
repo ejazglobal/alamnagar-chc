@@ -543,7 +543,7 @@
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }
 
-  // Text-to-Speech (TTS Voice Output with Server Audio Proxy Stream & WebSpeech Fallback)
+  // Text-to-Speech (TTS Voice Output: WebSpeech API Primary & Server Audio Proxy Stream Fallback)
   function speakText(text, triggerBtn = null) {
     if (!text) return;
 
@@ -565,16 +565,77 @@
     const cleanText = text.replace(/[\*\_`#]/g, '').trim();
     if (!cleanText) return;
 
-    isSpeaking = true;
-    updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
+    const targetLang = currentLang.startsWith('en') ? 'en-US' : 'bn-BD';
 
+    // Tier 1: Web Speech API (Native Browser Speech Synthesis)
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+
+        currentUtterance = new SpeechSynthesisUtterance(cleanText);
+        currentUtterance.lang = targetLang;
+        currentUtterance.rate = 0.92;
+        currentUtterance.pitch = 1.0;
+
+        // Search for explicit matching voice if loaded
+        const voices = window.speechSynthesis.getVoices() || [];
+        const matchVoice = voices.find(v => v.lang && (v.lang.startsWith('bn') || v.lang.startsWith('ben')));
+        if (matchVoice) {
+          currentUtterance.voice = matchVoice;
+        }
+
+        currentUtterance.onstart = function () {
+          isSpeaking = true;
+          updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
+        };
+
+        currentUtterance.onend = function () {
+          stopSpeech();
+          updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+        };
+
+        currentUtterance.onerror = function (e) {
+          console.warn("WebSpeech synthesis error, falling back to server audio proxy:", e);
+          playServerAudioStream(cleanText, targetLang);
+        };
+
+        isSpeaking = true;
+        updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
+        window.speechSynthesis.speak(currentUtterance);
+
+        // Safety fallback if SpeechSynthesis stays silent without triggering onstart/onerror within 1.5s
+        setTimeout(() => {
+          if (isSpeaking && !window.speechSynthesis.speaking && (!currentAudioObj || currentAudioObj.paused)) {
+            console.warn("SpeechSynthesis silent timeout, triggering server audio fallback...");
+            playServerAudioStream(cleanText, targetLang);
+          }
+        }, 1500);
+
+        return;
+
+      } catch (err) {
+        console.warn("WebSpeech initialization error:", err);
+      }
+    }
+
+    // Tier 2: Server Audio Proxy Stream
+    playServerAudioStream(cleanText, targetLang);
+  }
+
+  function playServerAudioStream(cleanText, targetLang) {
+    const langCode = targetLang.startsWith('en') ? 'en' : 'bn';
     const truncatedQuery = cleanText.substring(0, 250);
-    const targetLang = currentLang.startsWith('en') ? 'en' : 'bn';
-    const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(truncatedQuery)}&lang=${targetLang}&t=${Date.now()}`;
+    const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(truncatedQuery)}&lang=${langCode}&t=${Date.now()}`;
 
-    let audioPlayed = false;
-    currentAudioObj = new Audio();
-    currentAudioObj.src = audioUrl;
+    currentAudioObj = new Audio(audioUrl);
+
+    currentAudioObj.onplay = function () {
+      isSpeaking = true;
+      updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
+    };
 
     currentAudioObj.onended = function () {
       stopSpeech();
@@ -582,61 +643,16 @@
     };
 
     currentAudioObj.onerror = function (e) {
-      console.warn("Server TTS playback error, attempting SpeechSynthesis fallback:", e);
-      if ('speechSynthesis' in window && !audioPlayed) {
-        try {
-          window.speechSynthesis.cancel();
-          const fallbackUtterance = new SpeechSynthesisUtterance(cleanText);
-          fallbackUtterance.lang = targetLang === 'bn' ? 'bn-BD' : 'en-US';
-          fallbackUtterance.onend = function () {
-            stopSpeech();
-            updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-          };
-          fallbackUtterance.onerror = function () {
-            stopSpeech();
-            updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-          };
-          window.speechSynthesis.speak(fallbackUtterance);
-        } catch (err) {
-          stopSpeech();
-          updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-        }
-      } else {
-        stopSpeech();
-        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-      }
+      console.warn("Server Audio Stream error:", e);
+      stopSpeech();
+      updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
     };
 
-    const playPromise = currentAudioObj.play();
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        audioPlayed = true;
-      }).catch(err => {
-        console.warn("Direct audio play failed, using WebSpeech fallback:", err);
-        if ('speechSynthesis' in window) {
-          try {
-            window.speechSynthesis.cancel();
-            const fallbackUtterance = new SpeechSynthesisUtterance(cleanText);
-            fallbackUtterance.lang = targetLang === 'bn' ? 'bn-BD' : 'en-US';
-            fallbackUtterance.onend = function () {
-              stopSpeech();
-              updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-            };
-            fallbackUtterance.onerror = function () {
-              stopSpeech();
-              updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-            };
-            window.speechSynthesis.speak(fallbackUtterance);
-          } catch (e2) {
-            stopSpeech();
-            updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-          }
-        } else {
-          stopSpeech();
-          updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-        }
-      });
-    }
+    currentAudioObj.play().catch(err => {
+      console.warn("Server Audio play failed:", err);
+      stopSpeech();
+      updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+    });
   }
 
   window.speakAiMessage = function (btn, text) {
