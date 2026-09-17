@@ -104,7 +104,7 @@ function makeGeminiHttpRequest(modelName, apiKey, payload) {
 
 /**
  * Robust Multi-Model Gemini Query Function
- * Uses gemini-3.6-flash (recommended by Google API) with fallback models
+ * Uses gemini-2.0-flash with fallback models
  */
 async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
   const payload = JSON.stringify({
@@ -124,11 +124,10 @@ async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
   });
 
   const modelsToTry = [
-    'gemini-3.6-flash',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-exp',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
     'gemini-1.5-flash-latest',
-    'gemini-pro'
+    'gemini-1.5-pro'
   ];
   let lastError = null;
 
@@ -152,9 +151,18 @@ async function queryGeminiApi(apiKey, systemPrompt, userMessage) {
  */
 async function processFallbackQuery(userMsg, doctorsList) {
   const cleanMsg = (userMsg || '').toLowerCase().trim();
-  const activeDoctors = (doctorsList && doctorsList.length > 0) ? doctorsList : DEFAULT_DOCTORS;
+  const rawDoctors = (doctorsList && doctorsList.length > 0) ? doctorsList : DEFAULT_DOCTORS;
+  const activeDoctors = rawDoctors.filter(d => d && d.is_active !== false);
+  const docList = activeDoctors.length > 0 ? activeDoctors : DEFAULT_DOCTORS;
 
-  const docInfoBn = activeDoctors.map((d, idx) => `${idx + 1}. ${d.name_bn} (${d.specialty_bn}) - সময়সূচী: ${d.visiting_hours_bn}`).join('\n');
+  const docInfoBn = docList.map((d, idx) => {
+    const nameBn = d.name_bn || d.name_en || 'ডাঃ নাম পাওয়া যায়নি';
+    const specBn = d.specialty_bn || d.specialty_en || 'সাধারণ চিকিৎসক';
+    const hoursBn = d.visiting_hours_bn || d.visiting_hours_en || 'সময়সূচী রাখা আছে';
+    return `${idx + 1}. ${nameBn} (${specBn}) - সময়সূচী: ${hoursBn}`;
+  }).join('\n');
+
+  const docNamesShort = docList.map(d => d.name_bn || d.name_en || 'ডাঃ').join(', ');
 
   // 1. Medicine & Pharmacy Queries (e.g. Napa, remedies, cold/flu, medicines database)
   if (cleanMsg.includes('napa') || cleanMsg.includes('medicine') || cleanMsg.includes('ঔষধ') || cleanMsg.includes('মেডিসিন') || cleanMsg.includes('ড্রাগ') || cleanMsg.includes('ফার্মেসি') || cleanMsg.includes('ঠান্ডা') || cleanMsg.includes('সর্দি') || cleanMsg.includes('প্রতিকার') || cleanMsg.includes('cold') || cleanMsg.includes('remedy') || cleanMsg.includes('fever')) {
@@ -189,8 +197,8 @@ async function processFallbackQuery(userMsg, doctorsList) {
   // 4. Doctor Schedule & List Intent
   if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule') || cleanMsg.includes('তালিকা') || cleanMsg.includes('তিনজন') || cleanMsg.includes('3জন') || cleanMsg.includes('তিন জন')) {
     return {
-      reply: `আলমনগর সিএইচসি-তে বর্তমানে ৩ জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`,
-      audioText: `আলমনগর সিএইচসিতে তিনজন সম্মানিত ডাক্তার রয়েছেন: ডাঃ সারাহ রহমান, ডাঃ আজম খান, এবং ডাঃ রাহাত কবির। তাদের সময়সূচী স্ক্রিনে দেখানো হয়েছে।`,
+      reply: `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`,
+      audioText: `আলমনগর সিএইচসিতে ${docList.length} জন সম্মানিত ডাক্তার রয়েছেন: ${docNamesShort}। তাদের সময়সূচী স্ক্রিনে দেখানো হয়েছে।`,
       detectedIntent: 'doctors_list',
       quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
     };
@@ -220,7 +228,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
   if (cleanMsg.includes('prescription') || cleanMsg.includes('report') || cleanMsg.includes('প্রেসক্রিপশন') || cleanMsg.includes('রিপোর্ট') || cleanMsg.includes('লগইন') || cleanMsg.includes('portal')) {
     return {
       reply: `আপনার ডাক্তারের প্রেসক্রিপশন ও মেডিকেল রিপোর্ট দেখতে রোগীর পোর্টাল (Patient Portal) ব্যবহার করুন।\n\nআপনার রেজিস্টার্ড ফোন নম্বর দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`,
-      audioText: `আপনার ডিজিটাল প্রেসক্রিপশন দেখতে পেশেন্ট পোর্টাল ব্যবহার করুন। আপনার ফোন নম্বর দিয়ে সহজে লগইন করতে পারবেন।`,
+      audioText: `রোগীর পোর্টালে আপনার মোবাইল নম্বর দিয়ে লগইন করে প্রেসক্রিপশন ও টেস্ট রিপোর্ট সরাসরি দেখুন।`,
       detectedIntent: 'patient_portal',
       quickActions: [{ label: '🔑 পেশেন্ট পোর্টালে যান', action: 'goto_patient_portal' }]
     };
@@ -277,14 +285,22 @@ async function processQuery(userMessage, language = 'bn') {
       console.warn("AI Assistant DB Doctor Fetch Warning:", err.message);
     }
 
-    if (!doctorsList || doctorsList.length === 0) {
-      doctorsList = DEFAULT_DOCTORS;
-    }
+    // Filter active doctors only and sanitize doctor objects
+    const rawDoctors = (doctorsList && doctorsList.length > 0) ? doctorsList : DEFAULT_DOCTORS;
+    const activeDoctors = rawDoctors.filter(d => d && d.is_active !== false);
+    doctorsList = activeDoctors.length > 0 ? activeDoctors : DEFAULT_DOCTORS;
 
     const apiKey = (process.env.GEMINI_API_KEY || '').trim();
 
     if (apiKey) {
-      const doctorsText = doctorsList.map(d => `- ${d.name_bn} / ${d.name_en} (${d.specialty_bn}): Visiting ${d.visiting_hours_bn}`).join('\n');
+      const doctorsText = doctorsList.map(d => {
+        const nameBn = d.name_bn || d.name_en || 'ডাঃ নাম পাওয়া যায়নি';
+        const nameEn = d.name_en || d.name_bn || 'Dr. Unknown';
+        const specBn = d.specialty_bn || d.specialty_en || 'সাধারণ চিকিৎসক';
+        const hoursBn = d.visiting_hours_bn || d.visiting_hours_en || 'সময়সূচী রাখা আছে';
+        return `- ${nameBn} (${nameEn}, ${specBn}): Visiting ${hoursBn}`;
+      }).join('\n');
+
       const systemPrompt = `You are the Official Automated Voice & Chat AI Virtual Assistant for ${HOSPITAL_INFO.name}.
 Your job is to assist patients and students warmly, accurately, and clearly.
 
@@ -299,9 +315,10 @@ HOSPITAL & EDUCATION CONTEXT:
 
 INSTRUCTIONS:
 1. Respond concisely in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}.
-2. Keep the answer clear, helpful, and suitable for being read aloud over audio (Text to Speech). Avoid Markdown tables or code blocks.
-3. Keep the tone compassionate, polite, and professional.
-4. Answer general medical inquiries (e.g. remedies for cold, medicines like Napa, specialist doctors like Gynecology/Pediatrics) with helpful general guidance while reminding the patient to consult a registered doctor.`;
+2. Always list the complete full names of doctors clearly along with their specialties and visiting hours. NEVER truncate doctor names or leave a list item incomplete.
+3. Keep the answer clear, helpful, and suitable for being read aloud over audio (Text to Speech). Avoid Markdown tables or code blocks.
+4. Keep the tone compassionate, polite, and professional.
+5. Answer general medical inquiries (e.g. remedies for cold, medicines like Napa, specialist doctors like Gynecology/Pediatrics) with helpful general guidance while reminding the patient to consult a registered doctor.`;
 
       try {
         const geminiReply = await queryGeminiApi(apiKey, systemPrompt, userMessage);

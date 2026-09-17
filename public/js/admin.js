@@ -1755,7 +1755,8 @@ window.printAdminPrescription = function() {
     signatureHtml = `<img src="${p.doctor_signature}" alt="Signature" style="max-height: 50px; display: inline-block;">`;
   }
 
-  const docName = p.doctor_name || 'Sarah Rahman';
+  const rawDocName = (p.doctor_name || 'Sarah Rahman').trim();
+  const printDocName = /^(Dr\.?|ডাঃ|ডা:)/i.test(rawDocName) ? rawDocName : `Dr. ${rawDocName}`;
   const docSpecialty = p.doctor_specialty || 'General Physician';
   const docHours = p.doctor_visiting_hours || p.doctor_hours || 'Sat, Mon, Wed (03:00 PM - 07:00 PM)';
 
@@ -1819,7 +1820,7 @@ window.printAdminPrescription = function() {
             </div>
           </div>
           <div class="print-doctor-section">
-            <h2 class="print-doctor-name">Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}</h2>
+            <h2 class="print-doctor-name">${escapeHTML(printDocName)}</h2>
             <p class="print-doctor-specialty">${escapeHTML(docSpecialty)}</p>
             <p class="print-doctor-hours">${escapeHTML(docHours)}</p>
           </div>

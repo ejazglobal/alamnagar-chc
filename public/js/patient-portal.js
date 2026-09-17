@@ -513,10 +513,12 @@ window.loadMyPrescriptionsImpl = window.loadMyPrescriptions = async function loa
         const formattedDate = new Date(p.appointment_date).toLocaleDateString('en-US', {
           weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
         });
+        const formattedDocName = (p.doctor_name || 'Sarah Rahman').trim();
+        const displayDocName = /^(Dr\.?|ডাঃ|ডা:)/i.test(formattedDocName) ? formattedDocName : `Dr. ${formattedDocName}`;
         return `
         <div class="report-card" style="border-left: 4px solid var(--primary-color);">
           <div>
-            <div style="font-weight: 600; color: var(--text-dark);">Prescription by Dr. ${escapeHTML((p.doctor_name || 'Sarah Rahman').replace(/^Dr\.\s+/i, ''))}</div>
+            <div style="font-weight: 600; color: var(--text-dark);">Prescription by ${escapeHTML(displayDocName)}</div>
             <div style="font-size: 0.8rem; color: var(--text-muted);">Consulted: ${formattedDate}</div>
             <div style="font-size: 0.8rem; color: var(--primary-color); font-weight: 600; margin-top: 0.15rem;">Patient: ${escapeHTML(p.patient_name || 'Dependent')}</div>
             ${p.observations ? `<div style="font-size: 0.78rem; color: var(--text-dark); margin-top: 0.25rem;">Obs: <em>${escapeHTML(p.observations)}</em></div>` : ''}
@@ -784,7 +786,8 @@ window.printPortalPrescriptionImpl = window.printPortalPrescription = function()
     signatureHtml = `<img src="${p.doctor_signature}" alt="Signature" style="max-height: 50px; display: inline-block;">`;
   }
 
-  const docName = p.doctor_name || 'Sarah Rahman';
+  const rawDocName = (p.doctor_name || 'Sarah Rahman').trim();
+  const printDocName = /^(Dr\.?|ডাঃ|ডা:)/i.test(rawDocName) ? rawDocName : `Dr. ${rawDocName}`;
   const docSpecialty = p.doctor_specialty || 'General Physician';
   const docHours = p.doctor_visiting_hours || p.doctor_hours || 'Sat, Mon, Wed (03:00 PM - 07:00 PM)';
 
@@ -844,7 +847,7 @@ window.printPortalPrescriptionImpl = window.printPortalPrescription = function()
             </div>
           </div>
           <div class="print-doctor-section">
-            <h2 class="print-doctor-name">Dr. ${escapeHTML(docName.replace(/^Dr\.\s+/i, ''))}</h2>
+            <h2 class="print-doctor-name">${escapeHTML(printDocName)}</h2>
             <p class="print-doctor-specialty">${escapeHTML(docSpecialty)}</p>
             <p class="print-doctor-hours">${escapeHTML(docHours)}</p>
           </div>
