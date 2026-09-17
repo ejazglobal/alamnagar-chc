@@ -194,7 +194,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
   }
 
   // 4. Doctor Schedule & List Intent
-  if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule') || cleanMsg.includes('তালিকা') || cleanMsg.includes('তিনজন') || cleanMsg.includes('3জন') || cleanMsg.includes('তিন জন')) {
+  if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('ডাঃ') || cleanMsg.includes('ডক্টর') || cleanMsg.includes('চিকিৎসক') || cleanMsg.includes('আখতার') || cleanMsg.includes('আক্তার') || cleanMsg.includes('বসে') || cleanMsg.includes('বসেন') || cleanMsg.includes('বসা') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule') || cleanMsg.includes('তালিকা') || cleanMsg.includes('তিনজন') || cleanMsg.includes('3জন') || cleanMsg.includes('তিন জন')) {
     const replyStr = `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`;
     return {
       reply: replyStr,

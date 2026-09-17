@@ -401,68 +401,50 @@
   `;
   document.body.appendChild(modalOverlay);
 
-  // Initialize SpeechRecognition API with continuous listening & silence timeout
-  let speechSilenceTimer = null;
-  let accumulatedTranscript = '';
-
+  // Initialize SpeechRecognition API with phonetic correction & alternatives
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 5;
 
     recognition.onstart = function () {
       isListening = true;
-      accumulatedTranscript = '';
-      updateVoiceUiState('listening', 'কথা বলুন, শোনো হচ্ছে... 🎙️');
+      updateVoiceUiState('listening', 'কথা বলুন, শোনা হচ্ছে... 🎙️');
     };
 
     recognition.onresult = function (event) {
-      let interim = '';
-      let final = '';
+      let rawTranscript = event.results[0][0].transcript;
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
+      // Check all recognition alternatives if Chrome misheard 'ডাক্তার'
+      for (let i = 0; i < event.results[0].length; i++) {
+        const alt = event.results[0][i].transcript;
+        if (alt.includes('ডাক্তার') || alt.includes('ডাঃ') || alt.includes('চিকিৎসক') || alt.includes('ডক্টর')) {
+          rawTranscript = alt;
+          break;
         }
       }
 
-      if (final) {
-        accumulatedTranscript += (accumulatedTranscript ? ' ' : '') + final;
-      }
+      // Smart Phonetic Correction for misheard Bengali words
+      let cleanTranscript = rawTranscript
+        .replace(/আখতার/g, 'ডাক্তার')
+        .replace(/আক্তার/g, 'ডাক্তার')
+        .replace(/ডক্টর/g, 'ডাক্তার')
+        .trim();
 
-      const currentText = (accumulatedTranscript + ' ' + interim).trim();
-      if (currentText) {
-        updateVoiceUiState('listening', `🎙️ "${currentText}"`);
-      }
-
-      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-      speechSilenceTimer = setTimeout(() => {
-        if (isListening && (accumulatedTranscript || interim)) {
-          const fullQuery = (accumulatedTranscript || interim).trim();
-          try { recognition.stop(); } catch (e) {}
-          if (fullQuery) {
-            appendMessage('user', fullQuery);
-            sendQueryToBackend(fullQuery);
-          }
-        }
-      }, 2500);
+      appendMessage('user', cleanTranscript);
+      sendQueryToBackend(cleanTranscript);
     };
 
     recognition.onerror = function (event) {
       console.warn('Speech recognition error:', event.error);
-      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        isListening = false;
-        updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
-      }
+      isListening = false;
+      updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
     };
 
     recognition.onend = function () {
       isListening = false;
-      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
       if (!isSpeaking) {
         updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
       }
