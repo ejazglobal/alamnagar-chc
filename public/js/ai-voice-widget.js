@@ -270,6 +270,32 @@
       border-color: #0d9488;
     }
 
+    /* Read Aloud Button */
+    .ai-read-aloud-btn {
+      background: rgba(13, 148, 136, 0.08);
+      border: 1px solid #0d9488;
+      color: #0d9488;
+      padding: 3px 10px;
+      border-radius: 14px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .ai-read-aloud-btn:hover {
+      background: #0d9488;
+      color: #ffffff;
+    }
+    .ai-read-aloud-btn.playing {
+      background: #dc2626;
+      border-color: #dc2626;
+      color: #ffffff;
+    }
+
     /* Input Footer */
     .ai-voice-footer {
       padding: 12px 16px;
@@ -330,9 +356,9 @@
           <span>🤖 আলমনগর সিএইচসি এআই ভয়েস কল</span>
         </div>
         <div class="ai-voice-controls">
-          <button class="ai-voice-icon-btn" id="ai-toggle-lang" title="Switch Language (বাংলা / English)">🇧🇩</button>
-          <button class="ai-voice-icon-btn" id="ai-toggle-tts" title="Toggle Sound / Voice Readout">🔊</button>
-          <button class="ai-voice-icon-btn" id="ai-close-modal" title="Close Call">&times;</button>
+          <button class="ai-voice-icon-btn" id="ai-toggle-lang" title="ভাষা পরিবর্তন করুন (বাংলা / English)">🇧🇩</button>
+          <button class="ai-voice-icon-btn" id="ai-toggle-tts" title="স্বয়ংক্রিয় ভয়েস সাউন্ড চালু / ম্যুট করুন (Mute/Unmute)">🔊</button>
+          <button class="ai-voice-icon-btn" id="ai-close-modal" title="কল বন্ধ করুন">&times;</button>
         </div>
       </div>
 
@@ -351,7 +377,12 @@
       </div>
 
       <div class="ai-chat-body" id="ai-chat-messages">
-        <div class="ai-msg bot">আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী।\n\nডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট বা যেকোনো তথ্যের জন্য আমাকে বলতে পারেন।</div>
+        <div class="ai-msg bot">
+          <div>আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী।\n\nডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট বা যেকোনো তথ্যের জন্য আমাকে বলতে পারেন।</div>
+          <div style="margin-top: 6px; display: flex; justify-content: flex-end;">
+            <button class="ai-read-aloud-btn" onclick="window.speakAiMessage(this, 'আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী। ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট বা যেকোনো তথ্যের জন্য আমাকে বলতে পারেন।')">🔊 পড়ুন</button>
+          </div>
+        </div>
       </div>
 
       <div class="ai-quick-chips" id="ai-quick-chips">
@@ -379,21 +410,19 @@
 
     recognition.onstart = function () {
       isListening = true;
-      updateVoiceUiState('listening', 'কথা বলুন... আমি শুনছি 👂');
+      updateVoiceUiState('listening', 'কথা বলুন, শোনা হচ্ছে... 🎙️');
     };
 
     recognition.onresult = function (event) {
       const transcript = event.results[0][0].transcript;
-      if (transcript) {
-        appendMessage('user', transcript);
-        sendQueryToBackend(transcript);
-      }
+      appendMessage('user', transcript);
+      sendQueryToBackend(transcript);
     };
 
     recognition.onerror = function (event) {
       console.warn('Speech recognition error:', event.error);
       isListening = false;
-      updateVoiceUiState('idle', 'মাইক্রোফোনে পুনরায় চাপ দিন');
+      updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
     };
 
     recognition.onend = function () {
@@ -441,11 +470,12 @@
     }
   });
 
-  // Toggle TTS Sound Readout
+  // Toggle TTS Sound Readout (Mute / Unmute)
   const ttsBtn = document.getElementById('ai-toggle-tts');
   ttsBtn.addEventListener('click', function () {
     ttsEnabled = !ttsEnabled;
     ttsBtn.textContent = ttsEnabled ? '🔊' : '🔇';
+    ttsBtn.title = ttsEnabled ? 'স্বয়ংক্রিয় শব্দ চালু আছে (Mute করতে ক্লিক করুন)' : 'স্বয়ংক্রিয় শব্দ বন্ধ (Unmute করতে ক্লিক করুন)';
     if (!ttsEnabled) stopSpeech();
   });
 
@@ -481,41 +511,105 @@
     }
   }
 
-  // Text-to-Speech (TTS Voice Output)
-  function speakText(text) {
-    if (!ttsEnabled || !('speechSynthesis' in window)) return;
-    stopSpeech();
-
-    const cleanText = text.replace(/[^\w\s\u0980-\u09FF\.\,\?\!]/gi, '');
-    currentUtterance = new SpeechSynthesisUtterance(cleanText);
-    currentUtterance.lang = currentLang;
-    currentUtterance.rate = 1.0;
-    currentUtterance.pitch = 1.0;
-
-    currentUtterance.onstart = function () {
-      isSpeaking = true;
-      updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
-    };
-
-    currentUtterance.onend = function () {
-      isSpeaking = false;
-      updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-    };
-
-    currentUtterance.onerror = function () {
-      isSpeaking = false;
-      updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-    };
-
-    window.speechSynthesis.speak(currentUtterance);
-  }
+  // Audio Playback Tracking Variables
+  let currentAudioObj = null;
+  let activeReadAloudBtn = null;
 
   function stopSpeech() {
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
+    if (currentAudioObj) {
+      currentAudioObj.pause();
+      currentAudioObj = null;
+    }
+    if (activeReadAloudBtn) {
+      activeReadAloudBtn.innerHTML = '🔊 পড়ুন';
+      activeReadAloudBtn.classList.remove('playing');
+      activeReadAloudBtn = null;
+    }
     isSpeaking = false;
   }
+
+  // Text-to-Speech (TTS Voice Output with SpeechSynthesis + Google TTS Fallback)
+  function speakText(text, triggerBtn = null) {
+    if (!text) return;
+
+    // Toggle stop if user clicks the currently playing button
+    if (triggerBtn && activeReadAloudBtn === triggerBtn && isSpeaking) {
+      stopSpeech();
+      updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+      return;
+    }
+
+    stopSpeech();
+
+    if (triggerBtn) {
+      activeReadAloudBtn = triggerBtn;
+      activeReadAloudBtn.innerHTML = '⏹️ থামান';
+      activeReadAloudBtn.classList.add('playing');
+    }
+
+    const cleanText = text.replace(/[\*\_`#]/g, '').trim();
+    if (!cleanText) return;
+
+    // Try SpeechSynthesis Native Voice
+    let bnVoice = null;
+    if ('speechSynthesis' in window) {
+      const voices = window.speechSynthesis.getVoices();
+      bnVoice = voices.find(v => (v.lang && (v.lang.startsWith('bn') || v.lang.startsWith('ben'))) || (v.name && (v.name.toLowerCase().includes('bengali') || v.name.toLowerCase().includes('bangla'))));
+    }
+
+    if (bnVoice && 'speechSynthesis' in window) {
+      currentUtterance = new SpeechSynthesisUtterance(cleanText);
+      currentUtterance.voice = bnVoice;
+      currentUtterance.lang = bnVoice.lang || currentLang;
+      currentUtterance.rate = 0.95;
+
+      currentUtterance.onstart = function () {
+        isSpeaking = true;
+        updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
+      };
+
+      currentUtterance.onend = function () {
+        stopSpeech();
+        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+      };
+
+      currentUtterance.onerror = function () {
+        stopSpeech();
+        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+      };
+
+      window.speechSynthesis.speak(currentUtterance);
+    } else {
+      // Universal Online Audio Fallback (Google TTS API for high quality Bangla audio stream)
+      isSpeaking = true;
+      updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
+
+      const truncatedQuery = cleanText.substring(0, 200);
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=bn&q=${encodeURIComponent(truncatedQuery)}`;
+
+      currentAudioObj = new Audio(audioUrl);
+      currentAudioObj.onended = function () {
+        stopSpeech();
+        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+      };
+      currentAudioObj.onerror = function () {
+        stopSpeech();
+        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+      };
+      currentAudioObj.play().catch(e => {
+        console.warn("Audio play blocked or failed:", e);
+        stopSpeech();
+        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+      });
+    }
+  }
+
+  window.speakAiMessage = function (btn, text) {
+    speakText(text, btn);
+  };
 
   // Append Message to Chat Log
   function appendMessage(sender, text, quickActions = []) {
@@ -524,7 +618,30 @@
 
     const msgDiv = document.createElement('div');
     msgDiv.className = `ai-msg ${sender}`;
-    msgDiv.textContent = text;
+
+    if (sender === 'bot') {
+      const textContentDiv = document.createElement('div');
+      textContentDiv.style.whiteSpace = 'pre-wrap';
+      textContentDiv.textContent = text;
+      msgDiv.appendChild(textContentDiv);
+
+      // Read Aloud Action Button for Bot Message
+      const readAloudBtn = document.createElement('button');
+      readAloudBtn.className = 'ai-read-aloud-btn';
+      readAloudBtn.innerHTML = '🔊 পড়ুন';
+      readAloudBtn.title = 'উত্তরটি উচ্চশব্দে শুনুন (Read Aloud)';
+      readAloudBtn.onclick = function () {
+        speakText(text, readAloudBtn);
+      };
+
+      const btnWrapper = document.createElement('div');
+      btnWrapper.style.cssText = 'margin-top: 6px; display: flex; justify-content: flex-end;';
+      btnWrapper.appendChild(readAloudBtn);
+      msgDiv.appendChild(btnWrapper);
+    } else {
+      msgDiv.textContent = text;
+    }
+
     chatContainer.appendChild(msgDiv);
 
     // If there are quick action buttons from backend
@@ -584,7 +701,14 @@
       const data = await response.json();
       if (data.reply) {
         appendMessage('bot', data.reply, data.quickActions);
-        speakText(data.audioText || data.reply);
+        
+        // Find newly appended read aloud button for auto-play if TTS sound is unmuted (🔊)
+        const lastBotBtn = document.querySelector('#ai-chat-messages .ai-msg.bot:last-child .ai-read-aloud-btn');
+        if (ttsEnabled) {
+          speakText(data.audioText || data.reply, lastBotBtn);
+        } else {
+          updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+        }
       } else {
         appendMessage('bot', 'দুঃখিত, কোনো উত্তর পাওয়া যায়নি।');
         updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
