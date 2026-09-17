@@ -645,8 +645,8 @@
 
         currentUtterance = new SpeechSynthesisUtterance(cleanText);
         currentUtterance.lang = targetLang;
-        currentUtterance.rate = 0.92;
-        currentUtterance.pitch = 1.0;
+        currentUtterance.rate = 0.88;
+        currentUtterance.pitch = 1.05;
 
         if (!isEnglish && bnVoice) {
           currentUtterance.voice = bnVoice;

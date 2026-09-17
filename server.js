@@ -3487,7 +3487,7 @@ app.get('/api/ai-assistant/knowledge-summary', (req, res) => {
 function fetchSingleTtsChunk(text, lang) {
   return new Promise((resolve, reject) => {
     const encodedText = encodeURIComponent(text);
-    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${encodedText}`;
+    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&ttsspeed=0.9&q=${encodedText}`;
 
     function makeReq(targetUrl, redirects = 5) {
       if (redirects <= 0) return reject(new Error('Too many redirects fetching TTS audio'));
