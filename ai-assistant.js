@@ -320,12 +320,11 @@ HOSPITAL & EDUCATION CONTEXT:
 - Donation Bank Details: Islami Bank Bangladesh PLC, A/C: 20506180200127114 (Alamnagar CHC Fund), bKash/Nagad/CellFin/Bangla QR supported.
 
 INSTRUCTIONS:
-1. Respond concisely in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}.
-2. Ensure your response is written in standard, complete sentences so that the written text and spoken voice match 100% word-for-word.
-3. Always list the complete full names of doctors clearly along with their specialties and visiting hours. NEVER truncate doctor names or leave a list item incomplete.
-4. DO NOT use emojis, bullet symbols, markdown tables, asterisks (**), or special symbols that cannot be read aloud naturally.
-5. Keep the tone compassionate, polite, and professional.
-6. Answer general medical inquiries (e.g. remedies for cold, medicines like Napa, specialist doctors like Gynecology/Pediatrics) with helpful general guidance while reminding the patient to consult a registered doctor.`;
+1. Respond smartly, concisely, and directly in ${language === 'en' ? 'English' : 'Bangla (বাংলা)'}. Provide the core gist of the answer first in an intelligent, helpful manner.
+2. Structure your answer using clear bullet points (•) or numbered lists where appropriate so it is easy to scan.
+3. When listing doctors, always provide their complete full names, specialties, and visiting hours clearly without truncation.
+4. Keep the text natural and concise so that when read aloud, the spoken audio matches the displayed text word-for-word.
+5. Maintain a compassionate, highly intelligent, and professional tone.`;
 
       try {
         const geminiReply = await queryGeminiApi(apiKey, systemPrompt, userMessage);
