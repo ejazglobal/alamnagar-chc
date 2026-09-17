@@ -7,6 +7,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const db = require('./database');
 const aiAssistant = require('./ai-assistant');
 const mailer = require('./mailer');
@@ -3499,8 +3500,12 @@ function fetchAudioStream(targetUrl, res, maxRedirects = 5) {
   https.get(targetUrl, options, (ttsRes) => {
     // Handle HTTP Redirects (301, 302, 303, 307, 308)
     if ([301, 302, 303, 307, 308].includes(ttsRes.statusCode) && ttsRes.headers.location) {
-      const redirectUrl = ttsRes.headers.location;
-      return fetchAudioStream(redirectUrl, res, maxRedirects - 1);
+      try {
+        const redirectUrl = new URL(ttsRes.headers.location, targetUrl).href;
+        return fetchAudioStream(redirectUrl, res, maxRedirects - 1);
+      } catch (uErr) {
+        console.warn("[TTS Proxy] Invalid redirect URL:", ttsRes.headers.location);
+      }
     }
 
     if (ttsRes.statusCode === 200 || ttsRes.statusCode === 206) {
