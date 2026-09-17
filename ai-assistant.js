@@ -232,11 +232,12 @@ async function processFallbackQuery(userMsg, doctorsList) {
   }
 
   // 6. Donation & Support Intent
-  if (cleanMsg.includes('donate') || cleanMsg.includes('donation') || cleanMsg.includes('দান') || cleanMsg.includes('ডোনেশন') || cleanMsg.includes('bkash') || cleanMsg.includes('bank') || cleanMsg.includes('qr')) {
-    const replyStr = `আলমনগর সিএইচসি সেবা তহবিলে সাহায্য করুন:\n\n• ইসলামী ব্যাংক একাউন্ট নম্বর: ${HOSPITAL_INFO.donation.account_no}\n• একাউন্ট নাম: ${HOSPITAL_INFO.donation.account_title}\n• বিকাশ / নগদ / বাংলা QR: আপনি যেকোনো ব্যাংকিং অ্যাপস দিয়ে ইসলামী ব্যাংক বাংলা QR কোড স্ক্যান করে বা Send Money করতে পারেন।\n\nঅর্থ পাঠানোর পর ওয়েবসাইটে TrxID দিয়ে নিশ্চিত করুন।`;
+  if (cleanMsg.includes('donate') || cleanMsg.includes('donation') || cleanMsg.includes('দান') || cleanMsg.includes('ডোনেট') || cleanMsg.includes('ডোনেশন') || cleanMsg.includes('সাহায্য') || cleanMsg.includes('বিকাশ') || cleanMsg.includes('নগদ') || cleanMsg.includes('ব্যাংক') || cleanMsg.includes('bkash') || cleanMsg.includes('bank') || cleanMsg.includes('qr')) {
+    const textStr = `আলমনগর সিএইচসি সেবা তহবিলে আপনি ইসলামী ব্যাংক একাউন্ট নম্বর ${HOSPITAL_INFO.donation.account_no} অথবা বিকাশ, নগদ ও বাংলা QR কোড ব্যবহার করে সরাসরি দান পাঠাতে পারেন।`;
+    const replyStr = `🤲 আলমনগর সিএইচসি সেবা তহবিলে দান করার উপায়:\n\n১. 🏦 ইসলামী ব্যাংক একাউন্ট:\n   • একাউন্ট নাম: ${HOSPITAL_INFO.donation.account_title}\n   • একাউন্ট নম্বর: ${HOSPITAL_INFO.donation.account_no}\n\n২. 📱 বিকাশ / নগদ / বাংলা QR:\n   • বিকাশ, নগদ বা যেকোনো ব্যাংকিং অ্যাপ দিয়ে বাংলা QR কোড স্ক্যান করে বা Send Money করে দান পাঠাতে পারেন।\n\n৩. 📑 অর্থ পাঠানোর পর নিচে 'অনলাইন দান করুন' বাটনে TrxID জমা দিন।`;
     return {
-      reply: `🤲 ${replyStr}`,
-      audioText: replyStr.replace(/[\*\_`#]/g, ''),
+      reply: replyStr,
+      audioText: textStr,
       detectedIntent: 'donation',
       quickActions: [{ label: '🤲 অনলাইন দান করুন', action: 'open_donation_modal' }]
     };
