@@ -182,6 +182,20 @@ async function processFallbackQuery(userMsg, doctorsList) {
     };
   }
 
+  // 3b. Online Services & Virtual Capabilities Intent
+  if (cleanMsg.includes('অনলাইন') || cleanMsg.includes('অনলাইনে') || cleanMsg.includes('ভিডিও') || cleanMsg.includes('সেবা') || cleanMsg.includes('সার্ভিস') || cleanMsg.includes('সুবিধা') || cleanMsg.includes('করো') || cleanMsg.includes('তোমরা') || cleanMsg.includes('কাজ') || cleanMsg.includes('ওয়েবসাইট')) {
+    const textStr = `আমাদের আলমনগর সিএইচসি অনলাইন পোর্টালে আপনি সরাসরি অভিজ্ঞ ডাক্তারদের সাথে লাইভ ভিডিও কনসাল্টেশন, অ্যাপয়েন্টমেন্ট বুকিং, ডিজিটাল প্রেসক্রিপশন, বিনামূল্যে ভার্চুয়াল শিক্ষা ক্লাস এবং সেবা তহবিলে অনলাইন ডোনেশন সম্পন্ন করতে পারবেন।`;
+    return {
+      reply: `🌐 আলমনগর সিএইচসি-এর অনলাইন সেবাসমূহ:\n\n১. 👨‍⚕️ লাইভ ভিডিও কনসাল্টেশন ও ডাক্তার অ্যাপয়েন্টমেন্ট বুকিং।\n২. 💊 ডিজিটাল প্রেসক্রিপশন ও রিপোর্ট দেখার পেশেন্ট পোর্টাল।\n৩. 📚 ১ম থেকে ১২ম শ্রেণির জন্য বিনামূল্যে অনলাইন লাইভ ক্লাসরুম।\n৪. 🤲 ইসলামী ব্যাংক ও bKash/Nagad বাংলা QR দিয়ে অনলাইন ডোনেশন।`,
+      audioText: textStr,
+      detectedIntent: 'online_services',
+      quickActions: [
+        { label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' },
+        { label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' }
+      ]
+    };
+  }
+
   // 3. Tuition & Student Education Program Intent
   if (cleanMsg.includes('ছাত্র') || cleanMsg.includes('পড়াও') || cleanMsg.includes('পড়ানো') || cleanMsg.includes('পড়াশোনা') || cleanMsg.includes('টিউশন') || cleanMsg.includes('ক্লাস') || cleanMsg.includes('শিক্ষক') || cleanMsg.includes('শিক্ষার্থী') || cleanMsg.includes('tuition') || cleanMsg.includes('study') || cleanMsg.includes('class') || cleanMsg.includes('student') || cleanMsg.includes('tutor') || cleanMsg.includes('education') || cleanMsg.includes('পড়ালেখা')) {
     const textStr = `হ্যাঁ! আলমনগর সিএইচসি-তে বিনামূল্যে ও সামাজিক টিউশন সেবা প্রদান করা হয়। আমাদের শিক্ষা প্রোগ্রামের বৈশিষ্ট্যসমূহ: ১ম শ্রেণি থেকে ১২ম শ্রেণি পর্যন্ত ছাত্র-ছাত্রীদের পাঠদান করা হয়। সরাসরি ক্লাসরুমের পাশাপাশি অনলাইন লাইভ ভার্চুয়াল ভিডিও ক্লাসের ব্যবস্থা রয়েছে। গণিত, ইংরেজি, বিজ্ঞানসহ বিভিন্ন বিষয়ের জন্য দক্ষ টিউটর রয়েছেন। শিক্ষার্থী হিসেবে ভর্তি হতে বা টিউটর হিসেবে যোগ দিতে আমাদের টিউশন পোর্টালে যান।`;
