@@ -531,7 +531,19 @@
     isSpeaking = false;
   }
 
-  // Text-to-Speech (TTS Voice Output with SpeechSynthesis + Google TTS Fallback)
+  // Voice Preloader for Browser SpeechSynthesis
+  let availableVoices = [];
+  function loadVoices() {
+    if ('speechSynthesis' in window) {
+      availableVoices = window.speechSynthesis.getVoices() || [];
+    }
+  }
+  if ('speechSynthesis' in window) {
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  // Text-to-Speech (TTS Voice Output with Server Audio Stream Fallback)
   function speakText(text, triggerBtn = null) {
     if (!text) return;
 
@@ -554,10 +566,13 @@
     if (!cleanText) return;
 
     // Try SpeechSynthesis Native Voice
+    if (availableVoices.length === 0 && 'speechSynthesis' in window) {
+      availableVoices = window.speechSynthesis.getVoices() || [];
+    }
+    
     let bnVoice = null;
-    if ('speechSynthesis' in window) {
-      const voices = window.speechSynthesis.getVoices();
-      bnVoice = voices.find(v => (v.lang && (v.lang.startsWith('bn') || v.lang.startsWith('ben'))) || (v.name && (v.name.toLowerCase().includes('bengali') || v.name.toLowerCase().includes('bangla'))));
+    if (availableVoices.length > 0) {
+      bnVoice = availableVoices.find(v => (v.lang && (v.lang.startsWith('bn') || v.lang.startsWith('ben'))) || (v.name && (v.name.toLowerCase().includes('bengali') || v.name.toLowerCase().includes('bangla'))));
     }
 
     if (bnVoice && 'speechSynthesis' in window) {
@@ -583,12 +598,13 @@
 
       window.speechSynthesis.speak(currentUtterance);
     } else {
-      // Universal Online Audio Fallback (Google TTS API for high quality Bangla audio stream)
+      // Universal Server Audio Proxy Stream (/api/ai-assistant/tts)
       isSpeaking = true;
       updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
 
-      const truncatedQuery = cleanText.substring(0, 200);
-      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=bn&q=${encodeURIComponent(truncatedQuery)}`;
+      const truncatedQuery = cleanText.substring(0, 240);
+      const targetLang = currentLang.startsWith('en') ? 'en' : 'bn';
+      const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(truncatedQuery)}&lang=${targetLang}&t=${Date.now()}`;
 
       currentAudioObj = new Audio(audioUrl);
       currentAudioObj.onended = function () {

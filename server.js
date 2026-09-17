@@ -3482,6 +3482,44 @@ app.get('/api/ai-assistant/knowledge-summary', (req, res) => {
   });
 });
 
+// Server-Side Text-to-Speech (TTS) Proxy Stream Route for Bangla/English
+app.get('/api/ai-assistant/tts', (req, res) => {
+  try {
+    const rawText = (req.query.text || '').toString().replace(/[\*\_`#]/g, '').trim();
+    const lang = (req.query.lang || 'bn').toString();
+    if (!rawText) {
+      return res.status(400).send('Text query param is required.');
+    }
+
+    const cleanText = rawText.substring(0, 250);
+    const encodedText = encodeURIComponent(cleanText);
+    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodedText}`;
+
+    const options = {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://translate.google.com/'
+      }
+    };
+
+    https.get(googleTtsUrl, options, (ttsRes) => {
+      if (ttsRes.statusCode === 200) {
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        ttsRes.pipe(res);
+      } else {
+        res.status(ttsRes.statusCode || 500).send('TTS upstream error.');
+      }
+    }).on('error', (err) => {
+      console.error('TTS Proxy HTTP Error:', err);
+      res.status(500).send('TTS proxy request failed.');
+    });
+  } catch (err) {
+    console.error('TTS Route Error:', err);
+    res.status(500).send('TTS Internal Server Error');
+  }
+});
+
 // --- DOCTOR FALLBACK PATH ---
 
 app.get('/doctor', (req, res) => {
