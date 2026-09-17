@@ -543,7 +543,7 @@
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }
 
-  // Text-to-Speech (TTS Voice Output: WebSpeech API Primary & Server Audio Proxy Stream Fallback)
+  // Text-to-Speech (TTS Voice Output: Native Bengali Voice or High-Quality Server Audio Stream)
   function speakText(text, triggerBtn = null) {
     if (!text) return;
 
@@ -565,10 +565,15 @@
     const cleanText = text.replace(/[\*\_`#]/g, '').trim();
     if (!cleanText) return;
 
-    const targetLang = currentLang.startsWith('en') ? 'en-US' : 'bn-BD';
+    const isEnglish = currentLang.startsWith('en');
+    const targetLang = isEnglish ? 'en-US' : 'bn-BD';
 
-    // Tier 1: Web Speech API (Native Browser Speech Synthesis)
-    if ('speechSynthesis' in window) {
+    // Check if device browser has an explicit Bengali voice installed
+    const voices = ('speechSynthesis' in window) ? (window.speechSynthesis.getVoices() || []) : [];
+    const bnVoice = voices.find(v => (v.lang && (v.lang.startsWith('bn') || v.lang.startsWith('ben'))) || (v.name && (v.name.toLowerCase().includes('bengali') || v.name.toLowerCase().includes('bangla'))));
+
+    // If English OR if device explicitly supports native Bengali voice pack
+    if (isEnglish || (bnVoice && 'speechSynthesis' in window)) {
       try {
         window.speechSynthesis.cancel();
         if (window.speechSynthesis.paused) {
@@ -580,11 +585,8 @@
         currentUtterance.rate = 0.92;
         currentUtterance.pitch = 1.0;
 
-        // Search for explicit matching voice if loaded
-        const voices = window.speechSynthesis.getVoices() || [];
-        const matchVoice = voices.find(v => v.lang && (v.lang.startsWith('bn') || v.lang.startsWith('ben')));
-        if (matchVoice) {
-          currentUtterance.voice = matchVoice;
+        if (!isEnglish && bnVoice) {
+          currentUtterance.voice = bnVoice;
         }
 
         currentUtterance.onstart = function () {
@@ -598,22 +600,13 @@
         };
 
         currentUtterance.onerror = function (e) {
-          console.warn("WebSpeech synthesis error, falling back to server audio proxy:", e);
-          playServerAudioStream(cleanText, targetLang);
+          console.warn("WebSpeech synthesis error, falling back to server audio stream:", e);
+          playServerAudioStream(cleanText, isEnglish ? 'en' : 'bn');
         };
 
         isSpeaking = true;
         updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
         window.speechSynthesis.speak(currentUtterance);
-
-        // Safety fallback if SpeechSynthesis stays silent without triggering onstart/onerror within 1.5s
-        setTimeout(() => {
-          if (isSpeaking && !window.speechSynthesis.speaking && (!currentAudioObj || currentAudioObj.paused)) {
-            console.warn("SpeechSynthesis silent timeout, triggering server audio fallback...");
-            playServerAudioStream(cleanText, targetLang);
-          }
-        }, 1500);
-
         return;
 
       } catch (err) {
@@ -621,20 +614,23 @@
       }
     }
 
-    // Tier 2: Server Audio Proxy Stream
-    playServerAudioStream(cleanText, targetLang);
+    // Fallback for Windows/iOS/Browsers without installed Bengali voice pack:
+    // Streams High-Quality Bangla Audio MP3 (/api/ai-assistant/tts)
+    playServerAudioStream(cleanText, isEnglish ? 'en' : 'bn');
   }
 
-  function playServerAudioStream(cleanText, targetLang) {
-    const langCode = targetLang.startsWith('en') ? 'en' : 'bn';
-    const truncatedQuery = cleanText.substring(0, 250);
+  function playServerAudioStream(cleanText, langCode) {
+    const truncatedQuery = cleanText.substring(0, 300);
     const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(truncatedQuery)}&lang=${langCode}&t=${Date.now()}`;
+
+    isSpeaking = true;
+    updateVoiceUiState('speaking', 'এআই কথা বলছে... 🔊');
 
     currentAudioObj = new Audio(audioUrl);
 
     currentAudioObj.onplay = function () {
       isSpeaking = true;
-      updateVoiceUiState('speaking', 'এআই উত্তর দিচ্ছে... 🔊');
+      updateVoiceUiState('speaking', 'এআই কথা বলছে... 🔊');
     };
 
     currentAudioObj.onended = function () {
