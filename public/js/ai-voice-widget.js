@@ -401,54 +401,98 @@
   `;
   document.body.appendChild(modalOverlay);
 
-  // Initialize SpeechRecognition API with phonetic correction & alternatives
+  // Initialize SpeechRecognition API with continuous recording & tap-to-submit control
+  let speechSilenceTimer = null;
+  let finalTranscript = '';
+  let recognitionActive = false;
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 5;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = currentLang;
 
     recognition.onstart = function () {
       isListening = true;
-      updateVoiceUiState('listening', 'কথা বলুন, শোনা হচ্ছে... 🎙️');
+      recognitionActive = true;
+      finalTranscript = '';
+      updateVoiceUiState('listening', 'কথা বলুন... বলা শেষ হলে অপেক্ষা করুন বা বাটনে চাপ দিন 🎙️');
     };
 
     recognition.onresult = function (event) {
-      let rawTranscript = event.results[0][0].transcript;
-
-      // Check all recognition alternatives if Chrome misheard 'ডাক্তার'
-      for (let i = 0; i < event.results[0].length; i++) {
-        const alt = event.results[0][i].transcript;
-        if (alt.includes('ডাক্তার') || alt.includes('ডাঃ') || alt.includes('চিকিৎসক') || alt.includes('ডক্টর')) {
-          rawTranscript = alt;
-          break;
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + ' ';
+        } else {
+          interim += event.results[i][0].transcript;
         }
       }
 
-      // Smart Phonetic Correction for misheard Bengali words
-      let cleanTranscript = rawTranscript
+      const spokenSoFar = (finalTranscript + ' ' + interim).trim();
+      if (spokenSoFar) {
+        updateVoiceUiState('listening', `🎙️ "${spokenSoFar}"`);
+      }
+
+      // Reset silence timer: Wait 3.5 seconds after complete silence before auto-submitting
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      speechSilenceTimer = setTimeout(() => {
+        if (isListening && recognitionActive) {
+          stopAndSendSpeech();
+        }
+      }, 3500);
+    };
+
+    recognition.onerror = function (event) {
+      console.warn('Speech recognition error:', event.error);
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        isListening = false;
+        recognitionActive = false;
+        updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
+      }
+    };
+
+    recognition.onend = function () {
+      isListening = false;
+      recognitionActive = false;
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      if (!isSpeaking) {
+        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+      }
+    };
+  }
+
+  function stopAndSendSpeech() {
+    if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+    if (recognition && recognitionActive) {
+      try { recognition.stop(); } catch (e) {}
+      recognitionActive = false;
+    }
+    isListening = false;
+
+    let queryText = (finalTranscript || '').trim();
+    if (!queryText) {
+      const statusEl = document.getElementById('ai-voice-status');
+      if (statusEl && statusEl.textContent.includes('"')) {
+        const match = statusEl.textContent.match(/🎙️ "([^"]+)"/);
+        if (match && match[1]) queryText = match[1].trim();
+      }
+    }
+
+    if (queryText) {
+      const cleanedText = queryText
         .replace(/আখতার/g, 'ডাক্তার')
         .replace(/আক্তার/g, 'ডাক্তার')
         .replace(/ডক্টর/g, 'ডাক্তার')
         .trim();
 
-      appendMessage('user', cleanTranscript);
-      sendQueryToBackend(cleanTranscript);
-    };
-
-    recognition.onerror = function (event) {
-      console.warn('Speech recognition error:', event.error);
-      isListening = false;
-      updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
-    };
-
-    recognition.onend = function () {
-      isListening = false;
-      if (!isSpeaking) {
-        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-      }
-    };
+      appendMessage('user', cleanedText);
+      sendQueryToBackend(cleanedText);
+    } else {
+      updateVoiceUiState('idle', 'কোনো কথা শোনা যায়নি। আবার চাপ দিয়ে বলুন।');
+    }
   }
 
   // Toggle Voice Modal
@@ -462,21 +506,22 @@
   function closeAiVoiceModal() {
     modalOverlay.classList.remove('active');
     stopSpeech();
-    if (recognition && isListening) {
-      recognition.stop();
+    if (recognition && recognitionActive) {
+      try { recognition.stop(); } catch (e) {}
+      recognitionActive = false;
     }
   }
 
-  // Toggle Mic Listener
+  // Toggle Mic Listener (Tap to Start, Tap again to Send Immediately!)
   const micBtn = document.getElementById('ai-mic-button');
   micBtn.addEventListener('click', function () {
     if (!SpeechRecognition) {
-      alert('আপনার ব্রাউজার সরাসরি ভয়েস রিকগনিশন সমর্থন করে না। অনুগ্রহ করে নিচের বক্সে টেক্সট লিখুন।');
+      alert('আপনার ব্রাউজার সরাসরি ভয়েস রিকগনিশন সমর্থন করে না।');
       return;
     }
 
-    if (isListening) {
-      recognition.stop();
+    if (isListening || recognitionActive) {
+      stopAndSendSpeech();
     } else {
       stopSpeech();
       recognition.lang = currentLang;
