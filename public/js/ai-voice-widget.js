@@ -401,32 +401,68 @@
   `;
   document.body.appendChild(modalOverlay);
 
-  // Initialize SpeechRecognition API
+  // Initialize SpeechRecognition API with continuous listening & silence timeout
+  let speechSilenceTimer = null;
+  let accumulatedTranscript = '';
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
     recognition.onstart = function () {
       isListening = true;
-      updateVoiceUiState('listening', 'কথা বলুন, শোনা হচ্ছে... 🎙️');
+      accumulatedTranscript = '';
+      updateVoiceUiState('listening', 'কথা বলুন, শোনো হচ্ছে... 🎙️');
     };
 
     recognition.onresult = function (event) {
-      const transcript = event.results[0][0].transcript;
-      appendMessage('user', transcript);
-      sendQueryToBackend(transcript);
+      let interim = '';
+      let final = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+
+      if (final) {
+        accumulatedTranscript += (accumulatedTranscript ? ' ' : '') + final;
+      }
+
+      const currentText = (accumulatedTranscript + ' ' + interim).trim();
+      if (currentText) {
+        updateVoiceUiState('listening', `🎙️ "${currentText}"`);
+      }
+
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      speechSilenceTimer = setTimeout(() => {
+        if (isListening && (accumulatedTranscript || interim)) {
+          const fullQuery = (accumulatedTranscript || interim).trim();
+          try { recognition.stop(); } catch (e) {}
+          if (fullQuery) {
+            appendMessage('user', fullQuery);
+            sendQueryToBackend(fullQuery);
+          }
+        }
+      }, 2500);
     };
 
     recognition.onerror = function (event) {
       console.warn('Speech recognition error:', event.error);
-      isListening = false;
-      updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        isListening = false;
+        updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
+      }
     };
 
     recognition.onend = function () {
       isListening = false;
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
       if (!isSpeaking) {
         updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
       }
@@ -620,8 +656,8 @@
   }
 
   function playServerAudioStream(cleanText, langCode) {
-    const truncatedQuery = cleanText.substring(0, 300);
-    const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(truncatedQuery)}&lang=${langCode}&t=${Date.now()}`;
+    const fullText = cleanText.substring(0, 1500);
+    const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(fullText)}&lang=${langCode}&t=${Date.now()}`;
 
     isSpeaking = true;
     updateVoiceUiState('speaking', 'এআই কথা বলছে... 🔊');
