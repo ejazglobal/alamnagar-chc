@@ -3523,8 +3523,16 @@ function fetchSingleTtsChunk(text, lang) {
 
 function splitTextForTts(text, maxLen = 150) {
   if (!text) return [];
-  const sanitized = text.replace(/[\*\_`#~]/g, '').replace(/\s+/g, ' ').trim();
-  if (sanitized.length <= maxLen) return [sanitized];
+  const sanitized = text
+    .replace(/[\*\_`#~]/g, '')
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (sanitized.length <= maxLen) {
+    const single = sanitized.replace(/[।\.\,\-\s]+$/g, '').trim();
+    return single ? [single] : [];
+  }
 
   const sentences = sanitized.split(/([।!\?\n\.]+)/).filter(Boolean);
   const chunks = [];
@@ -3543,20 +3551,25 @@ function splitTextForTts(text, maxLen = 150) {
 
   const finalChunks = [];
   for (const chunk of chunks) {
-    if (chunk.length <= maxLen) {
-      finalChunks.push(chunk);
+    const cleanChunk = chunk.replace(/[।\.\,\-\s]+$/g, '').trim();
+    if (!cleanChunk) continue;
+
+    if (cleanChunk.length <= maxLen) {
+      finalChunks.push(cleanChunk);
     } else {
-      const words = chunk.split(' ');
+      const words = cleanChunk.split(' ');
       let sub = '';
       for (const w of words) {
         if ((sub + ' ' + w).length > maxLen) {
-          if (sub.trim()) finalChunks.push(sub.trim());
+          const subClean = sub.trim().replace(/[।\.\,\-\s]+$/g, '');
+          if (subClean) finalChunks.push(subClean);
           sub = w;
         } else {
           sub += (sub ? ' ' : '') + w;
         }
       }
-      if (sub.trim()) finalChunks.push(sub.trim());
+      const subClean = sub.trim().replace(/[।\.\,\-\s]+$/g, '');
+      if (subClean) finalChunks.push(subClean);
     }
   }
   return finalChunks.filter(c => c.length > 0);

@@ -683,7 +683,8 @@
   }
 
   function playServerAudioStream(cleanText, langCode) {
-    const fullText = cleanText.substring(0, 1500);
+    const sanitizedText = cleanText.replace(/[।\.\,\-\s]+$/g, '').trim();
+    const fullText = sanitizedText.substring(0, 1500);
     const audioUrl = `/api/ai-assistant/tts?text=${encodeURIComponent(fullText)}&lang=${langCode}&t=${Date.now()}`;
 
     isSpeaking = true;
