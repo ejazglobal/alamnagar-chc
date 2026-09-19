@@ -161,123 +161,167 @@ async function processFallbackQuery(userMsg, doctorsList) {
     const hoursBn = d.visiting_hours_bn || d.visiting_hours_en || 'সময়সূচী রাখা আছে';
     return `${idx + 1}. ${nameBn} (${specBn}) - সময়সূচী: ${hoursBn}`;
   }).join('\n');
-  if (cleanMsg.includes('napa') || cleanMsg.includes('medicine') || cleanMsg.includes('ঔষধ') || cleanMsg.includes('মেডিসিন') || cleanMsg.includes('ড্রাগ') || cleanMsg.includes('ফার্মেসি') || cleanMsg.includes('ঠান্ডা') || cleanMsg.includes('সর্দি') || cleanMsg.includes('প্রতিকার') || cleanMsg.includes('cold') || cleanMsg.includes('remedy') || cleanMsg.includes('fever')) {
-    const textStr = `স্বাস্থ্য ও ঔষধ নির্দেশিকা: ঠান্ডা, সর্দি ও সামান্য জ্বরের জন্য প্রচুর কুসুম গরম পানি পান করুন, আদা-লেবুর চা খান এবং পর্যাপ্ত বিশ্রাম নিন। নাপা সাধারণত জ্বর ও ব্যথানাশক হিসেবে ব্যবহৃত হয়। আমাদের আলমনগর সিএইচসি-তে রেজিস্টার্ড ডিজিটাল ফার্মেসি ও জেনারেল ফিজিশিয়ান সেবা রয়েছে। লক্ষণ ৩ দিনের বেশি স্থায়ী হলে আমাদের ডাক্তারের পরামর্শ নিন।`;
-    return {
-      reply: `💊 স্বাস্থ্য ও ঔষধ নির্দেশিকা:\n\n• ঠান্ডা, সর্দি ও সামান্য জ্বরের জন্য প্রচুর কুসুম গরম পানি পান করুন, আদা-লেবুর চা খান এবং পর্যাপ্ত বিশ্রাম নিন।\n• নাপা (Napa 500mg/Paracetamol) সাধারণত জ্বর ও ব্যথানাশক হিসেবে ব্যবহৃত হয়।\n• আমাদের আলমনগর সিএইচসি-তে রেজিস্টার্ড ডিজিটাল ফার্মেসি ও জেনারেল ফিজিশিয়ান সেবা রয়েছে।\n\n⚠️ লক্ষণ ৩ দিনের বেশি স্থায়ী হলে আমাদের ডাক্তারের পরামর্শ নিন।`,
-      audioText: textStr,
-      detectedIntent: 'medicine_info',
-      quickActions: [{ label: '📅 ডাক্তারের পরামর্শ নিন', action: 'open_appointment_modal' }]
-    };
+  const intents = [
+    {
+      id: 'doctors_list',
+      keywords: ['doctor', 'ডাক্তার', 'ডাঃ', 'ডক্টর', 'চিকিৎসক', 'আখতার', 'আক্তার', 'বসে', 'বসেন', 'বসা', 'সময়', 'সময়সূচী', 'visiting', 'schedule', 'তালিকা', 'তিনজন', '3জন', 'তিন জন', 'কারা', 'কে কে', 'ফিজিশিয়ান'],
+      action: () => {
+        const docNamesArr = docList.map(d => (d.name_bn || d.name_en || '')).filter(Boolean).join(', ');
+        const replyStr = `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`;
+        const spokenAudioStr = `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন বিশেষজ্ঞ চিকিৎসক সেবা দিচ্ছেন। তাঁরা হলেন ${docNamesArr}। আপনি ওয়েবসাইটে সরাসরি তাদের অ্যাপয়েন্টমেন্ট নিতে পারেন।`;
+        return {
+          reply: replyStr,
+          audioText: spokenAudioStr,
+          detectedIntent: 'doctors_list',
+          quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
+        };
+      }
+    },
+    {
+      id: 'donation',
+      keywords: ['donate', 'donation', 'দান', 'ডোনেট', 'ডোনেশন', 'সাহায্য', 'বিকাশ', 'নগদ', 'ব্যাংক', 'bkash', 'bank', 'qr', 'টাকা', 'তহবিল', 'কন্ট্রিবিউট', 'টাকা দেয়া', 'সাহায্য করা'],
+      action: () => {
+        const textStr = `আলমনগর সিএইচসি সেবা তহবিলে আপনি ইসলামী ব্যাংক একাউন্ট নম্বর ${HOSPITAL_INFO.donation.account_no} অথবা বিকাশ, নগদ ও বাংলা QR কোড ব্যবহার করে সরাসরি দান পাঠাতে পারেন।`;
+        const replyStr = `🤲 আলমনগর সিএইচসি সেবা তহবিলে দান করার উপায়:\n\n১. 🏦 ইসলামী ব্যাংক একাউন্ট:\n   • একাউন্ট নাম: ${HOSPITAL_INFO.donation.account_title}\n   • একাউন্ট নম্বর: ${HOSPITAL_INFO.donation.account_no}\n\n২. 📱 বিকাশ / নগদ / বাংলা QR:\n   • বিকাশ, নগদ বা যেকোনো ব্যাংকিং অ্যাপ দিয়ে বাংলা QR কোড স্ক্যান করে বা Send Money করে দান পাঠাতে পারেন।\n\n৩. 📑 অর্থ পাঠানোর পর নিচে 'অনলাইন দান করুন' বাটনে TrxID জমা দিন।`;
+        return {
+          reply: replyStr,
+          audioText: textStr,
+          detectedIntent: 'donation',
+          quickActions: [{ label: '🤲 অনলাইন দান করুন', action: 'open_donation_modal' }]
+        };
+      }
+    },
+    {
+      id: 'tuition_program',
+      keywords: ['ছাত্র', 'পড়াও', 'পড়ানো', 'পড়াশোনা', 'টিউশন', 'ক্লাস', 'শিক্ষক', 'শিক্ষার্থী', 'tuition', 'study', 'class', 'student', 'tutor', 'education', 'পড়ালেখা', 'পড়তে', 'ভর্তি', 'পড়ালেখার'],
+      action: () => {
+        const textStr = `হ্যাঁ! আলমনগর সিএইচসি-তে বিনামূল্যে ও সামাজিক টিউশন সেবা প্রদান করা হয়। আমাদের শিক্ষা প্রোগ্রামের বৈশিষ্ট্যসমূহ: ১ম শ্রেণি থেকে ১২ম শ্রেণি পর্যন্ত ছাত্র-ছাত্রীদের পাঠদান করা হয়। সরাসরি ক্লাসরুমের পাশাপাশি অনলাইন লাইভ ভার্চুয়াল ভিডিও ক্লাসের ব্যবস্থা রয়েছে। গণিত, ইংরেজি, বিজ্ঞানসহ বিভিন্ন বিষয়ের জন্য দক্ষ টিউটর রয়েছেন। শিক্ষার্থী হিসেবে ভর্তি হতে বা টিউটর হিসেবে যোগ দিতে আমাদের টিউশন পোর্টালে যান।`;
+        return {
+          reply: `হ্যাঁ! আলমনগর সিএইচসি-তে বিনামূল্যে ও সামাজিক টিউশন সেবা প্রদান করা হয় 📚\n\nআমাদের শিক্ষা প্রোগ্রামের বৈশিষ্ট্যসমূহ:\n• ১ম শ্রেণি থেকে ১২ম শ্রেণি (SSC/HSC) পর্যন্ত ছাত্র-ছাত্রীদের পাঠদান করা হয়।\n• সরাসরি ক্লাসরুমের পাশাপাশি অনলাইন লাইভ ভার্চুয়াল ভিডিও ক্লাসের ব্যবস্থা রয়েছে।\n• গণিত, ইংরেজি, বিজ্ঞানসহ বিভিন্ন বিষয়ের জন্য দক্ষ টিউটর রয়েছেন।\n\nশিক্ষার্থী হিসেবে ভর্তি হতে বা টিউটর হিসেবে যোগ দিতে আমাদের টিউশন পোর্টালে যান।`,
+          audioText: textStr,
+          detectedIntent: 'tuition_program',
+          quickActions: [{ label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' }]
+        };
+      }
+    },
+    {
+      id: 'online_services',
+      keywords: ['অনলাইন', 'অনলাইনে', 'ভিডিও', 'সেবা', 'সার্ভিস', 'সুবিধা', 'করো', 'তোমরা', 'কাজ', 'ওয়েবসাইট', 'সুযোগ', 'পাবো', 'কী কী', 'কি কি', 'অনলাইন মাধ্যমে'],
+      action: () => {
+        const textStr = `আমাদের আলমনগর সিএইচসি অনলাইন পোর্টালে আপনি সরাসরি অভিজ্ঞ ডাক্তারদের সাথে লাইভ ভিডিও কনসাল্টেশন, অ্যাপয়েন্টমেন্ট বুকিং, ডিজিটাল প্রেসক্রিপশন, বিনামূল্যে ভার্চুয়াল শিক্ষা ক্লাস এবং সেবা তহবিলে অনলাইন ডোনেশন সম্পন্ন করতে পারবেন।`;
+        return {
+          reply: `🌐 আলমনগর সিএইচসি-এর অনলাইন সেবাসমূহ:\n\n১. 👨‍⚕️ লাইভ ভিডিও কনসাল্টেশন ও ডাক্তার অ্যাপয়েন্টমেন্ট বুকিং।\n২. 💊 ডিজিটাল প্রেসক্রিপশন ও রিপোর্ট দেখার পেশেন্ট পোর্টাল।\n৩. 📚 ১ম থেকে ১২ম শ্রেণির জন্য বিনামূল্যে অনলাইন লাইভ ক্লাসরুম।\n৪. 🤲 ইসলামী ব্যাংক ও bKash/Nagad বাংলা QR দিয়ে অনলাইন ডোনেশন।`,
+          audioText: textStr,
+          detectedIntent: 'online_services',
+          quickActions: [
+            { label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' },
+            { label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' }
+          ]
+        };
+      }
+    },
+    {
+      id: 'medicine_info',
+      keywords: ['napa', 'medicine', 'ঔষধ', 'মেডিসিন', 'ড্রাগ', 'ফার্মেসি', 'ঠান্ডা', 'সর্দি', 'প্রতিকার', 'cold', 'remedy', 'fever', 'জ্বর', 'ব্যথা', 'ঔষধপত্র'],
+      action: () => {
+        const textStr = `স্বাস্থ্য ও ঔষধ নির্দেশিকা: ঠান্ডা, সর্দি ও সামান্য জ্বরের জন্য প্রচুর কুসুম গরম পানি পান করুন, আদা-লেবুর চা খান এবং পর্যাপ্ত বিশ্রাম নিন। নাপা সাধারণত জ্বর ও ব্যথানাশক হিসেবে ব্যবহৃত হয়। আমাদের আলমনগর সিএইচসি-তে রেজিস্টার্ড ডিজিটাল ফার্মেসি ও জেনারেল ফিজিশিয়ান সেবা রয়েছে। লক্ষণ ৩ দিনের বেশি স্থায়ী হলে আমাদের ডাক্তারের পরামর্শ নিন।`;
+        return {
+          reply: `💊 স্বাস্থ্য ও ঔষধ নির্দেশিকা:\n\n• ঠান্ডা, সর্দি ও সামান্য জ্বরের জন্য প্রচুর কুসুম গরম পানি পান করুন, আদা-লেবুর চা খান এবং পর্যাপ্ত বিশ্রাম নিন।\n• নাপা (Napa 500mg/Paracetamol) সাধারণত জ্বর ও ব্যথানাশক হিসেবে ব্যবহৃত হয়।\n• আমাদের আলমনগর সিএইচসি-তে রেজিস্টার্ড ডিজিটাল ফার্মেসি ও জেনারেল ফিজিশিয়ান সেবা রয়েছে।\n\n⚠️ লক্ষণ ৩ দিনের বেশি স্থায়ী হলে আমাদের ডাক্তারের পরামর্শ নিন।`,
+          audioText: textStr,
+          detectedIntent: 'medicine_info',
+          quickActions: [{ label: '📅 ডাক্তারের পরামর্শ নিন', action: 'open_appointment_modal' }]
+        };
+      }
+    },
+    {
+      id: 'appointment_booking',
+      keywords: ['appointment', 'book', 'অ্যাপয়েন্টমেন্ট', 'সিরিয়াল', 'বুক', 'দেখা', 'পরামর্শ', 'সিরিয়াল', 'রোগী'],
+      action: () => {
+        const replyStr = `আলমনগর সিএইচসি-তে অ্যাপয়েন্টমেন্ট নেওয়া খুবই সহজ!\n\n১. নিচে 'অ্যাপয়েন্টমেন্ট বুক করুন' বোতামে ক্লিক করুন।\n২. আপনার নাম, মোবাইল নম্বর এবং কাঙ্ক্ষিত তারিখ নির্বাচন করুন।\n৩. কাঙ্ক্ষিত ডাক্তার নির্বাচন করে বুকিং সম্পন্ন করুন।\n\nসিরিয়াল নিশ্চিত হলে আপনার মোবাইলে কনফার্মেশন এসএমএস পাঠানো হবে।`;
+        return {
+          reply: replyStr,
+          audioText: replyStr.replace(/[\*\_`#]/g, ''),
+          detectedIntent: 'appointment_booking',
+          quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
+        };
+      }
+    },
+    {
+      id: 'patient_portal',
+      keywords: ['prescription', 'report', 'প্রেসক্রিপশন', 'রিপোর্ট', 'লগইন', 'portal', 'পেশেন্ট', 'ডাউনলোড', 'কাগজ'],
+      action: () => {
+        const replyStr = `আপনার ডাক্তারের প্রেসক্রিপশন ও মেডিকেল রিপোর্ট দেখতে রোগীর পোর্টাল ব্যবহার করুন। আপনার রেজিস্টার্ড ফোন নম্বর দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`;
+        return {
+          reply: `আপনার ডাক্তারের প্রেসক্রিপশন ও মেডিকেল রিপোর্ট দেখতে রোগীর পোর্টাল (Patient Portal) ব্যবহার করুন।\n\nআপনার রেজিস্টার্ড ফোন নম্বর দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`,
+          audioText: replyStr,
+          detectedIntent: 'patient_portal',
+          quickActions: [{ label: '🔑 পেশেন্ট পোর্টালে যান', action: 'goto_patient_portal' }]
+        };
+      }
+    },
+    {
+      id: 'emergency_contact',
+      keywords: ['emergency', 'hotline', 'location', 'জরুরি', 'ফোন', 'ঠিকানা', 'কোথায়', 'যোগাযোগ', 'কল', 'নম্বর'],
+      action: () => {
+        const replyStr = `আলমনগর কমিউনিটি হেলথ কেয়ার। ঠিকানা: ${HOSPITAL_INFO.location}। জরুরি হটলাইন: ${HOSPITAL_INFO.emergency_hotline}। ইমেইল: ${HOSPITAL_INFO.email}। ২৪/৭ যেকোনো জরুরি প্রয়োজনে বা সহায়তায় সরাসরি আমাদের হটলাইনে ফোন দিন।`;
+        return {
+          reply: `🏥 আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)\n\n📍 ঠিকানা: ${HOSPITAL_INFO.location}\n📞 জরুরি হটলাইন: ${HOSPITAL_INFO.emergency_hotline}\n📧 ইমেইল: ${HOSPITAL_INFO.email}\n\n২৪/৭ যেকোনো জরুরি প্রয়োজনে বা সহায়তায় সরাসরি আমাদের হটলাইনে ফোন দিন।`,
+          audioText: replyStr,
+          detectedIntent: 'emergency_contact',
+          quickActions: [{ label: '📞 হটলাইনে কল করুন', action: 'call_hotline' }]
+        };
+      }
+    },
+    {
+      id: 'gynecology_info',
+      keywords: ['gynecology', 'gynae', 'গাইনি', 'নারী', 'স্ত্রী', 'গর্ভবতী', 'মা', 'প্রসূতি'],
+      action: () => {
+        const textStr = `মা ও নারী স্বাস্থ্য (গাইনিকোলজি): আমাদের আলমনগর সিএইচসি-তে অভিজ্ঞ নারী ও শিশু রোগ специалист নিয়মিত রোগী দেখেন। ডাঃ সারাহ রহমান (শিশু ও নারী স্বাস্থ্য বিশেষজ্ঞ) - সময়: সোম ও বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)। অনলাইনে সরাসরি সিরিয়াল বুক করুন।`;
+        return {
+          reply: `👩‍⚕️ মা ও নারী স্বাস্থ্য (গাইনিকোলজি):\n\nআমাদের আলমনগর সিএইচসি-তে অভিজ্ঞ নারী ও শিশু রোগ специалист নিয়মিত রোগী দেখেন।\n• ডাঃ সারাহ রহমান (শিশু ও নারী স্বাস্থ্য বিশেষজ্ঞ) - সময়: সোম ও বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)।\n\nঅনলাইনে সরাসরি সিরিয়াল বুক করুন।`,
+          audioText: textStr,
+          detectedIntent: 'gynecology_info',
+          quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
+        };
+      }
+    },
+    {
+      id: 'greeting',
+      keywords: ['hello', 'hi', 'হ্যালো', 'সালাম', 'আসসালামু', 'কেমন', 'আছো'],
+      action: () => {
+        const replyStr = `আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী। আমি আপনাকে কীভাবে সাহায্য করতে পারি? ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট, টিউটোরিয়াল ক্লাস বা দান করার তথ্য জানতে প্রশ্ন করুন।`;
+        return {
+          reply: `আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী।\n\nআমি আপনাকে কীভাবে সাহায্য করতে পারি? ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট, টিউটোরিয়াল ক্লাস বা দান করার তথ্য জানতে প্রশ্ন করুন।`,
+          audioText: replyStr,
+          detectedIntent: 'greeting',
+          quickActions: [
+            { label: '👨‍⚕️ ডাক্তার তালিকা', action: 'ask_doctors' },
+            { label: '📚 টিউশন পোর্টাল', action: 'goto_tuition_portal' },
+            { label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }
+          ]
+        };
+      }
+    }
+  ];
+
+  let bestIntent = null;
+  let maxScore = 0;
+
+  for (const intent of intents) {
+    let score = 0;
+    for (const kw of intent.keywords) {
+      if (cleanMsg.includes(kw.toLowerCase())) {
+        score += kw.length >= 4 ? 3 : 1;
+      }
+    }
+    if (score > maxScore) {
+      maxScore = score;
+      bestIntent = intent;
+    }
   }
 
-  // 2. Gynecology & Female Specialist Queries
-  if (cleanMsg.includes('gynecology') || cleanMsg.includes('gynae') || cleanMsg.includes('গাইনি') || cleanMsg.includes('নারী') || cleanMsg.includes('স্ত্রী')) {
-    const textStr = `মা ও নারী স্বাস্থ্য (গাইনিকোলজি): আমাদের আলমনগর সিএইচসি-তে অভিজ্ঞ নারী ও শিশু রোগ специалист নিয়মিত রোগী দেখেন। ডাঃ সারাহ রহমান (শিশু ও নারী স্বাস্থ্য বিশেষজ্ঞ) - সময়: সোম ও বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)। অনলাইনে সরাসরি সিরিয়াল বুক করুন।`;
-    return {
-      reply: `👩‍⚕️ মা ও নারী স্বাস্থ্য (গাইনিকোলজি):\n\nআমাদের আলমনগর সিএইচসি-তে অভিজ্ঞ নারী ও শিশু রোগ специалист নিয়মিত রোগী দেখেন।\n• ডাঃ সারাহ রহমান (শিশু ও নারী স্বাস্থ্য বিশেষজ্ঞ) - সময়: সোম ও বুধ (সকাল ০৯:০০ - দুপুর ০১:০০)।\n\nঅনলাইনে সরাসরি সিরিয়াল বুক করুন।`,
-      audioText: textStr,
-      detectedIntent: 'gynecology_info',
-      quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
-    };
-  }
-
-  // 3b. Online Services & Virtual Capabilities Intent
-  if (cleanMsg.includes('অনলাইন') || cleanMsg.includes('অনলাইনে') || cleanMsg.includes('ভিডিও') || cleanMsg.includes('সেবা') || cleanMsg.includes('সার্ভিস') || cleanMsg.includes('সুবিধা') || cleanMsg.includes('করো') || cleanMsg.includes('তোমরা') || cleanMsg.includes('কাজ') || cleanMsg.includes('ওয়েবসাইট')) {
-    const textStr = `আমাদের আলমনগর সিএইচসি অনলাইন পোর্টালে আপনি সরাসরি অভিজ্ঞ ডাক্তারদের সাথে লাইভ ভিডিও কনসাল্টেশন, অ্যাপয়েন্টমেন্ট বুকিং, ডিজিটাল প্রেসক্রিপশন, বিনামূল্যে ভার্চুয়াল শিক্ষা ক্লাস এবং সেবা তহবিলে অনলাইন ডোনেশন সম্পন্ন করতে পারবেন।`;
-    return {
-      reply: `🌐 আলমনগর সিএইচসি-এর অনলাইন সেবাসমূহ:\n\n১. 👨‍⚕️ লাইভ ভিডিও কনসাল্টেশন ও ডাক্তার অ্যাপয়েন্টমেন্ট বুকিং।\n২. 💊 ডিজিটাল প্রেসক্রিপশন ও রিপোর্ট দেখার পেশেন্ট পোর্টাল।\n৩. 📚 ১ম থেকে ১২ম শ্রেণির জন্য বিনামূল্যে অনলাইন লাইভ ক্লাসরুম।\n৪. 🤲 ইসলামী ব্যাংক ও bKash/Nagad বাংলা QR দিয়ে অনলাইন ডোনেশন।`,
-      audioText: textStr,
-      detectedIntent: 'online_services',
-      quickActions: [
-        { label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' },
-        { label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' }
-      ]
-    };
-  }
-
-  // 3. Tuition & Student Education Program Intent
-  if (cleanMsg.includes('ছাত্র') || cleanMsg.includes('পড়াও') || cleanMsg.includes('পড়ানো') || cleanMsg.includes('পড়াশোনা') || cleanMsg.includes('টিউশন') || cleanMsg.includes('ক্লাস') || cleanMsg.includes('শিক্ষক') || cleanMsg.includes('শিক্ষার্থী') || cleanMsg.includes('tuition') || cleanMsg.includes('study') || cleanMsg.includes('class') || cleanMsg.includes('student') || cleanMsg.includes('tutor') || cleanMsg.includes('education') || cleanMsg.includes('পড়ালেখা')) {
-    const textStr = `হ্যাঁ! আলমনগর সিএইচসি-তে বিনামূল্যে ও সামাজিক টিউশন সেবা প্রদান করা হয়। আমাদের শিক্ষা প্রোগ্রামের বৈশিষ্ট্যসমূহ: ১ম শ্রেণি থেকে ১২ম শ্রেণি পর্যন্ত ছাত্র-ছাত্রীদের পাঠদান করা হয়। সরাসরি ক্লাসরুমের পাশাপাশি অনলাইন লাইভ ভার্চুয়াল ভিডিও ক্লাসের ব্যবস্থা রয়েছে। গণিত, ইংরেজি, বিজ্ঞানসহ বিভিন্ন বিষয়ের জন্য দক্ষ টিউটর রয়েছেন। শিক্ষার্থী হিসেবে ভর্তি হতে বা টিউটর হিসেবে যোগ দিতে আমাদের টিউশন পোর্টালে যান।`;
-    return {
-      reply: `হ্যাঁ! আলমনগর সিএইচসি-তে বিনামূল্যে ও সামাজিক টিউশন সেবা প্রদান করা হয় 📚\n\nআমাদের শিক্ষা প্রোগ্রামের বৈশিষ্ট্যসমূহ:\n• ১ম শ্রেণি থেকে ১২ম শ্রেণি (SSC/HSC) পর্যন্ত ছাত্র-ছাত্রীদের পাঠদান করা হয়।\n• সরাসরি ক্লাসরুমের পাশাপাশি অনলাইন লাইভ ভার্চুয়াল ভিডিও ক্লাসের ব্যবস্থা রয়েছে।\n• গণিত, ইংরেজি, বিজ্ঞানসহ বিভিন্ন বিষয়ের জন্য দক্ষ টিউটর রয়েছেন।\n\nশিক্ষার্থী হিসেবে ভর্তি হতে বা টিউটর হিসেবে যোগ দিতে আমাদের টিউশন পোর্টালে যান।`,
-      audioText: textStr,
-      detectedIntent: 'tuition_program',
-      quickActions: [{ label: '📚 টিউশন পোর্টালে যান', action: 'goto_tuition_portal' }]
-    };
-  }
-
-  // 4. Doctor Schedule & List Intent
-  if (cleanMsg.includes('doctor') || cleanMsg.includes('ডাক্তার') || cleanMsg.includes('ডাঃ') || cleanMsg.includes('ডক্টর') || cleanMsg.includes('চিকিৎসক') || cleanMsg.includes('আখতার') || cleanMsg.includes('আক্তার') || cleanMsg.includes('বসে') || cleanMsg.includes('বসেন') || cleanMsg.includes('বসা') || cleanMsg.includes('সময়') || cleanMsg.includes('সময়সূচী') || cleanMsg.includes('visiting') || cleanMsg.includes('schedule') || cleanMsg.includes('তালিকা') || cleanMsg.includes('তিনজন') || cleanMsg.includes('3জন') || cleanMsg.includes('তিন জন')) {
-    const docNamesArr = docList.map(d => (d.name_bn || d.name_en || '')).filter(Boolean).join(', ');
-    const replyStr = `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`;
-    const spokenAudioStr = `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন বিশেষজ্ঞ চিকিৎসক সেবা দিচ্ছেন। তাঁরা হলেন ${docNamesArr}। আপনি ওয়েবসাইটে সরাসরি তাদের অ্যাপয়েন্টমেন্ট নিতে পারেন।`;
-    return {
-      reply: replyStr,
-      audioText: spokenAudioStr,
-      detectedIntent: 'doctors_list',
-      quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
-    };
-  }
-
-  // 5. Appointment Booking Intent
-  if (cleanMsg.includes('appointment') || cleanMsg.includes('book') || cleanMsg.includes('অ্যাপয়েন্টমেন্ট') || cleanMsg.includes('সিরিয়াল') || cleanMsg.includes('বুক')) {
-    const replyStr = `আলমনগর সিএইচসি-তে অ্যাপয়েন্টমেন্ট নেওয়া খুবই সহজ!\n\n১. নিচে 'অ্যাপয়েন্টমেন্ট বুক করুন' বোতামে ক্লিক করুন।\n২. আপনার নাম, মোবাইল নম্বর এবং কাঙ্ক্ষিত তারিখ নির্বাচন করুন।\n৩. কাঙ্ক্ষিত ডাক্তার নির্বাচন করে বুকিং সম্পন্ন করুন।\n\nসিরিয়াল নিশ্চিত হলে আপনার মোবাইলে কনফার্মেশন এসএমএস পাঠানো হবে।`;
-    return {
-      reply: replyStr,
-      audioText: replyStr.replace(/[\*\_`#]/g, ''),
-      detectedIntent: 'appointment_booking',
-      quickActions: [{ label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }]
-    };
-  }
-
-  // 6. Donation & Support Intent
-  if (cleanMsg.includes('donate') || cleanMsg.includes('donation') || cleanMsg.includes('দান') || cleanMsg.includes('ডোনেট') || cleanMsg.includes('ডোনেশন') || cleanMsg.includes('সাহায্য') || cleanMsg.includes('বিকাশ') || cleanMsg.includes('নগদ') || cleanMsg.includes('ব্যাংক') || cleanMsg.includes('bkash') || cleanMsg.includes('bank') || cleanMsg.includes('qr')) {
-    const textStr = `আলমনগর সিএইচসি সেবা তহবিলে আপনি ইসলামী ব্যাংক একাউন্ট নম্বর ${HOSPITAL_INFO.donation.account_no} অথবা বিকাশ, নগদ ও বাংলা QR কোড ব্যবহার করে সরাসরি দান পাঠাতে পারেন।`;
-    const replyStr = `🤲 আলমনগর সিএইচসি সেবা তহবিলে দান করার উপায়:\n\n১. 🏦 ইসলামী ব্যাংক একাউন্ট:\n   • একাউন্ট নাম: ${HOSPITAL_INFO.donation.account_title}\n   • একাউন্ট নম্বর: ${HOSPITAL_INFO.donation.account_no}\n\n২. 📱 বিকাশ / নগদ / বাংলা QR:\n   • বিকাশ, নগদ বা যেকোনো ব্যাংকিং অ্যাপ দিয়ে বাংলা QR কোড স্ক্যান করে বা Send Money করে দান পাঠাতে পারেন।\n\n৩. 📑 অর্থ পাঠানোর পর নিচে 'অনলাইন দান করুন' বাটনে TrxID জমা দিন।`;
-    return {
-      reply: replyStr,
-      audioText: textStr,
-      detectedIntent: 'donation',
-      quickActions: [{ label: '🤲 অনলাইন দান করুন', action: 'open_donation_modal' }]
-    };
-  }
-
-  // 7. Patient Portal & Prescriptions
-  if (cleanMsg.includes('prescription') || cleanMsg.includes('report') || cleanMsg.includes('প্রেসক্রিপশন') || cleanMsg.includes('রিপোর্ট') || cleanMsg.includes('লগইন') || cleanMsg.includes('portal')) {
-    const replyStr = `আপনার ডাক্তারের প্রেসক্রিপশন ও মেডিকেল রিপোর্ট দেখতে রোগীর পোর্টাল ব্যবহার করুন। আপনার রেজিস্টার্ড ফোন নম্বর দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`;
-    return {
-      reply: `আপনার ডাক্তারের প্রেসক্রিপশন ও মেডিকেল রিপোর্ট দেখতে রোগীর পোর্টাল (Patient Portal) ব্যবহার করুন।\n\nআপনার রেজিস্টার্ড ফোন নম্বর দিয়ে লগইন করে তাৎক্ষণিক ডিজিটাল প্রেসক্রিপশন প্রিন্ট বা ডাউনলোড করতে পারবেন।`,
-      audioText: replyStr,
-      detectedIntent: 'patient_portal',
-      quickActions: [{ label: '🔑 পেশেন্ট পোর্টালে যান', action: 'goto_patient_portal' }]
-    };
-  }
-
-  // 8. Emergency & Location Intent
-  if (cleanMsg.includes('emergency') || cleanMsg.includes('hotline') || cleanMsg.includes('location') || cleanMsg.includes('জরুরি') || cleanMsg.includes('ফোন') || cleanMsg.includes('ঠিকানা') || cleanMsg.includes('কোথায়')) {
-    const replyStr = `আলমনগর কমিউনিটি হেলথ কেয়ার। ঠিকানা: ${HOSPITAL_INFO.location}। জরুরি হটলাইন: ${HOSPITAL_INFO.emergency_hotline}। ইমেইল: ${HOSPITAL_INFO.email}। ২৪/৭ যেকোনো জরুরি প্রয়োজনে বা সহায়তায় সরাসরি আমাদের হটলাইনে ফোন দিন।`;
-    return {
-      reply: `🏥 আলমনগর কমিউনিটি হেলথ কেয়ার (CHC)\n\n📍 ঠিকানা: ${HOSPITAL_INFO.location}\n📞 জরুরি হটলাইন: ${HOSPITAL_INFO.emergency_hotline}\n📧 ইমেইল: ${HOSPITAL_INFO.email}\n\n২৪/৭ যেকোনো জরুরি প্রয়োজনে বা সহায়তায় সরাসরি আমাদের হটলাইনে ফোন দিন।`,
-      audioText: replyStr,
-      detectedIntent: 'emergency_contact',
-      quickActions: [{ label: '📞 হটলাইনে কল করুন', action: 'call_hotline' }]
-    };
-  }
-
-  // 9. Greetings Intent
-  if (cleanMsg.includes('hello') || cleanMsg.includes('hi') || cleanMsg.includes('হ্যালো') || cleanMsg.includes('সালাম') || cleanMsg.includes('আসসালামু')) {
-    const replyStr = `আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী। আমি আপনাকে কীভাবে সাহায্য করতে পারি? ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট, টিউটোরিয়াল ক্লাস বা দান করার তথ্য জানতে প্রশ্ন করুন।`;
-    return {
-      reply: `আসসালামু আলাইকুম! আমি আলমনগর সিএইচসি-এর ভার্চুয়াল এআই সহকারী।\n\nআমি আপনাকে কীভাবে সাহায্য করতে পারি? ডাক্তারদের সময়সূচী, অ্যাপয়েন্টমেন্ট, টিউটোরিয়াল ক্লাস বা দান করার তথ্য জানতে প্রশ্ন করুন।`,
-      audioText: replyStr,
-      detectedIntent: 'greeting',
-      quickActions: [
-        { label: '👨‍⚕️ ডাক্তার তালিকা', action: 'ask_doctors' },
-        { label: '📚 টিউশন পোর্টাল', action: 'goto_tuition_portal' },
-        { label: '📅 অ্যাপয়েন্টমেন্ট বুক করুন', action: 'open_appointment_modal' }
-      ]
-    };
+  if (bestIntent && maxScore > 0) {
+    return bestIntent.action();
   }
 
   // 10. General Fallback

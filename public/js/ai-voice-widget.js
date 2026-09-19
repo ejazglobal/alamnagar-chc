@@ -333,6 +333,38 @@
     .ai-send-btn:hover {
       background: #0f766e;
     }
+
+    /* Android & Mobile Responsive Layout */
+    @media (max-width: 576px) {
+      .ai-voice-float-btn {
+        bottom: 18px;
+        right: 18px;
+        padding: 10px 16px;
+        font-size: 0.85rem;
+      }
+      .ai-voice-modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+      }
+      .ai-voice-card {
+        max-height: 90vh;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+      }
+      .ai-voice-stage {
+        padding: 16px 12px;
+      }
+      .ai-mic-trigger {
+        width: 64px;
+        height: 64px;
+        font-size: 1.5rem;
+      }
+      .ai-voice-status {
+        font-size: 0.82rem;
+      }
+    }
   `;
   document.head.appendChild(style);
 
@@ -401,67 +433,123 @@
   `;
   document.body.appendChild(modalOverlay);
 
-  // Initialize SpeechRecognition API with continuous recording & tap-to-submit control
+  // Detect Mobile/Android Environment
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // Global unlocked HTML5 Audio element for bypassing mobile autoplay restrictions
+  let globalAudioPlayer = new Audio();
+
+  function unlockAudioOnUserGesture() {
+    try {
+      if (!globalAudioPlayer.src) {
+        globalAudioPlayer.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
+      }
+      const p = globalAudioPlayer.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          if (globalAudioPlayer.src.startsWith('data:audio/wav')) {
+            globalAudioPlayer.pause();
+          }
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    if ('speechSynthesis' in window && window.speechSynthesis.paused) {
+      try { window.speechSynthesis.resume(); } catch (e) {}
+    }
+  }
+
+  // Initialize SpeechRecognition API with mobile-compatible continuous flag & tap-to-submit control
   let speechSilenceTimer = null;
   let finalTranscript = '';
   let recognitionActive = false;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRecognition) {
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = currentLang;
 
-    recognition.onstart = function () {
-      isListening = true;
-      recognitionActive = true;
-      finalTranscript = '';
-      updateVoiceUiState('listening', 'কথা বলুন... বলা শেষ হলে অপেক্ষা করুন বা বাটনে চাপ দিন 🎙️');
-    };
+  function initSpeechRecognition() {
+    if (!SpeechRecognition) return null;
+    try {
+      const rec = new SpeechRecognition();
+      // On mobile devices (Android Chrome), continuous = true causes silent aborts/crashes.
+      rec.continuous = !isMobile;
+      rec.interimResults = true;
+      rec.lang = currentLang;
 
-    recognition.onresult = function (event) {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + ' ';
-        } else {
-          interim += event.results[i][0].transcript;
+      rec.onstart = function () {
+        isListening = true;
+        recognitionActive = true;
+        finalTranscript = '';
+        updateVoiceUiState('listening', 'কথা বলুন... বলা শেষ হলে অপেক্ষা করুন বা বাটনে চাপ দিন 🎙️');
+      };
+
+      rec.onresult = function (event) {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + ' ';
+          } else {
+            interim += event.results[i][0].transcript;
+          }
         }
-      }
 
-      const spokenSoFar = (finalTranscript + ' ' + interim).trim();
-      if (spokenSoFar) {
-        updateVoiceUiState('listening', `🎙️ "${spokenSoFar}"`);
-      }
-
-      // Reset silence timer: Wait 3.5 seconds after complete silence before auto-submitting
-      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-      speechSilenceTimer = setTimeout(() => {
-        if (isListening && recognitionActive) {
-          stopAndSendSpeech();
+        const spokenSoFar = (finalTranscript + ' ' + interim).trim();
+        if (spokenSoFar) {
+          updateVoiceUiState('listening', `🎙️ "${spokenSoFar}"`);
         }
-      }, 3500);
-    };
 
-    recognition.onerror = function (event) {
-      console.warn('Speech recognition error:', event.error);
-      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        isListening = false;
+        // Reset silence timer: Wait 3 seconds after silence before submitting
+        if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+        speechSilenceTimer = setTimeout(() => {
+          if (isListening || recognitionActive) {
+            stopAndSendSpeech();
+          }
+        }, 3000);
+      };
+
+      rec.onerror = function (event) {
+        console.warn('Speech recognition error:', event.error);
+        if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed' || event.error === 'audio-capture') {
+          isListening = false;
+          recognitionActive = false;
+          updateVoiceUiState('idle', 'মাইক্রোফোন ব্যবহারের অনুমতি প্রয়োজন। সেটিংসে অনুমতি দিন।');
+          alert('মাইক্রোফোন অ্যাক্সেস করার অনুমতি দেওয়া হয়নি। অনুগ্রহ করে ব্রাউজার/অ্যাপ সেটিংসে গিয়ে মাইক্রোফোন পারমিশন অন করুন।');
+          return;
+        }
+
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          isListening = false;
+          recognitionActive = false;
+          updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
+        }
+      };
+
+      rec.onend = function () {
         recognitionActive = false;
-        updateVoiceUiState('idle', 'শুনতে পাওয়া যায়নি। আবার চেষ্টা করুন।');
-      }
-    };
+        if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
 
-    recognition.onend = function () {
-      isListening = false;
-      recognitionActive = false;
-      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
-      if (!isSpeaking) {
-        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-      }
-    };
+        // On mobile, if single-shot mode finished with transcript, send automatically
+        if (isMobile && isListening && finalTranscript.trim()) {
+          stopAndSendSpeech();
+          return;
+        }
+
+        if (!recognitionActive && !isSpeaking) {
+          isListening = false;
+          updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+        }
+      };
+
+      return rec;
+    } catch (e) {
+      console.warn('SpeechRecognition init error:', e);
+      return null;
+    }
+  }
+
+  if (SpeechRecognition) {
+    recognition = initSpeechRecognition();
   }
 
   function stopAndSendSpeech() {
@@ -496,7 +584,10 @@
   }
 
   // Toggle Voice Modal
-  floatBtn.addEventListener('click', openAiVoiceModal);
+  floatBtn.addEventListener('click', function () {
+    unlockAudioOnUserGesture();
+    openAiVoiceModal();
+  });
   document.getElementById('ai-close-modal').addEventListener('click', closeAiVoiceModal);
 
   function openAiVoiceModal() {
@@ -514,21 +605,53 @@
 
   // Toggle Mic Listener (Tap to Start, Tap again to Send Immediately!)
   const micBtn = document.getElementById('ai-mic-button');
-  micBtn.addEventListener('click', function () {
-    if (!SpeechRecognition) {
-      alert('আপনার ব্রাউজার সরাসরি ভয়েস রিকগনিশন সমর্থন করে না।');
-      return;
-    }
+  micBtn.addEventListener('click', async function () {
+    unlockAudioOnUserGesture();
 
     if (isListening || recognitionActive) {
       stopAndSendSpeech();
-    } else {
-      stopSpeech();
+      return;
+    }
+
+    // Explicitly prompt Android / Mobile permission request via getUserMedia first
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        updateVoiceUiState('listening', 'মাইক্রোফোন সংযোগ করা হচ্ছে...');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.warn('Mic permission error:', err);
+        updateVoiceUiState('idle', 'মাইক্রোফোন পারমিশন দিন');
+        alert('মাইক্রোফোন ব্যবহারের অনুমতি প্রয়োজন। অনুগ্রহ করে ডিভাইসের মাইক্রোফোন পারমিশন চালু করুন।');
+        return;
+      }
+    }
+
+    if (!SpeechRecognition) {
+      updateVoiceUiState('idle', 'ডিভাইসে সরাসরি ভয়েস ডিক্টেশন সমর্থিত নয়। নিচে টাইপ বা ভয়েস টাইপিং ব্যবহার করুন।');
+      const textInput = document.getElementById('ai-text-input');
+      if (textInput) {
+        textInput.focus();
+        textInput.placeholder = 'কিবোর্ডের ভয়েস কী বা টাইপ করে লিখুন...';
+      }
+      return;
+    }
+
+    stopSpeech();
+    if (!recognition) {
+      recognition = initSpeechRecognition();
+    }
+
+    if (recognition) {
       recognition.lang = currentLang;
       try {
         recognition.start();
       } catch (e) {
-        console.warn('Mic start error:', e);
+        console.warn('Mic start error, re-initializing:', e);
+        recognition = initSpeechRecognition();
+        if (recognition) {
+          try { recognition.start(); } catch (err) {}
+        }
       }
     }
   });
@@ -690,7 +813,12 @@
     isSpeaking = true;
     updateVoiceUiState('speaking', 'এআই কথা বলছে... 🔊');
 
-    currentAudioObj = new Audio(audioUrl);
+    if (currentAudioObj && currentAudioObj !== globalAudioPlayer) {
+      try { currentAudioObj.pause(); } catch(e) {}
+    }
+
+    currentAudioObj = globalAudioPlayer || new Audio();
+    currentAudioObj.src = audioUrl;
 
     currentAudioObj.onplay = function () {
       isSpeaking = true;
@@ -708,14 +836,18 @@
       updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
     };
 
-    currentAudioObj.play().catch(err => {
-      console.warn("Server Audio play failed:", err);
-      stopSpeech();
-      updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
-    });
+    const p = currentAudioObj.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(err => {
+        console.warn("Server Audio play failed:", err);
+        stopSpeech();
+        updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
+      });
+    }
   }
 
   window.speakAiMessage = function (btn, text) {
+    unlockAudioOnUserGesture();
     speakText(text, btn);
   };
 
@@ -830,6 +962,7 @@
 
   // Global Helpers for Trigger Buttons
   window.sendAiTextQuery = function () {
+    unlockAudioOnUserGesture();
     const input = document.getElementById('ai-text-input');
     if (!input || !input.value.trim()) return;
     const text = input.value.trim();
@@ -839,6 +972,7 @@
   };
 
   window.sendAiQuickQuery = function (queryText) {
+    unlockAudioOnUserGesture();
     appendMessage('user', queryText);
     sendQueryToBackend(queryText);
   };
