@@ -462,6 +462,7 @@
   // Initialize SpeechRecognition API with mobile-compatible continuous flag & tap-to-submit control
   let speechSilenceTimer = null;
   let finalTranscript = '';
+  let lastSpokenText = '';
   let recognitionActive = false;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -470,8 +471,8 @@
     if (!SpeechRecognition) return null;
     try {
       const rec = new SpeechRecognition();
-      // On mobile devices (Android Chrome), continuous = true causes silent aborts/crashes.
-      rec.continuous = !isMobile;
+      // Enable continuous listening across devices, handling mobile auto-ends gracefully
+      rec.continuous = true;
       rec.interimResults = true;
       rec.lang = currentLang;
 
@@ -479,6 +480,7 @@
         isListening = true;
         recognitionActive = true;
         finalTranscript = '';
+        lastSpokenText = '';
         updateVoiceUiState('listening', 'কথা বলুন... বলা শেষ হলে অপেক্ষা করুন বা বাটনে চাপ দিন 🎙️');
       };
 
@@ -494,27 +496,39 @@
 
         const spokenSoFar = (finalTranscript + ' ' + interim).trim();
         if (spokenSoFar) {
+          lastSpokenText = spokenSoFar;
           updateVoiceUiState('listening', `🎙️ "${spokenSoFar}"`);
         }
 
-        // Reset silence timer: Wait 3 seconds after silence before submitting
+        // Reset silence timer: Wait 2.5 seconds after silence before submitting
         if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
         speechSilenceTimer = setTimeout(() => {
           if (isListening || recognitionActive) {
             stopAndSendSpeech();
           }
-        }, 3000);
+        }, 2500);
       };
 
       rec.onerror = function (event) {
         console.warn('Speech recognition error:', event.error);
         if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
 
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed' || event.error === 'audio-capture') {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           isListening = false;
           recognitionActive = false;
-          updateVoiceUiState('idle', 'মাইক্রোফোন ব্যবহারের অনুমতি প্রয়োজন। সেটিংসে অনুমতি দিন।');
-          alert('মাইক্রোফোন অ্যাক্সেস করার অনুমতি দেওয়া হয়নি। অনুগ্রহ করে ব্রাউজার/অ্যাপ সেটিংসে গিয়ে মাইক্রোফোন পারমিশন অন করুন।');
+          updateVoiceUiState('idle', 'মাইক্রোফোন পারমিশন দিন বা কিবোর্ড ভয়েস ব্যবহার করুন।');
+          const textInput = document.getElementById('ai-text-input');
+          if (textInput) {
+            textInput.focus();
+            textInput.placeholder = 'কিবোর্ডের ভয়েস কী 🎙️ দিয়ে বলুন বা লিখুন...';
+          }
+          return;
+        }
+
+        if (event.error === 'audio-capture') {
+          isListening = false;
+          recognitionActive = false;
+          updateVoiceUiState('idle', 'মাইক্রোফোন ব্যস্ত। আবার চাপ দিয়ে চেষ্টা করুন।');
           return;
         }
 
@@ -529,13 +543,13 @@
         recognitionActive = false;
         if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
 
-        // On mobile, if single-shot mode finished with transcript, send automatically
-        if (isMobile && isListening && finalTranscript.trim()) {
+        // If mobile auto-ended but user had spoken text, send it now
+        if (isListening && lastSpokenText.trim()) {
           stopAndSendSpeech();
           return;
         }
 
-        if (!recognitionActive && !isSpeaking) {
+        if (isListening && !isSpeaking) {
           isListening = false;
           updateVoiceUiState('idle', 'কথা বলতে মাইক্রোফোনে চাপ দিন');
         }
@@ -560,7 +574,7 @@
     }
     isListening = false;
 
-    let queryText = (finalTranscript || '').trim();
+    let queryText = (finalTranscript || lastSpokenText || '').trim();
     if (!queryText) {
       const statusEl = document.getElementById('ai-voice-status');
       if (statusEl && statusEl.textContent.includes('"')) {
@@ -576,6 +590,8 @@
         .replace(/ডক্টর/g, 'ডাক্তার')
         .trim();
 
+      lastSpokenText = '';
+      finalTranscript = '';
       appendMessage('user', cleanedText);
       sendQueryToBackend(cleanedText);
     } else {
@@ -613,26 +629,33 @@
       return;
     }
 
-    // Explicitly prompt Android / Mobile permission request via getUserMedia first
+    // Handle Mic permissions with hardware release delay for Android Chrome
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         updateVoiceUiState('listening', 'মাইক্রোফোন সংযোগ করা হচ্ছে...');
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Close audio track and allow 200ms for Android Audio HAL to release line
         stream.getTracks().forEach(track => track.stop());
+        await new Promise(res => setTimeout(res, 200));
       } catch (err) {
         console.warn('Mic permission error:', err);
         updateVoiceUiState('idle', 'মাইক্রোফোন পারমিশন দিন');
-        alert('মাইক্রোফোন ব্যবহারের অনুমতি প্রয়োজন। অনুগ্রহ করে ডিভাইসের মাইক্রোফোন পারমিশন চালু করুন।');
+        alert('মাইক্রোফোন ব্যবহারের অনুমতি প্রয়োজন। ব্রাউজার বা ডিভাইসে মাইক্রোফোন অ্যাক্সেস অ্যালাউ (Allow) করুন।');
+        const textInput = document.getElementById('ai-text-input');
+        if (textInput) {
+          textInput.focus();
+          textInput.placeholder = 'কিবোর্ডের ভয়েস কী 🎙️ দিয়ে বলুন...';
+        }
         return;
       }
     }
 
     if (!SpeechRecognition) {
-      updateVoiceUiState('idle', 'ডিভাইসে সরাসরি ভয়েস ডিক্টেশন সমর্থিত নয়। নিচে টাইপ বা ভয়েস টাইপিং ব্যবহার করুন।');
+      updateVoiceUiState('idle', 'নিচের বক্সে কিবোর্ডের ভয়েস (🎙️) কী ব্যবহার করুন।');
       const textInput = document.getElementById('ai-text-input');
       if (textInput) {
         textInput.focus();
-        textInput.placeholder = 'কিবোর্ডের ভয়েস কী বা টাইপ করে লিখুন...';
+        textInput.placeholder = 'কিবোর্ডের ভয়েস কী (🎙️) চাপুন বা লিখুন...';
       }
       return;
     }
@@ -647,11 +670,13 @@
       try {
         recognition.start();
       } catch (e) {
-        console.warn('Mic start error, re-initializing:', e);
-        recognition = initSpeechRecognition();
-        if (recognition) {
-          try { recognition.start(); } catch (err) {}
-        }
+        console.warn('Mic start error, re-initializing after delay:', e);
+        setTimeout(() => {
+          recognition = initSpeechRecognition();
+          if (recognition) {
+            try { recognition.start(); } catch (err) {}
+          }
+        }, 300);
       }
     }
   });
