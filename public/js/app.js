@@ -433,6 +433,40 @@ function renderNews() {
   });
 }
 
+// Helper to derive visiting numeric days (0=Sun..6=Sat) from visiting_days and text
+function getDoctorVisitingDays(doc) {
+  if (!doc) return [1, 2, 3, 4, 5];
+  
+  const daysSet = new Set();
+  
+  // 1. Check visiting_days string column
+  if (doc.visiting_days) {
+    String(doc.visiting_days).split(',').forEach(s => {
+      const num = parseInt(s.trim(), 10);
+      if (!isNaN(num) && num >= 0 && num <= 6) {
+        daysSet.add(num);
+      }
+    });
+  }
+
+  // 2. Scan text in visiting_hours_en and visiting_hours_bn
+  const text = `${doc.visiting_hours_en || ''} ${doc.visiting_hours_bn || ''}`.toLowerCase();
+  
+  if (text.includes('sun') || text.includes('রবি')) daysSet.add(0);
+  if (text.includes('mon') || text.includes('সোম')) daysSet.add(1);
+  if (text.includes('tue') || text.includes('মঙ্গল')) daysSet.add(2);
+  if (text.includes('wed') || text.includes('বুধ')) daysSet.add(3);
+  if (text.includes('thu') || text.includes('বৃহস্পতি')) daysSet.add(4);
+  if (text.includes('fri') || text.includes('শুক্র')) daysSet.add(5);
+  if (text.includes('sat') || text.includes('শনি')) daysSet.add(6);
+
+  if (daysSet.size > 0) {
+    return Array.from(daysSet);
+  }
+
+  return [1, 2, 3, 4, 5];
+}
+
 // Render Interactive Calendar (taking doctor visiting days into account)
 function renderCalendar() {
   calendarGrid.innerHTML = '';
@@ -469,8 +503,8 @@ function renderCalendar() {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
-  // Allowed doctor visiting days array
-  const allowedDays = selectedDoctor.visiting_days ? selectedDoctor.visiting_days.split(',').map(Number) : [1,2,3,4,5];
+  // Allowed doctor visiting days array (dual-parsed from column and hours text)
+  const allowedDays = getDoctorVisitingDays(selectedDoctor);
 
   // Render month days
   for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
@@ -526,32 +560,38 @@ function selectDate(dateStr) {
 
 // Helper to extract time range in minutes from a string like "09:00 AM - 01:00 PM"
 function getDoctorTimeRange(hoursStr) {
-  if (!hoursStr) return null;
-  // Convert any Bengali digits to English digits
-  const cleanStr = String(hoursStr).replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+  if (!hoursStr) return { start: 9 * 60, end: 17 * 60 };
 
-  // 1. Try matching 12-hour AM/PM format (e.g. 06:00 PM - 09:00 PM or 6:00PM-9:00PM or 06:00 PM to 09:00 PM)
-  const regex12 = /(\d{1,2}):(\d{2})\s*(AM|PM)\s*(?:-|–|—|to)\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i;
+  const bengaliDigits = ['০','১','২','৩','৪','৫','৬','৭','৮','৯'];
+  let cleanStr = String(hoursStr);
+  bengaliDigits.forEach((bDigit, idx) => {
+    cleanStr = cleanStr.replaceAll(bDigit, String(idx));
+  });
+
+  cleanStr = cleanStr.replace(/সকাল|দুপুর|বিকেল|সন্ধ্যা|রাত/gi, ' ');
+
+  // 1. Match 12-hour AM/PM format (e.g. 06:00 PM - 09:00 PM or 03:00 PM - 07:00 PM or 3:00 PM to 7:00 PM)
+  const regex12 = /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*(?:-|–|—|to)\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i;
   const match12 = cleanStr.match(regex12);
   if (match12) {
     let startHour = parseInt(match12[1], 10);
-    const startMin = parseInt(match12[2], 10);
+    const startMin = match12[2] ? parseInt(match12[2], 10) : 0;
     const startAmPm = match12[3].toUpperCase();
-    
+
     let endHour = parseInt(match12[4], 10);
-    const endMin = parseInt(match12[5], 10);
+    const endMin = match12[5] ? parseInt(match12[5], 10) : 0;
     const endAmPm = match12[6].toUpperCase();
-    
+
     if (startAmPm === 'PM' && startHour < 12) startHour += 12;
     if (startAmPm === 'AM' && startHour === 12) startHour = 0;
-    
+
     if (endAmPm === 'PM' && endHour < 12) endHour += 12;
     if (endAmPm === 'AM' && endHour === 12) endHour = 0;
-    
+
     return { start: startHour * 60 + startMin, end: endHour * 60 + endMin };
   }
 
-  // 2. Try matching 24-hour format (e.g. 18:00 - 21:00 or 18:00 to 21:00)
+  // 2. Match 24-hour format (e.g. 18:00 - 21:00 or 09:00 - 17:00)
   const regex24 = /(\d{1,2}):(\d{2})\s*(?:-|–|—|to)\s*(\d{1,2}):(\d{2})/i;
   const match24 = cleanStr.match(regex24);
   if (match24) {
@@ -562,7 +602,7 @@ function getDoctorTimeRange(hoursStr) {
     return { start: startHour * 60 + startMin, end: endHour * 60 + endMin };
   }
 
-  return null;
+  return { start: 9 * 60, end: 17 * 60 };
 }
 
 // Render Time Slots (marking already booked slots for this doctor as disabled)
@@ -679,10 +719,21 @@ function handleDoctorChange(e) {
   selectedDateStr = null;
   selectedSlotTime = null;
   if (calendarWrapper) calendarWrapper.style.display = 'block';
-  slotsContainer.style.display = 'none';
-  bookingForm.style.display = 'none';
-  
+
   renderCalendar();
+
+  // Auto-select first available date for this doctor
+  const allowedDays = getDoctorVisitingDays(selectedDoctor);
+  let checkDate = new Date();
+  for (let i = 0; i < 30; i++) {
+    const dateStr = checkDate.toISOString().split('T')[0];
+    const dayOfWeek = checkDate.getDay();
+    if (allowedDays.includes(dayOfWeek)) {
+      selectDate(dateStr);
+      break;
+    }
+    checkDate.setDate(checkDate.getDate() + 1);
+  }
 }
 
 function renderSelectedDoctorProfile() {
