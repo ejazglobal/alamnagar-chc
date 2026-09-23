@@ -234,6 +234,14 @@ function initLocalStorageFallback() {
   if (!localStorage.getItem('chc_news')) {
     const mockNews = [
       {
+        id: 4,
+        title: "🩺 চর্ম ও যৌনরোগ বিশেষজ্ঞ ডাঃ মোঃ আনোয়ার সাদাত রিপন এখন প্রতি বৃহস্পতিবার বসছেন আলমনগর CHC-তে",
+        content: "আলমনগর এবং আশেপাশের সর্বসাধারণের অবগতির জন্য অত্যন্ত আনন্দের সাথে জানানো যাচ্ছে যে, দেশের সুপরিচিত চর্ম, যৌন, অ্যালার্জি ও কুষ্ঠরোগ বিশেষজ্ঞ এবং ডার্মাটোসার্জন ডাঃ মোঃ আনোয়ার সাদাত রিপন মানবসেবার উদ্দেশ্যে আমাদের আলমনগর চ্যারিটেবল হেলথকেয়ার সেন্টারে (Alamnagar CHC) কনসালটেন্সি প্রদান করতে সদয় সম্মতি জ্ঞাপন করেছেন।\n\nআগামী সপ্তাহ থেকে প্রতি বৃহস্পতিবার সন্ধ্যা ৬:০০ টা থেকে রাত ৯:০০ টা পর্যন্ত তিনি আমাদের সেন্টারে রোগীদের নিয়মিত চিকিৎসা সেবা প্রদান করবেন।\n\n👨‍⚕️ চিকিৎসকের পরিচিতি ও শিক্ষাগত যোগ্যতা:\n• ডাঃ মোঃ আনোয়ার সাদাত রিপন\n• এমবিবিএস (রংপুর মেডিকেল কলেজ)\n• ডিডিভি - কোর্স (চর্ম ও যৌনরোগ)\n• সিসিডি (বারডেম), ডিএমইউ (ঢাকা)\n• চর্ম, যৌন, অ্যালার্জি ও কুষ্ঠরোগ অভিজ্ঞ এবং ডার্মাটোসার্জন\n• বিএমডিসি রেজি নং: এ-৯০৪১৩\n\n🗓️ চেম্বার সূচী:\n• দিন: প্রতি বৃহস্পতিবার\n• সময়: সন্ধ্যা ৬:০০ টা থেকে রাত ৯:০০ টা\n• স্থান: আলমনগর চ্যারিটেবল হেলথকেয়ার সেন্টার (Alamnagar CHC)\n\nআপনার অ্যাপয়েন্টমেন্ট আগে থেকেই বুক করতে এবং সিরিয়াল নিশ্চিত করতে অনুগ্রহ করে আমাদের অফিসিয়াল বুকিং পোর্টাল ব্যবহার করুন অথবা সরাসরি যোগাযোগ করুন।",
+        image_url: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80",
+        category: "News",
+        date_posted: new Date().toISOString()
+      },
+      {
         id: 1,
         title: "Free Medical Health Camp Next Saturday",
         content: "Alamnagar Charitable Healthcare Centre is organizing a free health check-up camp next Saturday. General physicians, pediatricians, and cardiologists will be available for consultations from 9:00 AM to 3:00 PM. Free medicine distribution is also arranged.",
@@ -248,14 +256,6 @@ function initLocalStorageFallback() {
         image_url: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=600&q=80",
         category: "News",
         date_posted: new Date(Date.now() - 172800000).toISOString()
-      },
-      {
-        id: 3,
-        title: "COVID-19 Booster Dose Guidelines",
-        content: "We are offering booster doses of COVID-19 vaccines for senior citizens and high-risk patients. Walk-ins are welcome from 10:00 AM to 2:00 PM on weekdays. Please bring your previous vaccination records.",
-        image_url: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80",
-        category: "Alert",
-        date_posted: new Date(Date.now() - 259200000).toISOString()
       }
     ];
     localStorage.setItem('chc_news', JSON.stringify(mockNews));

@@ -719,6 +719,49 @@ async function initializeDatabase() {
       console.log("Inserted initial news items.");
     }
 
+    // Proactively insert/update Dr. Ripon's announcement news notice
+    try {
+      const newsCheck = await pool.query(
+        "SELECT id FROM news WHERE title ILIKE '%আনোয়ার সাদাত রিপন%' OR title ILIKE '%Ripon%' LIMIT 1"
+      );
+      const riponNewsTitle = "🩺 চর্ম ও যৌনরোগ বিশেষজ্ঞ ডাঃ মোঃ আনোয়ার সাদাত রিপন এখন প্রতি বৃহস্পতিবার বসছেন আলমনগর CHC-তে";
+      const riponNewsContent = `আলমনগর এবং আশেপাশের সর্বসাধারণের অবগতির জন্য অত্যন্ত আনন্দের সাথে জানানো যাচ্ছে যে, দেশের সুপরিচিত চর্ম, যৌন, অ্যালার্জি ও কুষ্ঠরোগ বিশেষজ্ঞ এবং ডার্মাটোসার্জন ডাঃ মোঃ আনোয়ার সাদাত রিপন মানবসেবার উদ্দেশ্যে আমাদের আলমনগর চ্যারিটেবল হেলথকেয়ার সেন্টারে (Alamnagar CHC) কনসালটেন্সি প্রদান করতে সদয় সম্মতি জ্ঞাপন করেছেন।
+
+আগামী সপ্তাহ থেকে প্রতি বৃহস্পতিবার সন্ধ্যা ৬:০০ টা থেকে রাত ৯:০০ টা পর্যন্ত তিনি আমাদের সেন্টারে রোগীদের নিয়মিত চিকিৎসা সেবা প্রদান করবেন।
+
+👨‍⚕️ চিকিৎসকের পরিচিতি ও শিক্ষাগত যোগ্যতা:
+• ডাঃ মোঃ আনোয়ার সাদাত রিপন
+• এমবিবিএস (রংপুর মেডিকেল কলেজ)
+• ডিডিভি - কোর্স (চর্ম ও যৌনরোগ)
+• সিসিডি (বারডেম), ডিএমইউ (ঢাকা)
+• চর্ম, যৌন, অ্যালার্জি ও কুষ্ঠরোগ অভিজ্ঞ এবং ডার্মাটোসার্জন
+• বিএমডিসি রেজি নং: এ-৯০৪১৩
+
+🗓️ চেম্বার সূচী:
+• দিন: প্রতি বৃহস্পতিবার
+• সময়: সন্ধ্যা ৬:০০ টা থেকে রাত ৯:০০ টা
+• স্থান: আলমনগর চ্যারিটেবল হেলথকেয়ার সেন্টার (Alamnagar CHC)
+
+আপনার অ্যাপয়েন্টমেন্ট আগে থেকেই বুক করতে এবং সিরিয়াল নিশ্চিত করতে অনুগ্রহ করে আমাদের অফিসিয়াল বুকিং পোর্টাল ব্যবহার করুন অথবা সরাসরি যোগাযোগ করুন।`;
+
+      const riponNewsImg = "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80";
+
+      if (newsCheck.rows.length === 0) {
+        await pool.query(
+          "INSERT INTO news (title, content, image_url, category) VALUES ($1, $2, $3, $4)",
+          [riponNewsTitle, riponNewsContent, riponNewsImg, "News"]
+        );
+        console.log("Successfully published Dr. Ripon announcement news notice.");
+      } else {
+        await pool.query(
+          "UPDATE news SET title = $1, content = $2, image_url = $3, category = 'News' WHERE id = $4",
+          [riponNewsTitle, riponNewsContent, riponNewsImg, newsCheck.rows[0].id]
+        );
+      }
+    } catch (newsErr) {
+      console.warn("Could not insert Dr. Ripon news notice:", newsErr.message);
+    }
+
     // --- SEED GALLERY ---
     // Disabled seeding default gallery items as requested by user.
   } catch (err) {
