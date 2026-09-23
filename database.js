@@ -661,9 +661,6 @@ async function initializeDatabase() {
       console.log("Seeded default users (admin, staff, patient, and doctor users).");
     }
 
-      console.log("Seeded default users (admin, staff, patient, and doctor users).");
-    }
-
     // --- SEED STAFF PERMISSIONS ---
     // Link staff user (email staff@alamnagar-chc.org) to have 'all' permissions by default
     const staffUserRes = await pool.query("SELECT id FROM users WHERE username = 'staff'");
