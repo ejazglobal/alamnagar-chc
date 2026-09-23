@@ -57,6 +57,14 @@ const DEFAULT_DOCTORS = [
     specialty_en: "General Physician",
     visiting_hours_bn: "সোম থেকে শুক্র (সকাল ০৯:০০ - বিকেল ০৪:০০)",
     visiting_hours_en: "Mon to Fri (09:00 AM - 04:00 PM)"
+  },
+  {
+    name_bn: "ডা. মো. আনোয়ার সাদাত রিপন",
+    name_en: "Dr. Md. Anwar Sadat Ripon",
+    specialty_bn: "চর্ম, যৌন, এলার্জি ও কুষ্ঠরোগ অভিজ্ঞ ও ডার্মাটোসার্জন (Skin & Dermatosurgeon)",
+    specialty_en: "Skin, Sex, Allergy & Leprosy Specialist & Dermatosurgeon",
+    visiting_hours_bn: "বৃহস্পতি (সন্ধ্যা ০৬:০০ - রাত ০৯:০০)",
+    visiting_hours_en: "Thu (06:00 PM - 09:00 PM)"
   }
 ];
 
@@ -164,7 +172,7 @@ async function processFallbackQuery(userMsg, doctorsList) {
   const intents = [
     {
       id: 'doctors_list',
-      keywords: ['doctor', 'ডাক্তার', 'ডাঃ', 'ডক্টর', 'চিকিৎসক', 'আখতার', 'আক্তার', 'বসে', 'বসেন', 'বসা', 'সময়', 'সময়সূচী', 'visiting', 'schedule', 'তালিকা', 'তিনজন', '3জন', 'তিন জন', 'কারা', 'কে কে', 'ফিজিশিয়ান'],
+      keywords: ['doctor', 'ডাক্তার', 'ডাঃ', 'ডক্টর', 'চিকিৎসক', 'আখতার', 'আক্তার', 'বসে', 'বসেন', 'বসা', 'সময়', 'সময়সূচী', 'visiting', 'schedule', 'তালিকা', 'তিনজন', '3জন', 'তিন জন', 'চারজন', '4জন', 'চার জন', 'কারা', 'কে কে', 'ফিজিশিয়ান', 'চর্ম', 'যৌন', 'এলার্জি', 'ত্বক', 'রিপন', 'আনোয়ার', 'ডার্মাটোলজি', 'dermato', 'skin'],
       action: () => {
         const docNamesArr = docList.map(d => (d.name_bn || d.name_en || '')).filter(Boolean).join(', ');
         const replyStr = `আলমনগর সিএইচসি-তে বর্তমানে ${docList.length} জন সম্মানিত চিকিৎসক স্বাস্থ্যসেবা প্রদান করছেন:\n\n${docInfoBn}\n\nআপনি ওয়েবসাইটের মাধ্যমে যেকোনো সময় সরাসরি তাদের অনলাইন অ্যাপয়েন্টমেন্ট বুক করতে পারেন।`;

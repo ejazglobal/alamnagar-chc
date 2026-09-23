@@ -471,6 +471,72 @@ async function initializeDatabase() {
       console.warn("Could not clean up user phone prefixes:", fixPhonesErr.message);
     }
 
+    // Proactively upsert Dr. Md. Anwar Sadat Ripon into doctors and users tables
+    try {
+      const riponDocCheck = await pool.query("SELECT id FROM doctors WHERE name_en ILIKE '%Ripon%' OR name_bn ILIKE '%রিপন%' LIMIT 1");
+      let riponDocId;
+      if (riponDocCheck.rows.length === 0) {
+        const insertDocRes = await pool.query(
+          `INSERT INTO doctors (name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days, is_active) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true) RETURNING id`,
+          [
+            "Dr. Md. Anwar Sadat Ripon",
+            "ডা. মো. আনোয়ার সাদাত রিপন",
+            "Skin, Sex, Allergy & Leprosy Specialist & Dermatosurgeon",
+            "চর্ম, যৌন, এলার্জি ও কুষ্ঠরোগ অভিজ্ঞ ও ডার্মাটোসার্জন",
+            "MBBS (Rangpur Medical College), DDV - Course (Dermatology & Venereology), CCD (BIRDEM), DMU (Dhaka). BMDC Reg: A-90413.",
+            "এমবিবিএস (রংপুর মেডিকেল কলেজ), ডিডিভি - কোর্স (চর্ম ও যৌনরোগ), সিসিডি (বারডেম), ডিএমইউ (ঢাকা)। বিএমডিসি রেজি: এ-৯০৪১৩।",
+            "Thu (06:00 PM - 09:00 PM)",
+            "বৃহস্পতি (সন্ধ্যা ০৬:০০ - রাত ০৯:০০)",
+            "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80",
+            "4"
+          ]
+        );
+        riponDocId = insertDocRes.rows[0].id;
+        console.log(`Successfully inserted Dr. Md. Anwar Sadat Ripon (Doctor ID: ${riponDocId}).`);
+      } else {
+        riponDocId = riponDocCheck.rows[0].id;
+        await pool.query(
+          `UPDATE doctors SET 
+             name_en = $1, name_bn = $2, specialty_en = $3, specialty_bn = $4, 
+             info_en = $5, info_bn = $6, visiting_hours_en = $7, visiting_hours_bn = $8, 
+             visiting_days = $9, is_active = true 
+           WHERE id = $10`,
+          [
+            "Dr. Md. Anwar Sadat Ripon",
+            "ডা. মো. আনোয়ার সাদাত রিপন",
+            "Skin, Sex, Allergy & Leprosy Specialist & Dermatosurgeon",
+            "চর্ম, যৌন, এলার্জি ও কুষ্ঠরোগ অভিজ্ঞ ও ডার্মাটোসার্জন",
+            "MBBS (Rangpur Medical College), DDV - Course (Dermatology & Venereology), CCD (BIRDEM), DMU (Dhaka). BMDC Reg: A-90413.",
+            "এমবিবিএস (রংপুর মেডিকেল কলেজ), ডিডিভি - কোর্স (চর্ম ও যৌনরোগ), সিসিডি (বারডেম), ডিএমইউ (ঢাকা)। বিএমডিসি রেজি: এ-৯০৪১৩।",
+            "Thu (06:00 PM - 09:00 PM)",
+            "বৃহস্পতি (সন্ধ্যা ০৬:০০ - রাত ০৯:০০)",
+            "4",
+            riponDocId
+          ]
+        );
+        console.log(`Successfully verified/updated Dr. Md. Anwar Sadat Ripon record (Doctor ID: ${riponDocId}).`);
+      }
+
+      // Ensure user account exists for Dr. Ripon
+      const riponUserCheck = await pool.query("SELECT id FROM users WHERE username = 'ripon' OR email = 'ripon.sadat177d@gmail.com' OR phone = '01773507898' LIMIT 1");
+      if (riponUserCheck.rows.length === 0) {
+        const docSalt = generateSalt();
+        await pool.query(
+          `INSERT INTO users (username, email, phone, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, 'Doctor', $6)`,
+          ["ripon", "ripon.sadat177d@gmail.com", "01773507898", hashPassword("doctorpass", docSalt), docSalt, riponDocId]
+        );
+        console.log(`Successfully created Doctor user account 'ripon' linked to doctor_id ${riponDocId}.`);
+      } else {
+        await pool.query(
+          `UPDATE users SET role = 'Doctor', doctor_id = $1, phone = '01773507898', email = 'ripon.sadat177d@gmail.com' WHERE id = $2`,
+          [riponDocId, riponUserCheck.rows[0].id]
+        );
+      }
+    } catch (riponErr) {
+      console.warn("Could not proactively upsert Dr. Ripon:", riponErr.message);
+    }
+
     // --- SEED DOCTORS ---
     const docCountRes = await pool.query("SELECT COUNT(*)::integer as count FROM doctors");
     const docCount = parseInt(docCountRes.rows[0].count, 10);
@@ -525,6 +591,23 @@ async function initializeDatabase() {
           "1,2,3,4,5"
         ]
       );
+
+      await pool.query(
+        `INSERT INTO doctors (id, name_en, name_bn, specialty_en, specialty_bn, info_en, info_bn, visiting_hours_en, visiting_hours_bn, image_url, visiting_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          4,
+          "Dr. Md. Anwar Sadat Ripon",
+          "ডা. মো. আনোয়ার সাদাত রিপন",
+          "Skin, Sex, Allergy & Leprosy Specialist & Dermatosurgeon",
+          "চর্ম, যৌন, এলার্জি ও কুষ্ঠরোগ অভিজ্ঞ ও ডার্মাটোসার্জন",
+          "MBBS (Rangpur Medical College), DDV - Course (Dermatology & Venereology), CCD (BIRDEM), DMU (Dhaka). BMDC Reg: A-90413.",
+          "এমবিবিএস (রংপুর মেডিকেল কলেজ), ডিডিভি - কোর্স (চর্ম ও যৌনরোগ), সিসিডি (বারডেম), ডিএমইউ (ঢাকা)। বিএমডিসি রেজি: এ-৯০৪১৩।",
+          "Thu (06:00 PM - 09:00 PM)",
+          "বৃহস্পতি (সন্ধ্যা ০৬:০০ - রাত ০৯:০০)",
+          "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80",
+          "4"
+        ]
+      );
       // Reset serial sequence for doctors id
       await pool.query("SELECT setval('doctors_id_seq', (SELECT MAX(id) FROM doctors))");
       console.log("Seeded default doctors.");
@@ -541,6 +624,7 @@ async function initializeDatabase() {
       const azamSalt = generateSalt();
       const doc2Salt = generateSalt();
       const rahatSalt = generateSalt();
+      const riponSalt = generateSalt();
 
       // Standard seeded users
       await pool.query(
@@ -569,6 +653,13 @@ async function initializeDatabase() {
         "INSERT INTO users (username, email, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, $6)",
         ["rahat", "rahat@alamnagar-chc.org", hashPassword("doctorpass", rahatSalt), rahatSalt, "Doctor", 3]
       );
+      await pool.query(
+        "INSERT INTO users (username, email, phone, password_hash, salt, role, doctor_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        ["ripon", "ripon.sadat177d@gmail.com", "01773507898", hashPassword("doctorpass", riponSalt), riponSalt, "Doctor", 4]
+      );
+
+      console.log("Seeded default users (admin, staff, patient, and doctor users).");
+    }
 
       console.log("Seeded default users (admin, staff, patient, and doctor users).");
     }

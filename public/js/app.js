@@ -331,6 +331,19 @@ function initLocalStorageFallback() {
         visiting_hours_bn: "সোম, মঙ্গল, বুধ, বৃহস্পতি, শুক্র (সকাল ০৯:০০ - বিকেল ০৪:০০)",
         image_url: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=600&q=80",
         visiting_days: "1,2,3,4,5"
+      },
+      {
+        id: 4,
+        name_en: "Dr. Md. Anwar Sadat Ripon",
+        name_bn: "ডা. মো. আনোয়ার সাদাত রিপন",
+        specialty_en: "Skin, Sex, Allergy & Leprosy Specialist & Dermatosurgeon",
+        specialty_bn: "চর্ম, যৌন, এলার্জি ও কুষ্ঠরোগ অভিজ্ঞ ও ডার্মাটোসার্জন",
+        info_en: "MBBS (Rangpur Medical College), DDV - Course (Dermatology & Venereology), CCD (BIRDEM), DMU (Dhaka). BMDC Reg: A-90413.",
+        info_bn: "এমবিবিএস (রংপুর মেডিকেল কলেজ), ডিডিভি - কোর্স (চর্ম ও যৌনরোগ), সিসিডি (বারডেম), ডিএমইউ (ঢাকা)। বিএমডিসি রেজি: এ-৯০৪১৩।",
+        visiting_hours_en: "Thu (06:00 PM - 09:00 PM)",
+        visiting_hours_bn: "বৃহস্পতি (সন্ধ্যা ০৬:০০ - রাত ০৯:০০)",
+        image_url: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80",
+        visiting_days: "4"
       }
     ];
     localStorage.setItem('chc_doctors', JSON.stringify(mockDoctors));
