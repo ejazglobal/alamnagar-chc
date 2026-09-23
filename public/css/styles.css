@@ -263,10 +263,11 @@ header {
 }
 
 .news-image {
-  height: 160px;
-  background-size: cover;
+  height: 180px;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
-  background-color: var(--border-color);
+  background-color: #3880c9;
   position: relative;
 }
 
@@ -897,9 +898,11 @@ footer {
 
 .modal-news-img {
   width: 100%;
-  height: 250px;
-  background-size: cover;
+  height: 280px;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
+  background-color: #3880c9;
   border-radius: 8px;
   margin-bottom: 1.25rem;
 }
@@ -1020,11 +1023,11 @@ footer {
 }
 
 .doctor-avatar {
-  width: 60px;
-  height: 60px;
+  width: 65px;
+  height: 65px;
   border-radius: 50%;
   background-size: cover;
-  background-position: center;
+  background-position: top center;
   border: 2px solid var(--primary-color);
   flex-shrink: 0;
 }
