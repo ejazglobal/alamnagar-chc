@@ -326,9 +326,13 @@ async function initializeDatabase() {
               END IF;
             END $$;
           `);
-          console.log(`Row Level Security (RLS) & permissive policy verified on table: ${table}`);
+          // Grant Data API permissions explicitly for Supabase compliance (Oct 30 update)
+          await pool.query(`GRANT SELECT ON "${table}" TO anon;`);
+          await pool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON "${table}" TO authenticated;`);
+          await pool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON "${table}" TO service_role;`);
+          console.log(`Row Level Security (RLS), policy & Grants verified on table: ${table}`);
         } catch (rlsErr) {
-          console.warn(`Could not set RLS policy on table ${table}: ${rlsErr.message}`);
+          console.warn(`Could not set RLS/Grants policy on table ${table}: ${rlsErr.message}`);
         }
       }
     } catch (tblErr) {
@@ -488,7 +492,7 @@ async function initializeDatabase() {
             "এমবিবিএস (রংপুর মেডিকেল কলেজ), ডিডিভি - কোর্স (চর্ম ও যৌনরোগ), সিসিডি (বারডেম), ডিএমইউ (ঢাকা)। বিএমডিসি রেজি: এ-৯০৪১৩।",
             "Thu (06:00 PM - 09:00 PM)",
             "বৃহস্পতি (সন্ধ্যা ০৬:০০ - রাত ০৯:০০)",
-            "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80",
+            "/images/Anwar-sadat.jpg",
             "4"
           ]
         );
@@ -500,8 +504,8 @@ async function initializeDatabase() {
           `UPDATE doctors SET 
              name_en = $1, name_bn = $2, specialty_en = $3, specialty_bn = $4, 
              info_en = $5, info_bn = $6, visiting_hours_en = $7, visiting_hours_bn = $8, 
-             visiting_days = $9, is_active = true 
-           WHERE id = $10`,
+             visiting_days = $9, image_url = $10, is_active = true 
+           WHERE id = $11`,
           [
             "Dr. Md. Anwar Sadat Ripon",
             "ডা. মো. আনোয়ার সাদাত রিপন",
@@ -512,6 +516,7 @@ async function initializeDatabase() {
             "Thu (06:00 PM - 09:00 PM)",
             "বৃহস্পতি (সন্ধ্যা ০৬:০০ - রাত ০৯:০০)",
             "4",
+            "/images/Anwar-sadat.jpg",
             riponDocId
           ]
         );
@@ -604,7 +609,7 @@ async function initializeDatabase() {
           "এমবিবিএস (রংপুর মেডিকেল কলেজ), ডিডিভি - কোর্স (চর্ম ও যৌনরোগ), সিসিডি (বারডেম), ডিএমইউ (ঢাকা)। বিএমডিসি রেজি: এ-৯০৪১৩।",
           "Thu (06:00 PM - 09:00 PM)",
           "বৃহস্পতি (সন্ধ্যা ০৬:০০ - রাত ০৯:০০)",
-          "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80",
+          "/images/Anwar-sadat.jpg",
           "4"
         ]
       );
@@ -744,7 +749,7 @@ async function initializeDatabase() {
 
 আপনার অ্যাপয়েন্টমেন্ট আগে থেকেই বুক করতে এবং সিরিয়াল নিশ্চিত করতে অনুগ্রহ করে আমাদের অফিসিয়াল বুকিং পোর্টাল ব্যবহার করুন অথবা সরাসরি যোগাযোগ করুন।`;
 
-      const riponNewsImg = "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=600&q=80";
+      const riponNewsImg = "/images/Anwar-sadat.jpg";
 
       if (newsCheck.rows.length === 0) {
         await pool.query(
