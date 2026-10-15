@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -115,7 +115,7 @@
     <!-- Step 1: Request OTP -->
     <div id="step-1" class="step active">
       <div id="portal-welcome-msg" style="background: #f0fdfa; border: 1px solid var(--primary-light); border-radius: 6px; padding: 0.75rem; font-size: 0.85rem; color: var(--primary-color); margin-bottom: 1.5rem; text-align: center;">
-        ðŸ‘‹ Welcome! Verify your mobile number or email address to access your prescriptions and upload investigation reports.
+        👋 Welcome! Verify your mobile number or email address to access your prescriptions and upload investigation reports.
       </div>
       
       <div class="form-group">
@@ -135,7 +135,7 @@
       <div class="form-group" id="portal-email-group" style="display: none;">
         <label class="form-label" for="patient-email">Email Address *</label>
         <input type="email" id="patient-email" class="form-control" placeholder="e.g. name@example.com">
-        <span style="font-size: 0.75rem; color: var(--primary-color); display: block; margin-top: 0.25rem; font-weight: 500;">ðŸŒ International & Local: Instant 6-digit verification code will be sent to this email.</span>
+        <span style="font-size: 0.75rem; color: var(--primary-color); display: block; margin-top: 0.25rem; font-weight: 500;">🌐 International & Local: Instant 6-digit verification code will be sent to this email.</span>
       </div>
 
       <button type="button" class="btn" id="btn-request-otp" onclick="requestOTP()">Request OTP Code</button>
@@ -507,7 +507,7 @@
           container.innerHTML = reports.map(r => {
             const isPdf = r.file_url && /\.pdf$/i.test(r.file_url);
             const isImage = r.file_url && /\.(png|jpg|jpeg|gif|webp)$/i.test(r.file_url);
-            const viewLabel = isPdf ? 'ðŸ“„ View PDF' : isImage ? 'ðŸ–¼ View Image' : 'ðŸ‘ View Document';
+            const viewLabel = isPdf ? '📄 View PDF' : isImage ? '🖼️ View Image' : '👁️ View Document';
             return `
             <div class="report-card" style="margin-bottom: 0.75rem;">
               <div>
@@ -613,10 +613,10 @@
     <div class="modal-content" style="background: #0f172a; border-radius: 10px; width: 95%; height: 90%; max-width: 1200px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-lg);">
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; background: #1e293b; border-bottom: 1px solid #334155;">
         <h3 style="margin: 0; color: #2dd4bf; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
-          <span>ðŸŽ¥ Video Consultation Room</span>
+          <span>🎥 Video Consultation Room</span>
         </h3>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <a id="patient-video-ext-btn" href="#" target="_blank" style="background: #0d9488; color: white; text-decoration: none; font-size: 0.85rem; font-weight: 600; border-radius: 6px; padding: 0.3rem 0.7rem;">ðŸŒ Open Fullscreen</a>
+          <a id="patient-video-ext-btn" href="#" target="_blank" style="background: #0d9488; color: white; text-decoration: none; font-size: 0.85rem; font-weight: 600; border-radius: 6px; padding: 0.3rem 0.7rem;">🌐 Open Fullscreen</a>
           <button style="background: #334155; border: none; font-size: 1rem; cursor: pointer; color: white; border-radius: 6px; padding: 0.3rem 0.7rem;" onclick="closePatientVideoModal()">&times; Close</button>
         </div>
       </div>

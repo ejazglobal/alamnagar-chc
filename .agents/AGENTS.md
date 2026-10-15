@@ -19,3 +19,8 @@
 ## 4. Single-Line DigitalOcean Server Deployment Commands
 - Always combine server pull and restart commands into a single executable line for easy terminal history navigation:
   `git pull origin main && pm2 restart all`
+
+## 5. Local Windows Commands: Use CMD, NOT PowerShell
+- PowerShell is faulty on the user's PC (git fails with "Access is denied"). Always give local commands for **Command Prompt (cmd.exe)**, chained with `&&`, e.g.:
+  `git add . && git commit -m "message" && git push origin main`
+- When running commands yourself, wrap them as `cmd /c "..."`.
