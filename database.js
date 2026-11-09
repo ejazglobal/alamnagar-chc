@@ -767,6 +767,43 @@ async function initializeDatabase() {
       console.warn("Could not insert Dr. Ripon news notice:", newsErr.message);
     }
 
+    // Proactively insert/update the free English class notice (SSC & HSC)
+    try {
+      const engCheck = await pool.query(
+        "SELECT id FROM news WHERE title ILIKE '%ইংরেজি ক্লাস%' LIMIT 1"
+      );
+      const engNewsTitle = "📚 এসএসসি ও এইচএসসি শিক্ষার্থীদের জন্য বিনামূল্যে ইংরেজি ক্লাস — প্রতি শুক্র ও শনিবার সকাল ১০টা";
+      const engNewsContent = `আলমনগর এবং আশেপাশের সর্বসাধারণের অবগতির জন্য জানানো যাচ্ছে যে, সাম্প্রতিক এইচএসসি পরীক্ষায় ইংরেজি বিষয়ে ফলাফল আশানুরূপ না হওয়ায় আলমনগর চ্যারিটেবল হেলথকেয়ার সেন্টার (Alamnagar CHC) এসএসসি ও এইচএসসি শিক্ষার্থীদের জন্য বিশেষ ইংরেজি ক্লাস চালু করছে।
+
+এই ক্লাস সম্পূর্ণ দাতব্য ও বিনামূল্যে — অনসাইট (সেন্টারে সরাসরি) এবং অনলাইন, দুই মাধ্যমেই। কোনো ফি নেওয়া হবে না।
+
+🗓️ ক্লাস সূচী:
+• দিন: প্রতি শুক্রবার ও শনিবার
+• সময়: সকাল ১০:০০ টা
+• শুরু: ১৩ নভেম্বর ২০২৬ (শুক্রবার) থেকে
+• মাধ্যম: অনসাইট ও অনলাইন
+• খরচ: সম্পূর্ণ বিনামূল্যে
+• স্থান: আলমনগর চ্যারিটেবল হেলথকেয়ার সেন্টার (Alamnagar CHC)
+
+ভর্তি ও বিস্তারিত জানতে সেন্টারে যোগাযোগ করুন অথবা আমাদের টিউশন পোর্টাল দেখুন: https://ashiana.online/tuition.html`;
+      const engNewsImg = "/images/english-class.jpg";
+
+      if (engCheck.rows.length === 0) {
+        await pool.query(
+          "INSERT INTO news (title, content, image_url, category) VALUES ($1, $2, $3, $4)",
+          [engNewsTitle, engNewsContent, engNewsImg, "News"]
+        );
+        console.log("Successfully published English class news notice.");
+      } else {
+        await pool.query(
+          "UPDATE news SET title = $1, content = $2, image_url = $3, category = 'News' WHERE id = $4",
+          [engNewsTitle, engNewsContent, engNewsImg, engCheck.rows[0].id]
+        );
+      }
+    } catch (engErr) {
+      console.warn("Could not insert English class news notice:", engErr.message);
+    }
+
     // --- SEED GALLERY ---
     // Disabled seeding default gallery items as requested by user.
   } catch (err) {
