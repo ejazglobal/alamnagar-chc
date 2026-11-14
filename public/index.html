@@ -7,7 +7,7 @@
   <title data-i18n="title">Alamnagar Charitable Healthcare Centre - Booking Portal</title>
   <meta name="description" content="Book appointments, read health alerts and event updates at Alamnagar Charitable Healthcare Centre.">
   <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=20261114">
 </head>
 <body>
 
@@ -292,7 +292,9 @@
   <!-- Lightbox Modal -->
   <div id="lightbox-modal" class="lightbox-overlay" onclick="closeLightbox()">
     <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
-    <img class="lightbox-img" id="lightbox-img" src="" alt="Zoomed image">
+    <button type="button" class="lightbox-nav lightbox-prev" onclick="lightboxStep(event, -1)" aria-label="Previous photo">&#10094;</button>
+    <img class="lightbox-img" id="lightbox-img" src="" alt="Zoomed image" onclick="event.stopPropagation()">
+    <button type="button" class="lightbox-nav lightbox-next" onclick="lightboxStep(event, 1)" aria-label="Next photo">&#10095;</button>
     <div class="lightbox-caption" id="lightbox-caption"></div>
   </div>
 
@@ -443,7 +445,7 @@
     </div>
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20261114"></script>
   <script src="js/ai-voice-widget.js"></script>
 </body>
 </html>

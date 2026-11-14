@@ -770,13 +770,13 @@ function renderGallery() {
     return;
   }
   
-  galleryItems.forEach(item => {
+  galleryItems.forEach((item, idx) => {
     const card = document.createElement('div');
     card.className = 'gallery-card';
     const title = currentLanguage === 'bn' ? item.title_bn : item.title_en;
     
     card.innerHTML = `
-      <div class="gallery-img" onclick="openLightbox('${escapeHTML(item.image_url)}', '${escapeHTML(title)}')" style="overflow: hidden; cursor: pointer;">
+      <div class="gallery-img" onclick="openGalleryAt(${idx})" style="overflow: hidden; cursor: pointer;">
         <img src="${escapeHTML(item.image_url)}" alt="${escapeHTML(title)}" style="width: 100%; height: 100%; object-fit: cover; transition: var(--transition-smooth);" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
       </div>
       <div class="gallery-title">${escapeHTML(title)}</div>
@@ -822,22 +822,76 @@ window.closeNewsModal = function(e) {
 };
 
 // Lightbox Zoom handlers
-window.openLightbox = function(url, title) {
+// lightboxIndex = position in galleryItems while browsing the gallery; -1 = a single picture (e.g. the QR poster).
+let lightboxIndex = -1;
+
+function showLightbox(url, title, index) {
   const lightbox = document.getElementById('lightbox-modal');
   const img = document.getElementById('lightbox-img');
   const caption = document.getElementById('lightbox-caption');
-  
-  if (lightbox && img && caption) {
-    img.src = url;
-    caption.textContent = title || '';
-    lightbox.style.display = 'flex';
+  if (!(lightbox && img && caption)) return;
+  lightboxIndex = index;
+  img.src = url;
+  const inGallery = index >= 0 && galleryItems.length > 1;
+  caption.textContent = (title || '') + (inGallery ? `  ·  ${index + 1} / ${galleryItems.length}` : '');
+  lightbox.classList.toggle('lightbox-gallery', inGallery);
+  lightbox.style.display = 'flex';
+  // load the neighbours in the background so Next / Previous feel instant
+  if (inGallery) {
+    [1, -1].forEach(d => {
+      const n = galleryItems[(index + d + galleryItems.length) % galleryItems.length];
+      if (n && n.image_url) { const pre = new Image(); pre.src = n.image_url; }
+    });
   }
+}
+
+window.openLightbox = function(url, title) {
+  showLightbox(url, title, -1);
+};
+
+window.openGalleryAt = function(index) {
+  const item = galleryItems[index];
+  if (!item) return;
+  const title = currentLanguage === 'bn' ? item.title_bn : item.title_en;
+  showLightbox(item.image_url, title, index);
+};
+
+window.lightboxStep = function(e, step) {
+  if (e) e.stopPropagation();
+  if (lightboxIndex < 0 || galleryItems.length < 2) return;
+  openGalleryAt((lightboxIndex + step + galleryItems.length) % galleryItems.length);
 };
 
 window.closeLightbox = function() {
   const lightbox = document.getElementById('lightbox-modal');
   if (lightbox) lightbox.style.display = 'none';
+  lightboxIndex = -1;
 };
+
+// Keyboard: ← → to browse, Esc to close
+document.addEventListener('keydown', (e) => {
+  const lightbox = document.getElementById('lightbox-modal');
+  if (!lightbox || lightbox.style.display !== 'flex') return;
+  if (e.key === 'ArrowRight') lightboxStep(e, 1);
+  else if (e.key === 'ArrowLeft') lightboxStep(e, -1);
+  else if (e.key === 'Escape') closeLightbox();
+});
+
+// Phones: swipe left / right on the picture
+(function () {
+  let x0 = null, y0 = null;
+  document.addEventListener('touchstart', (e) => {
+    const lightbox = document.getElementById('lightbox-modal');
+    if (!lightbox || lightbox.style.display !== 'flex' || lightboxIndex < 0) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = y0 = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) lightboxStep(null, dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
 
 // Setup Event listeners
 function setupEventListeners() {
