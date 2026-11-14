@@ -847,7 +847,9 @@ async function initializeDatabase() {
       }
 
       // Gallery: every other photo of the day (newest is shown first, so this list is inserted in reverse display order).
-      const wddPhotos = ["13", "11", "8", "10", "4", "3", "9", "2", "6", "5", "7", "12"];
+      const wddPhotos = ["13", "11", "8", "10", "3", "9", "2", "6", "5", "7", "12"];
+      // 4.jpeg removed from the gallery on request (14-11-2026)
+      await pool.query("DELETE FROM gallery WHERE image_url = $1", ["/images/diabetes-day-2026/4.jpeg"]);
       for (const n of wddPhotos) {
         const url = `/images/diabetes-day-2026/${n}.jpeg`;
         const g = await pool.query("SELECT id FROM gallery WHERE image_url = $1 LIMIT 1", [url]);
