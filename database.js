@@ -810,6 +810,56 @@ async function initializeDatabase() {
       console.warn("Could not insert English class news notice:", engErr.message);
     }
 
+    // World Diabetes Day 2026 news (14-11-2026) + its photos in the gallery. Inserted once; re-runs only refresh the text.
+    try {
+      const wddCheck = await pool.query(
+        "SELECT id FROM news WHERE title ILIKE '%বিশ্ব ডায়াবেটিস দিবস ২০২৬%' LIMIT 1"
+      );
+      const wddTitle = "🩺 বিশ্ব ডায়াবেটিস দিবস ২০২৬ পালিত — সকালের সেশনেই ৫২ জনের বিনামূল্যে গ্লুকোজ পরীক্ষা ও ব্যবস্থাপত্র";
+      const wddContent = `আলহামদুলিল্লাহ। “ডায়াবেটিসে আগেভাগে পদক্ষেপ নিন” — এই প্রতিপাদ্য সামনে রেখে ১৪ নভেম্বর ২০২৬, শনিবার আলমনগর চ্যারিটেবল হেলথকেয়ার সেন্টার (Alamnagar CHC) যথাযোগ্য গুরুত্বের সঙ্গে বিশ্ব ডায়াবেটিস দিবস পালন করেছে।
+
+দিবসটি উপলক্ষে দুটি সেশনে বিনামূল্যে ডায়াবেটিস পরীক্ষা ও পরামর্শ কার্যক্রমের আয়োজন করা হয়। সকালের সেশনেই ৫২ জন সেবাগ্রহীতার রক্তের গ্লুকোজ পরীক্ষা করে চিকিৎসকের ব্যবস্থাপত্র দেওয়া হয়। সেবা প্রদান করেন ডাঃ মোঃ আশিক রাব্বানী।
+
+🩸 দিনের কার্যক্রম:
+• বিনামূল্যে রক্তের গ্লুকোজ ও রক্তচাপ পরীক্ষা
+• চিকিৎসকের পরামর্শ ও ব্যবস্থাপত্র
+• সচেতনতামূলক লিফলেট বিতরণ
+• স্থানীয় তরুণ স্বেচ্ছাসেবক ও শিশু শিক্ষার্থীদের অংশগ্রহণে সচেতনতামূলক ব্যানার প্রদর্শন
+
+💡 মনে রাখুন: ঘন ঘন প্রস্রাব, অতিরিক্ত পিপাসা, ওজন কমে যাওয়া বা ক্লান্তির মতো লক্ষণ দেখা দিলে দেরি না করে রক্ত পরীক্ষা করান। ৩৫ বছরের পর নিয়মিত পরীক্ষা করান। ফজরে উঠে হাঁটা, পরিমিত খাবার আর এশার পর তাড়াতাড়ি ঘুম — এই অভ্যাসগুলো ডায়াবেটিস প্রতিরোধ ও নিয়ন্ত্রণে সহায়ক।
+
+এই আয়োজন সফল করতে যাঁরা সহযোগিতা করেছেন — চিকিৎসক, স্বেচ্ছাসেবক, আলম নগর মসজিদ উন্নয়ন কমিটি এবং অংশগ্রহণকারী সবাইকে আন্তরিক ধন্যবাদ। জাযাকুমুল্লাহু খাইরান।
+
+📞 যোগাযোগ: ০১৭৮৩-৯২৭৪৮০`;
+      const wddImg = "/images/diabetes-day-2026/1.jpeg";
+
+      if (wddCheck.rows.length === 0) {
+        await pool.query(
+          "INSERT INTO news (title, content, image_url, category) VALUES ($1, $2, $3, $4)",
+          [wddTitle, wddContent, wddImg, "News"]
+        );
+        console.log("Successfully published World Diabetes Day 2026 news.");
+      } else {
+        await pool.query(
+          "UPDATE news SET title = $1, content = $2, image_url = $3, category = 'News' WHERE id = $4",
+          [wddTitle, wddContent, wddImg, wddCheck.rows[0].id]
+        );
+      }
+
+      // Gallery: every other photo of the day (newest is shown first, so this list is inserted in reverse display order).
+      const wddPhotos = ["13", "11", "8", "10", "4", "3", "9", "2", "6", "5", "7", "12"];
+      for (const n of wddPhotos) {
+        const url = `/images/diabetes-day-2026/${n}.jpeg`;
+        const g = await pool.query("SELECT id FROM gallery WHERE image_url = $1 LIMIT 1", [url]);
+        if (g.rows.length === 0) {
+          await pool.query("INSERT INTO gallery (title_en, title_bn, image_url) VALUES ($1, $2, $3)",
+            ["World Diabetes Day 2026", "বিশ্ব ডায়াবেটিস দিবস ২০২৬", url]);
+        }
+      }
+    } catch (wddErr) {
+      console.warn("Could not insert World Diabetes Day 2026 news:", wddErr.message);
+    }
+
     // --- SEED GALLERY ---
     // Disabled seeding default gallery items as requested by user.
   } catch (err) {
